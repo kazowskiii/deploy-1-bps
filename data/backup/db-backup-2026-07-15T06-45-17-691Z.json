@@ -1,0 +1,216 @@
+{
+  "teams": [
+    {
+      "id": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+      "name": "Tim Statistik Sosial"
+    },
+    {
+      "id": "c709ec81-d0f3-41ac-8db6-4ed7dc512245",
+      "name": "Tim Statistik Produksi"
+    },
+    {
+      "id": "2bc8906f-d6bd-428e-90fb-a7d585749090",
+      "name": "Tim Statistik Distribusi"
+    },
+    {
+      "id": "89845fc9-8c92-42dd-a45d-062b11fc0562",
+      "name": "Tim Neraca & Analisis Statistik"
+    },
+    {
+      "id": "19bd8eec-c489-485a-b6c9-052803743526",
+      "name": "Tim IPDS (Integrasi Pengolahan & Diseminasi Statistik)"
+    },
+    {
+      "id": "f3f5f908-a263-4ca0-8be8-691e4b34fb31",
+      "name": "Tim Tata Usaha"
+    }
+  ],
+  "iku": [],
+  "fra": [],
+  "kegiatan": [],
+  "tugas": [],
+  "auditLogs": [
+    {
+      "id": "ad4efc69-55c6-4ac6-9d4a-9002cf6bf854",
+      "timestamp": "2026-07-15T04:39:11.918Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "delete",
+      "collection": "fra",
+      "itemId": "3ed878b4-09a1-42e4-a69c-de3c9b589ec4",
+      "details": {
+        "deleted": {
+          "id": "3ed878b4-09a1-42e4-a69c-de3c9b589ec4",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "222",
+          "uraian": "data",
+          "persentase": 100,
+          "tahun": 2026,
+          "catatan": "anambas"
+        }
+      }
+    },
+    {
+      "id": "65d9ae6a-6c4e-41ad-b281-def8fd6f28e9",
+      "timestamp": "2026-07-15T04:39:02.003Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "create",
+      "collection": "fra",
+      "itemId": "3ed878b4-09a1-42e4-a69c-de3c9b589ec4",
+      "details": {
+        "item": {
+          "id": "3ed878b4-09a1-42e4-a69c-de3c9b589ec4",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "222",
+          "uraian": "data",
+          "persentase": 100,
+          "tahun": 2026,
+          "catatan": "anambas"
+        }
+      }
+    },
+    {
+      "id": "ff195f09-8585-4c48-bab6-c5b0fb35affa",
+      "timestamp": "2026-07-15T04:38:18.847Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "delete",
+      "collection": "fra",
+      "itemId": "0e1e8848-5f02-4309-89bb-c81aa849810a",
+      "details": {
+        "deleted": {
+          "id": "0e1e8848-5f02-4309-89bb-c81aa849810a",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "333",
+          "uraian": "data",
+          "persentase": 47,
+          "tahun": 2026,
+          "catatan": "anambas"
+        }
+      }
+    },
+    {
+      "id": "1a1a1fe8-0d39-4c55-aa8a-b67a916a30da",
+      "timestamp": "2026-07-15T04:38:05.071Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "delete",
+      "collection": "iku",
+      "itemId": "7bef46f7-9543-4509-b3ec-6a10e9f71e27",
+      "details": {
+        "deleted": {
+          "id": "7bef46f7-9543-4509-b3ec-6a10e9f71e27",
+          "kode": "1",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "nama": "publikasi",
+          "target": 20,
+          "capaian": 10,
+          "satuan": "%",
+          "tahun": 2026
+        }
+      }
+    },
+    {
+      "id": "2464ad8b-c642-44c8-847c-3e1299e15705",
+      "timestamp": "2026-07-15T04:37:31.329Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "create",
+      "collection": "iku",
+      "itemId": "7bef46f7-9543-4509-b3ec-6a10e9f71e27",
+      "details": {
+        "item": {
+          "id": "7bef46f7-9543-4509-b3ec-6a10e9f71e27",
+          "kode": "1",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "nama": "publikasi",
+          "target": 20,
+          "capaian": 10,
+          "satuan": "%",
+          "tahun": 2026
+        }
+      }
+    },
+    {
+      "id": "d053b863-f798-4fba-9638-652630a3c38d",
+      "timestamp": "2026-07-15T04:36:54.008Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "create",
+      "collection": "fra",
+      "itemId": "0e1e8848-5f02-4309-89bb-c81aa849810a",
+      "details": {
+        "item": {
+          "id": "0e1e8848-5f02-4309-89bb-c81aa849810a",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "333",
+          "uraian": "data",
+          "persentase": 47,
+          "tahun": 2026,
+          "catatan": "anambas"
+        }
+      }
+    },
+    {
+      "id": "13c98ca5-f7ea-48d4-9b5a-d7172e20abcb",
+      "timestamp": "2026-07-15T04:33:15.760Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "delete",
+      "collection": "fra",
+      "itemId": "b439b511-87df-4540-aa51-6b290a2e9f05",
+      "details": {
+        "deleted": {
+          "id": "b439b511-87df-4540-aa51-6b290a2e9f05",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "111",
+          "uraian": "data",
+          "persentase": 40,
+          "tahun": 2026,
+          "catatan": "anambas",
+          "hasEvidence": true,
+          "evidenceFileName": "F09948825F16D071!sb8f33508cc1a42e286f5f1a01ca3f050",
+          "evidenceOriginalName": "sertifikatalquran23351023334.pdf",
+          "evidenceSize": 571233
+        }
+      }
+    },
+    {
+      "id": "9de4bddf-5926-48c7-8e01-36f447fa9dfa",
+      "timestamp": "2026-07-15T04:32:47.511Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "create",
+      "collection": "fra",
+      "itemId": "b439b511-87df-4540-aa51-6b290a2e9f05",
+      "details": {
+        "item": {
+          "id": "b439b511-87df-4540-aa51-6b290a2e9f05",
+          "timId": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+          "periode": "111",
+          "uraian": "data",
+          "persentase": 40,
+          "tahun": 2026,
+          "catatan": "anambas",
+          "hasEvidence": true,
+          "evidenceFileName": "F09948825F16D071!sb8f33508cc1a42e286f5f1a01ca3f050",
+          "evidenceOriginalName": "sertifikatalquran23351023334.pdf",
+          "evidenceSize": 571233
+        }
+      }
+    },
+    {
+      "id": "2938973e-bfea-4c3b-a718-cf16ea938f03",
+      "timestamp": "2026-07-15T04:32:07.544Z",
+      "user": "admin",
+      "role": "admin",
+      "action": "login",
+      "collection": "auth",
+      "itemId": null,
+      "details": {
+        "ip": "::1"
+      }
+    }
+  ]
+}

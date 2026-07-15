@@ -1,0 +1,33 @@
+{
+  "teams": [
+    {
+      "id": "ef15a34d-0b26-4b1b-b7bf-3ebfe98d0f33",
+      "name": "Tim Statistik Sosial"
+    },
+    {
+      "id": "c709ec81-d0f3-41ac-8db6-4ed7dc512245",
+      "name": "Tim Statistik Produksi"
+    },
+    {
+      "id": "2bc8906f-d6bd-428e-90fb-a7d585749090",
+      "name": "Tim Statistik Distribusi"
+    },
+    {
+      "id": "89845fc9-8c92-42dd-a45d-062b11fc0562",
+      "name": "Tim Neraca & Analisis Statistik"
+    },
+    {
+      "id": "19bd8eec-c489-485a-b6c9-052803743526",
+      "name": "Tim IPDS (Integrasi Pengolahan & Diseminasi Statistik)"
+    },
+    {
+      "id": "f3f5f908-a263-4ca0-8be8-691e4b34fb31",
+      "name": "Tim Tata Usaha"
+    }
+  ],
+  "iku": [],
+  "fra": [],
+  "kegiatan": [],
+  "tugas": [],
+  "auditLogs": []
+}

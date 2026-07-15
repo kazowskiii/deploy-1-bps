@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIMONEV BPS — Sistem Monitoring &amp; Evaluasi Kinerja</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F1F2EE;
+  --surface:#FFFFFF;
+  --surface-2:#F7F8F5;
+  --ink:#16232E;
+  --ink-muted:#5B6B78;
+  --ink-faint:#8B98A3;
+  --primary:#163B5C;
+  --primary-dark:#0E2A44;
+  --primary-soft:#E7EDF2;
+  --accent:#B4872A;
+  --accent-soft:#F1E6C9;
+  --success:#2E7D57;
+  --success-soft:#E4F1EA;
+  --warning:#C9820B;
+  --warning-soft:#FBF0DB;
+  --danger:#B23A34;
+  --danger-soft:#F8E7E5;
+  --line:#DFE3E0;
+  --line-strong:#C7CDC9;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(15,30,45,.05), 0 4px 14px rgba(15,30,45,.06);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  font-size:14px;
+}
+h1,h2,h3,.display{font-family:'Fraunces',serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:var(--accent-soft);}
+
+/* ===== Layout ===== */
+#app{display:flex;height:100vh;overflow:hidden;}
+.sidebar{
+  width:236px;flex:none;
+  background:linear-gradient(185deg,var(--primary-dark),var(--primary) 78%);
+  color:#EAF0F4;
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;
+}
+.brand{
+  padding:22px 20px 16px;
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+.brand-mark{
+  display:flex;align-items:center;gap:10px;
+}
+.brand-seal{
+  width:38px;height:38px;border-radius:50%;
+  border:1.5px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fraunces',serif;font-weight:700;font-size:13px;
+  color:var(--accent);flex:none;
+  position:relative;
+}
+.brand-seal::after{
+  content:'';position:absolute;inset:4px;border:1px solid rgba(180,135,42,.5);border-radius:50%;
+}
+.brand-text .t1{font-family:'Fraunces',serif;font-weight:600;font-size:16.5px;letter-spacing:.2px;line-height:1.1;}
+.brand-text .t2{font-size:10.5px;color:#B9CADA;letter-spacing:.6px;text-transform:uppercase;margin-top:3px;}
+.nav{flex:1;padding:14px 12px;overflow-y:auto;overscroll-behavior:contain;}
+.nav-group-label{
+  font-size:10px;letter-spacing:1.2px;text-transform:uppercase;
+  color:#8FA6B8;padding:14px 10px 6px;font-weight:600;
+}
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 11px;border-radius:8px;
+  color:#D8E3EB;text-decoration:none;font-size:13.5px;font-weight:500;
+  margin-bottom:2px;transition:background .12s;
+  border:1px solid transparent;
+}
+.nav-item:hover{background:rgba(255,255,255,.07);}
+.nav-item.active{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.1);}
+.nav-item .ic{width:17px;height:17px;flex:none;opacity:.9;}
+.nav-item .badge-count{
+  margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  background:rgba(255,255,255,.12);padding:1px 6px;border-radius:20px;color:#CFE0EA;
+}
+.sidebar-foot{
+  padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.12);
+  font-size:11px;color:#8FA6B8;line-height:1.5;
+}
+
+.main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{
+  background:var(--surface);border-bottom:1px solid var(--line);
+  padding:16px 28px;display:flex;align-items:center;justify-content:space-between;
+  flex:none;z-index:20;gap:16px;flex-wrap:wrap;
+}
+.topbar-title h1{margin:0;font-size:21px;font-weight:600;color:var(--primary-dark);}
+.topbar-title p{margin:2px 0 0;font-size:12.5px;color:var(--ink-muted);}
+.topbar-actions{display:flex;gap:10px;align-items:center;}
+.select-mini{
+  border:1px solid var(--line-strong);background:var(--surface-2);
+  border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink);
+}
+.content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px 28px 60px;}
+.content > *{max-width:1320px;width:100%;margin:0 auto;}
+
+/* ===== Buttons ===== */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 16px;border-radius:8px;border:1px solid transparent;
+  font-size:13px;font-weight:600;line-height:1;transition:all .12s;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-gold{background:var(--accent);color:#fff;}
+.btn-gold:hover{background:#9c7423;}
+.btn-outline{background:var(--surface);border-color:var(--line-strong);color:var(--ink);}
+.btn-outline:hover{border-color:var(--primary);color:var(--primary);}
+.btn-ghost{background:transparent;color:var(--ink-muted);border-color:transparent;padding:7px 10px;}
+.btn-ghost:hover{background:var(--surface-2);color:var(--ink);}
+.btn-danger-ghost{background:transparent;color:var(--danger);border-color:transparent;padding:7px 10px;}
+.btn-danger-ghost:hover{background:var(--danger-soft);}
+.btn-sm{padding:6px 11px;font-size:12px;border-radius:7px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ===== Cards / KPI ===== */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:14px;}
+@media(max-width:1000px){.grid-4{grid-template-columns:repeat(2,1fr);}.grid-2{grid-template-columns:1fr;}}
+
+.kpi-card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.kpi-card .eyebrow{font-size:10.5px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;}
+.kpi-card .value{font-family:'Fraunces',serif;font-size:32px;font-weight:600;margin:6px 0 2px;color:var(--primary-dark);}
+.kpi-card .sub{font-size:12px;color:var(--ink-muted);}
+.kpi-card .trend{position:absolute;top:16px;right:16px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
+.trend.up{background:var(--success-soft);color:var(--success);}
+.trend.warn{background:var(--warning-soft);color:var(--warning);}
+.trend.down{background:var(--danger-soft);color:var(--danger);}
+
+.panel{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.panel-head{
+  padding:16px 20px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+}
+.panel-head h3{margin:0;font-size:16px;font-weight:600;color:var(--primary-dark);}
+.panel-head p{margin:2px 0 0;font-size:12px;color:var(--ink-muted);}
+.panel-body{padding:18px 20px;}
+
+/* ===== Tables ===== */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:600;padding:9px 12px;border-bottom:1.5px solid var(--line-strong);
+  white-space:nowrap;
+}
+tbody td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top;}
+tbody tr:hover{background:var(--surface-2);}
+tbody tr:last-child td{border-bottom:none;}
+.cell-title{font-weight:600;color:var(--ink);}
+.cell-sub{font-size:11.5px;color:var(--ink-muted);margin-top:2px;}
+.table-wrap{overflow-x:auto;}
+
+/* ===== Badges / status ===== */
+.tag{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;
+}
+.tag-success{background:var(--success-soft);color:var(--success);}
+.tag-warning{background:var(--warning-soft);color:var(--warning);}
+.tag-danger{background:var(--danger-soft);color:var(--danger);}
+.tag-muted{background:var(--surface-2);color:var(--ink-muted);border:1px solid var(--line);}
+.tag-primary{background:var(--primary-soft);color:var(--primary);}
+.tag-gold{background:var(--accent-soft);color:#8A6720;}
+
+/* progress bar */
+.pbar{height:7px;border-radius:20px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;}
+.pbar > div{height:100%;border-radius:20px;background:var(--primary);}
+.pbar.success>div{background:var(--success);}
+.pbar.warning>div{background:var(--warning);}
+.pbar.danger>div{background:var(--danger);}
+
+/* team pill */
+.team-pill{
+  display:inline-block;padding:2px 9px;border-radius:6px;background:var(--primary-soft);
+  color:var(--primary);font-size:11.5px;font-weight:600;
+}
+
+/* ===== Stamp / seal signature element (triwulan status) ===== */
+.stamp{
+  width:56px;height:56px;border-radius:50%;flex:none;position:relative;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--line-strong);color:var(--ink-faint);
+  transform:rotate(-6deg);
+}
+.stamp.filled{border-color:var(--success);color:var(--success);}
+.stamp.late{border-color:var(--warning);color:var(--warning);}
+.stamp.empty{border-style:dashed;}
+.stamp::before{
+  content:'';position:absolute;inset:5px;border:1px solid currentColor;border-radius:50%;opacity:.55;
+}
+.stamp .stamp-q{font-family:'Fraunces',serif;font-weight:700;font-size:15px;line-height:1;}
+.stamp .stamp-pct{font-family:'IBM Plex Mono',monospace;font-size:8.5px;margin-top:1px;}
+
+/* ===== Quarter grid (Tugas Tim) ===== */
+.q-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;}
+@media(max-width:900px){.q-grid{grid-template-columns:repeat(2,1fr);}}
+.q-card{
+  border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:var(--surface-2);
+  display:flex;flex-direction:column;gap:8px;
+}
+.q-card-head{display:flex;align-items:center;justify-content:space-between;}
+.q-card-head .q-label{font-size:11.5px;font-weight:700;color:var(--primary-dark);letter-spacing:.3px;}
+.q-input{
+  width:100%;border:1px solid var(--line-strong);border-radius:6px;padding:6px 8px;
+  font-size:12.5px;font-family:'IBM Plex Mono',monospace;background:#fff;
+}
+.q-evidence-row{display:flex;align-items:center;gap:6px;font-size:11px;}
+.q-select-row{display:flex;align-items:center;gap:10px;margin:10px 0 4px;}
+.q-select-row label{font-size:12px;font-weight:600;color:var(--ink-muted);}
+.q-select{
+  border:1px solid var(--line-strong);border-radius:7px;padding:7px 10px;
+  font-size:13px;font-weight:600;background:#fff;color:var(--primary-dark);cursor:pointer;
+}
+.q-grid-single{grid-template-columns:minmax(0,340px);}
+.evidence-chip{
+  display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line-strong);
+  border-radius:6px;padding:4px 8px;font-size:11px;color:var(--ink-muted);max-width:100%;overflow:hidden;
+}
+.evidence-chip svg{flex:none;}
+.evidence-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-input-hidden{display:none;}
+
+/* ===== Modal ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(14,24,34,.5);backdrop-filter:blur(1.5px);
+  display:flex;align-items:flex-start;justify-content:center;padding:36px 16px;
+  z-index:100;overflow-y:auto;
+}
+.modal{
+  background:var(--surface);border-radius:14px;width:100%;max-width:640px;
+  box-shadow:0 20px 60px rgba(10,20,30,.3);border:1px solid var(--line);
+  animation:modalIn .16s ease-out;
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.modal-head{
+  padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+}
+.modal-head h3{margin:0;font-size:17px;font-weight:600;color:var(--primary-dark);}
+.modal-body{padding:20px 22px;max-height:70vh;overflow-y:auto;}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:5px;}
+.field input[type=text],.field input[type=number],.field input[type=date],.field select,.field textarea{
+  width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;font-size:13px;
+  font-family:'Inter',sans-serif;background:#fff;color:var(--ink);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.page-filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;}
+.page-filters .field{margin-bottom:0;min-width:200px;flex:1;}
+.page-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-bottom:10px;}
+.page-actions-bar{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;align-items:center;}
+.close-x{
+  border:none;background:transparent;color:var(--ink-muted);font-size:20px;line-height:1;padding:4px;border-radius:6px;
+}
+.close-x:hover{background:var(--surface-2);}
+
+/* upload dropzone */
+.dropzone{
+  border:1.5px dashed var(--line-strong);border-radius:9px;padding:16px;text-align:center;
+  background:var(--surface-2);cursor:pointer;transition:border-color .12s;
+}
+.dropzone:hover{border-color:var(--primary);}
+.dropzone .dz-title{font-size:12.5px;font-weight:600;color:var(--ink);}
+.dropzone .dz-sub{font-size:11px;color:var(--ink-muted);margin-top:2px;}
+
+/* empty state */
+.empty-state{padding:44px 20px;text-align:center;color:var(--ink-muted);}
+.empty-state .es-ic{width:38px;height:38px;color:var(--ink-faint);margin:0 auto 10px;}
+.empty-state .es-title{font-weight:600;color:var(--ink);font-size:14px;margin-bottom:3px;}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+.toast{
+  background:var(--primary-dark);color:#fff;padding:11px 16px;border-radius:8px;font-size:12.5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;align-items:center;gap:8px;min-width:220px;
+  animation:toastIn .18s ease-out;
+}
+.toast.err{background:var(--danger);}
+.toast.ok{background:var(--success);}
+@keyframes toastIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.tabs-mini{display:flex;gap:4px;background:var(--surface-2);border:1px solid var(--line);padding:3px;border-radius:9px;}
+.tab-mini-btn{
+  border:none;background:transparent;padding:6px 13px;border-radius:7px;font-size:12px;font-weight:600;color:var(--ink-muted);
+}
+.tab-mini-btn.active{background:#fff;color:var(--primary);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+.icon-btn{border:1px solid var(--line-strong);background:#fff;border-radius:7px;padding:6px 9px;color:var(--ink-muted);}
+.icon-btn:hover{border-color:var(--primary);color:var(--primary);}
+
+.section-note{
+  display:flex;gap:9px;align-items:flex-start;background:var(--primary-soft);border:1px solid #CBD9E4;
+  padding:11px 13px;border-radius:9px;font-size:12px;color:var(--primary-dark);margin-bottom:16px;
+}
+.section-note svg{flex:none;margin-top:1px;}
+
+.loading-screen{
+  position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:999;
+}
+.spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--line-strong);border-top-color:var(--primary);animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ===== Login (split-screen, tema BPS teal) ===== */
+.login-shell{
+  --lg-teal-1:#0f2f36; --lg-teal-2:#12464a; --lg-teal-accent:#1f8f7d;
+  display:flex;height:100%;width:100%;flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;background:var(--surface);
+}
+.login-visual{
+  flex:1 1 56%;min-width:0;position:relative;overflow:hidden;
+  background:linear-gradient(160deg,var(--lg-teal-1),var(--lg-teal-2) 80%);
+  color:#EAF4F1;padding:56px 60px;display:flex;flex-direction:column;justify-content:center;
+}
+.login-visual::after{
+  content:'';position:absolute;right:-140px;bottom:-160px;width:420px;height:420px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.10);
+}
+.login-visual::before{
+  content:'';position:absolute;right:-40px;bottom:-260px;width:560px;height:560px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.07);
+}
+.login-eyebrow{
+  font-size:12.5px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;color:#8fd8c8;margin-bottom:22px;
+}
+.login-visual h1{
+  font-family:'Fraunces',serif;font-weight:700;font-size:44px;line-height:1.12;margin:0 0 18px;max-width:560px;color:#fff;
+}
+.login-visual .lede{font-size:15.5px;line-height:1.6;color:#CFE6E0;max-width:480px;margin:0 0 34px;}
+.login-shield{
+  position:relative;z-index:1;display:flex;gap:12px;align-items:flex-start;max-width:480px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:14px 16px;
+}
+.login-shield svg{flex:none;margin-top:2px;color:#9fe0d1;}
+.login-shield span{font-size:13px;line-height:1.55;color:#DCEFEA;}
+.login-panel{
+  flex:1 1 44%;min-width:340px;display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--surface);
+}
+.login-card{width:100%;max-width:420px;}
+.login-brandrow{display:flex;align-items:center;gap:12px;margin-bottom:30px;}
+.login-brandmark{
+  width:46px;height:46px;border-radius:12px;background:linear-gradient(160deg,var(--lg-teal-2),var(--lg-teal-1));
+  display:flex;align-items:center;justify-content:center;color:#fff;flex:none;
+}
+.login-brandrow .lb-name{font-family:'Fraunces',serif;font-weight:700;font-size:19px;color:var(--primary-dark);line-height:1.2;}
+.login-brandrow .lb-org{font-size:12px;color:var(--ink-muted);}
+.login-card .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--lg-teal-2, #1f8f7d);margin-bottom:8px;}
+.login-card h2{margin:0 0 8px;font-size:26px;font-family:'Fraunces',serif;color:var(--primary-dark);}
+.login-card p{margin:0 0 22px;color:var(--ink-muted);line-height:1.55;font-size:13.5px;}
+.login-card .field{margin-bottom:16px;}
+.login-card .field label{display:block;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--ink);}
+.login-card .field input{width:100%;border:1px solid var(--line-strong);border-radius:10px;padding:11px 12px;font-size:14px;font-family:'Inter',sans-serif;background:#fff;color:var(--ink);}
+.login-card .field input:focus{outline:none;border-color:#1f8f7d;box-shadow:0 0 0 3px rgba(31,143,125,.15);}
+.login-card .btn-login{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(160deg,var(--lg-teal-2),var(--lg-teal-1));border:none;color:#fff;
+  border-radius:10px;padding:13px 16px;font-size:14.5px;font-weight:600;cursor:pointer;
+}
+.login-card .btn-login:hover{filter:brightness(1.08);}
+.login-card .login-note{font-size:12px;color:var(--ink-faint);text-align:center;margin-top:16px;}
+@media (max-width:860px){
+  .login-shell{flex-direction:column;}
+  .login-visual{padding:40px 28px;}
+  .login-visual h1{font-size:32px;}
+}
+
+/* ===== Notification bell ===== */
+.bell-wrap{position:relative;}
+.bell-btn{
+  position:relative;border:1px solid var(--line-strong);background:var(--surface-2);
+  border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);
+}
+.bell-btn .dot{
+  position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;
+  background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;
+}
+.bell-panel{
+  position:absolute;right:0;top:44px;width:340px;max-height:420px;overflow:auto;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:40;
+}
+.bell-panel .bp-head{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:600;font-size:13px;color:var(--primary-dark);}
+.bell-panel .bp-item{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
+.bell-panel .bp-item:hover{background:var(--surface-2);}
+.bell-panel .bp-item .nm{font-size:13px;font-weight:600;color:var(--ink);}
+.bell-panel .bp-item .meta{font-size:11.5px;color:var(--ink-muted);margin-top:3px;}
+.bell-panel .bp-empty{padding:20px 14px;text-align:center;color:var(--ink-faint);font-size:13px;}
+.reminder-banner{
+  display:flex;align-items:flex-start;gap:12px;background:var(--warning-soft);border:1px solid #EBD08B;
+  border-radius:12px;padding:14px 16px;margin-bottom:18px;color:#7A5A0B;
+}
+.reminder-banner.urgent{background:var(--danger-soft);border-color:#E3AFAA;color:#8A2E28;}
+.reminder-banner b{display:block;margin-bottom:2px;}
+
+.text-muted{color:var(--ink-muted);}
+.text-xs{font-size:11px;}
+.flex{display:flex;}
+.gap-6{gap:6px;}
+.gap-8{gap:8px;}
+.items-center{align-items:center;}
+.mt-8{margin-top:8px;}
+.w-full{width:100%;}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="spinner"></div>
+  <div style="font-size:12.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;">Memuat SIMONEV…</div>
+</div>
+
+<div id="app" style="display:none;"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+/* ============================================================
+   SIMONEV BPS — Sistem Monitoring & Evaluasi Kinerja
+   Frontend ini berkomunikasi dengan backend Express (server.js).
+   Data disimpan di data/db.json, berkas bukti dukung di /uploads.
+   ============================================================ */
+
+const ICONS = {
+  dashboard:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  fra:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>',
+  kegiatan:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>',
+  tugas:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/><path d="M9 15l2 2 4-4"/></svg>',
+  iku:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 15l3-4 3 3 5-7"/></svg>',
+  tim:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6"/><circle cx="17" cy="8" r="2.6"/><path d="M16 14.2c2.7.5 4.7 2.7 5 5.8"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M12 16V4M6 10l6-6 6 6"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>',
+  file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>',
+  empty:'<svg class="es-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+};
+
+const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
+const MAX_FILE_MB = 10;
+
+const CREDENTIALS = { username: 'admin', password: 'admin123' };
+let AUTH = { loggedIn: false, user: null };
+let DB = { teams: [], iku: [], fra: [], kegiatan: [], tugas: [] };
+let AUDIT_LOGS = [];
+let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
+let bellOpen = false;
+let PAGE_FILTERS = { search: '', teamId: '', status: '' };
+let ROUTE = 'dashboard';
+let FILTER_YEAR = new Date().getFullYear();
+
+async function initAuth(){
+  try {
+    const res = await fetch('/api/me', { credentials: 'include' });
+    if (!res.ok) throw new Error('Belum login');
+    AUTH.user = await res.json();
+    AUTH.loggedIn = true;
+  } catch (err) {
+    AUTH.loggedIn = false;
+    AUTH.user = null;
+  }
+}
+function setAuth(user){
+  AUTH.loggedIn = !!user;
+  AUTH.user = user || null;
+}
+function requireAuthOrLogin(){
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  if(AUTH.loggedIn){
+    if(path === '/login') history.replaceState(null, '', '/');
+    renderShell();
+  } else {
+    if(path !== '/login') history.replaceState(null, '', '/login');
+    renderLoginPage();
+  }
+}
+function isAdmin(){
+  return AUTH.user && AUTH.user.role === 'admin';
+}
+function filterOptions(collection){
+  const statusOptions = [
+    {value:'',label:'Semua Status'},
+    {value:'Tercapai',label:'Tercapai'},
+    {value:'Perlu Perhatian',label:'Perlu Perhatian'},
+    {value:'Tertinggal',label:'Tertinggal'},
+  ];
+  return `<div class="page-filters">
+    <div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>
+    <div class="field"><label>Tim</label><select id="pageTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">${teamFilterOptions()}</select></div>
+    <div class="field"><label>Status</label><select id="pageStatus" class="q-select" onchange="updatePageFilter('status', this.value)">${statusOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.status?'selected':''}>${o.label}</option>`).join('')}</select></div>
+  </div>`;
+}
+function teamFilterOptions(){
+  const teams = isAdmin() ? DB.teams : DB.teams.filter(t=>t.id===AUTH.user.teamId);
+  return `<option value="">Semua Tim</option>${teams.map(t=>`<option value="${t.id}" ${t.id===PAGE_FILTERS.teamId?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}`;
+}
+function updatePageFilter(key, value){
+  PAGE_FILTERS[key] = value;
+  renderContent();
+}
+function applyPageFilters(items, collection){
+  let result = Array.isArray(items) ? [...items] : [];
+  if(PAGE_FILTERS.teamId){
+    result = result.filter(item=>item.timId===PAGE_FILTERS.teamId || item.id===PAGE_FILTERS.teamId);
+  }
+  if(PAGE_FILTERS.status){
+    result = result.filter(item=>statusLabelFor(collection, item).toLowerCase()===PAGE_FILTERS.status.toLowerCase());
+  }
+  if(PAGE_FILTERS.search){
+    const needle = PAGE_FILTERS.search.toLowerCase();
+    result = result.filter(item=>JSON.stringify(item).toLowerCase().includes(needle));
+  }
+  return result;
+}
+function statusLabelFor(collection, item){
+  if(collection==='iku' || collection==='tugas') return statusFor(collection==='iku'?ikuPct(item):tugasPct(item)).label;
+  if(collection==='kegiatan') return item.status || '—';
+  if(collection==='fra'){
+    const pct = Number(item.persentase)||0;
+    if(pct>=100) return 'Tercapai';
+    if(pct>=60) return 'Perlu Perhatian';
+    return 'Tertinggal';
+  }
+  return '—';
+}
+function exportButtons(collection){
+  const label = collection === 'fra' ? 'FRA' : collection.toUpperCase();
+  return `<div class="page-actions">
+    <button class="btn btn-outline btn-sm" onclick="exportPage('json','${collection}')">Export ${label} JSON</button>
+    <button class="btn btn-outline btn-sm" onclick="exportPage('excel','${collection}')">Export ${label} Excel</button>
+    <button class="btn btn-outline btn-sm" onclick="exportPage('pdf','${collection}')">Export ${label} PDF</button>
+  </div>`;
+}
+function exportPage(type, collection){
+  const params = new URLSearchParams({ collection });
+  if(PAGE_FILTERS.teamId) params.set('teamId', PAGE_FILTERS.teamId);
+  if(PAGE_FILTERS.status) params.set('status', PAGE_FILTERS.status);
+  if(PAGE_FILTERS.search) params.set('search', PAGE_FILTERS.search);
+  if(FILTER_YEAR) params.set('tahun', FILTER_YEAR);
+  window.open(`/api/export/${type}?${params.toString()}`, '_blank');
+}
+function teamOptions(selected){
+  const options = (isAdmin() ? DB.teams : DB.teams.filter(t=>t.id===AUTH.user.teamId)).map(t=>`<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtml(t.name)}</option>`).join('');
+  return options;
+}
+async function login(event){
+  if(event && event.preventDefault) event.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      credentials: 'include',
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Gagal masuk');
+    }
+    setAuth(data);
+    toast('Berhasil masuk sebagai ' + data.username, 'ok');
+    history.replaceState(null, '', '/');
+    await loadAll();
+    renderShell();
+  } catch (err) {
+    toast(err.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server. Pastikan server sedang berjalan.' : err.message, 'err');
+  }
+}
+async function logout(){
+  try {
+    await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+  } catch (err) {
+    // ignore logout error
+  }
+  setAuth(null);
+  toast('Anda telah keluar', 'ok');
+  history.replaceState(null, '', '/login');
+  renderLoginPage();
+}
+function renderLoginPage(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="login-shell">
+      <div class="login-visual">
+        <div class="login-eyebrow">Badan Pusat Statistik</div>
+        <h1>Monitoring yang tertib.<br>Keputusan yang lebih cepat.</h1>
+        <p class="lede">Ruang kerja terpusat untuk memantau IKU, tugas tim, FRA, dan tindak lanjut kegiatan.</p>
+        <div class="login-shield">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <span>Data dilindungi autentikasi, pembatasan tim, dan jejak audit.</span>
+        </div>
+      </div>
+      <div class="login-panel">
+        <div class="login-card">
+          <div class="login-brandrow">
+            <div class="login-brandmark">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+            </div>
+            <div>
+              <div class="lb-name">SIMONEV</div>
+              <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
+            </div>
+          </div>
+          <div class="eyebrow">Portal Internal</div>
+          <h2>Selamat datang kembali</h2>
+          <p>Masuk menggunakan akun instansi yang telah didaftarkan.</p>
+          <form onsubmit="login(event)">
+            <div class="field"><label>Username / Email</label><input id="loginUsername" type="text" autocomplete="username" placeholder="nama@bps.go.id" value="admin" required></div>
+            <div class="field"><label>Kata sandi</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+            <button class="btn-login" type="submit">
+              Masuk ke SIMONEV
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <div class="login-note">Akses hanya untuk pegawai berwenang.</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+
+/* ---------------- API helpers (backend Express + penyimpanan file di server) ---------------- */
+async function apiGet(col){
+  const r = await fetch(`/api/${col}`, { credentials: 'include' });
+  if(!r.ok) throw new Error('Gagal memuat data ' + col);
+  return r.json();
+}
+async function parseApiError(r, fallback){
+  let data = {};
+  try{ data = await r.json(); }catch(e){ /* respons bukan JSON, abaikan */ }
+  if(Array.isArray(data.details) && data.details.length){
+    return data.details.join('; ');
+  }
+  return data.error || fallback;
+}
+async function apiPost(col, body){
+  const r = await fetch(`/api/${col}`, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify(body) });
+  if(!r.ok) throw new Error(await parseApiError(r, 'Gagal menyimpan data'));
+  return r.json();
+}
+async function apiPut(col, id, body){
+  const r = await fetch(`/api/${col}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include', body:JSON.stringify(body) });
+  if(!r.ok) throw new Error(await parseApiError(r, 'Gagal memperbarui data'));
+  return r.json();
+}
+async function apiDelete(col, id){
+  const r = await fetch(`/api/${col}/${id}`, { method:'DELETE', credentials:'include' });
+  if(!r.ok) throw new Error(await parseApiError(r, 'Gagal menghapus data'));
+  return r.json();
+}
+async function uploadFileToServer(file){
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch('/api/upload', { method:'POST', credentials:'include', body:fd });
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.error || 'Gagal mengunggah berkas');
+  return data; // {filename, originalName, size, mimetype}
+}
+
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+async function loadAll(){
+  try{
+    const [teams, iku, fra, kegiatan, tugas] = await Promise.all([
+      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas')
+    ]);
+    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas;
+    if(isAdmin()){
+      AUDIT_LOGS = await apiGet('audit');
+    } else {
+      AUDIT_LOGS = [];
+    }
+    try{ REMINDERS = await apiGet('reminders'); }catch(e){ REMINDERS = { items: [], daysLeft: 0 }; }
+  }catch(e){
+    toast('Tidak dapat terhubung ke server. Pastikan server (npm start) sedang berjalan.', 'err');
+  }
+}
+
+function toast(msg, type){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type==='err'?' err':type==='ok'?' ok':'');
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2600);
+}
+
+function escapeHtml(str){
+  if(str===undefined || str===null) return '';
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d+'T00:00:00');
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'});
+}
+function fmtBytes(n){
+  if(!n) return '';
+  if(n < 1024) return n + ' B';
+  if(n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+  return (n/1024/1024).toFixed(1) + ' MB';
+}
+function teamName(id){ const t = DB.teams.find(t=>t.id===id); return t ? t.name : '—'; }
+function yearsAvailable(){
+  const ys = new Set([FILTER_YEAR]);
+  DB.iku.forEach(i=>ys.add(i.tahun));
+  DB.tugas.forEach(i=>ys.add(i.tahun));
+  return Array.from(ys).sort((a,b)=>b-a);
+}
+
+/* ---------------- evidence handling (berkas fisik tersimpan di server, folder /uploads) ---------------- */
+function validFileType(file){
+  const okExt = ['.pdf','.doc','.docx'];
+  const name = file.name.toLowerCase();
+  return okExt.some(ext=>name.endsWith(ext));
+}
+function validateFileOrToast(file){
+  if(!validFileType(file)){
+    toast('Format harus PDF atau Word (.pdf, .doc, .docx)', 'err');
+    return false;
+  }
+  if(file.size > MAX_FILE_MB*1024*1024){
+    toast(`Ukuran berkas maksimal ${MAX_FILE_MB} MB`, 'err');
+    return false;
+  }
+  return true;
+}
+// Dipakai untuk unggah bukti triwulan (Tugas Tim), langsung upload ke server lalu simpan metanya di record
+async function uploadQuarterFile(inputEl, onMeta){
+  const file = inputEl.files[0];
+  if(!file) return;
+  if(!validateFileOrToast(file)){ inputEl.value=''; return; }
+  try{
+    const meta = await uploadFileToServer(file);
+    onMeta({hasEvidence:true, evidenceFileName:meta.filename, evidenceOriginalName:meta.originalName, evidenceSize:meta.size});
+    toast('Bukti dukung berhasil diunggah', 'ok');
+  }catch(e){
+    toast(e.message || 'Gagal mengunggah berkas', 'err');
+  }
+}
+function viewEvidence(serverFilename){
+  window.open(`/api/files/${serverFilename}`, '_blank');
+}
+
+/* ============================================================
+   RENDER: SHELL
+   ============================================================ */
+function navItem(route, icon, label, count){
+  return `<a href="#" class="nav-item ${ROUTE===route?'active':''}" data-route="${route}">
+    ${ICONS[icon]}<span>${label}</span>
+    ${count!==undefined ? `<span class="badge-count">${count}</span>` : ''}
+  </a>`;
+}
+
+function renderShell(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <div class="brand-seal">BPS</div>
+          <div class="brand-text">
+            <div class="t1">SIMONEV</div>
+            <div class="t2">Monitoring Kinerja</div>
+          </div>
+        </div>
+      </div>
+      <div class="nav">
+        <div class="nav-group-label">Ringkasan</div>
+        ${navItem('dashboard','dashboard','Dashboard')}
+        <div class="nav-group-label">Modul Kinerja</div>
+        ${navItem('fra','fra','FRA — Capaian Tim', DB.fra.length)}
+        ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
+        ${navItem('tugas','tugas','Tugas Tim &amp; Target', DB.tugas.length)}
+        ${navItem('iku','iku','IKU Badan', DB.iku.length)}
+        ${isAdmin() ? `<div class="nav-group-label">Admin</div>${navItem('tim','tim','Kelola Tim', DB.teams.length)}${navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length)}` : ''}
+      </div>
+      <div class="sidebar-foot">
+        Data &amp; berkas bukti dukung tersimpan di server ini (folder /data &amp; /uploads).<br>SIMONEV BPS · v1.0
+      </div>
+    </div>
+    <div class="main">
+      <div class="topbar" id="topbar"></div>
+      <div class="content" id="content"></div>
+    </div>
+  `;
+  document.querySelectorAll('.nav-item').forEach(el=>{
+    el.addEventListener('click', e=>{
+      e.preventDefault();
+      ROUTE = el.dataset.route;
+      renderShell();
+    });
+  });
+  renderTopbar();
+  renderContent();
+}
+
+function renderTopbar(){
+  const titles = {
+    dashboard:['Dashboard','Ringkasan capaian kinerja seluruh tim & indikator utama'],
+    fra:['FRA — Monitoring Capaian Kinerja Tim','Pantau capaian tiap tim beserta bukti dukung laporan'],
+    kegiatan:['Analisis Kegiatan','Kendala, solusi, dan rencana tindak lanjut (RTL) tiap kegiatan'],
+    tugas:['Tugas Tim & Target Tahunan','Target per tahun, realisasi, dan monitoring per triwulan'],
+    iku:['Indikator Kinerja Utama (IKU)','Capaian IKU Badan Pusat Statistik beserta bukti laporan'],
+    tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
+    audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
+  };
+  const [t, sub] = titles[ROUTE];
+  const yearFilter = ['dashboard','iku','tugas'].includes(ROUTE);
+  document.getElementById('topbar').innerHTML = `
+    <div class="topbar-title"><h1>${t}</h1><p>${sub}</p></div>
+    <div class="topbar-actions">
+      ${yearFilter ? `<select class="select-mini" id="yearFilter">
+        ${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
+      </select>` : ''}
+      ${routeAddButton()}
+      ${renderBellWrap()}
+      <button class="btn btn-danger-ghost btn-sm" onclick="logout()">Keluar</button>
+    </div>
+  `;
+  const yf = document.getElementById('yearFilter');
+  if(yf) yf.addEventListener('change', e=>{ FILTER_YEAR = Number(e.target.value); renderContent(); });
+}
+
+function renderBellWrap(){
+  const items = (REMINDERS && REMINDERS.items) || [];
+  const count = items.length;
+  return `<div class="bell-wrap">
+    <button class="bell-btn" onclick="toggleBellPanel(event)" title="Pengingat triwulan berjalan">
+      ${ICONS.bell}${count>0 ? `<span class="dot">${count>9?'9+':count}</span>` : ''}
+    </button>
+    ${bellOpen ? renderBellPanel() : ''}
+  </div>`;
+}
+
+function renderBellPanel(){
+  const items = (REMINDERS && REMINDERS.items) || [];
+  const q = REMINDERS.quarterKey ? TRIWULAN_LABELS[REMINDERS.quarterKey] : '';
+  const body = items.length
+    ? items.map(it=>`<div class="bp-item" onclick="gotoReminder('${it.tugasId}')">
+        <div class="nm">${escapeHtml(it.nama)}</div>
+        <div class="meta">${escapeHtml(it.timName)} · ${it.quarterLabel} belum diisi ${it.daysLeft>=0?`· sisa ${it.daysLeft} hari`:''}</div>
+      </div>`).join('')
+    : `<div class="bp-empty">Semua realisasi ${q||'triwulan berjalan'} sudah terisi. Mantap!</div>`;
+  return `<div class="bell-panel" onclick="event.stopPropagation()">
+    <div class="bp-head">Pengingat ${q}</div>
+    ${body}
+  </div>`;
+}
+
+function toggleBellPanel(e){
+  e.stopPropagation();
+  bellOpen = !bellOpen;
+  renderTopbar();
+}
+document.addEventListener('click', ()=>{ if(bellOpen){ bellOpen=false; if(document.getElementById('topbar')) renderTopbar(); } });
+
+function gotoReminder(tugasId){
+  bellOpen = false;
+  ROUTE = 'tugas';
+  FILTER_YEAR = REMINDERS.year || FILTER_YEAR;
+  TUGAS_ACTIVE_Q[tugasId] = REMINDERS.quarterKey;
+  renderShell();
+}
+
+function routeAddButton(){
+  const map = {
+    fra: ['openFraModal()','Tambah Capaian'],
+    kegiatan: ['openKegiatanModal()','Tambah Analisis'],
+    tugas: ['openTugasModal()','Tambah Tugas'],
+    iku: ['openIkuModal()','Tambah IKU'],
+    tim: ['openTimModal()','Tambah Tim'],
+  };
+  if(!map[ROUTE]) return '';
+  const [fn, label] = map[ROUTE];
+  return `<button class="btn btn-primary" onclick="${fn}">${ICONS.plus} ${label}</button>`;
+}
+
+function renderContent(){
+  const c = document.getElementById('content');
+  if(ROUTE==='dashboard'){
+    c.innerHTML = renderDashboard();
+    renderTeamProgressChart();
+  } else if(ROUTE==='fra') c.innerHTML = renderFraPage();
+  else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanPage();
+  else if(ROUTE==='tugas') c.innerHTML = renderTugasPage();
+  else if(ROUTE==='iku') c.innerHTML = renderIkuPage();
+  else if(ROUTE==='tim') c.innerHTML = renderTimPage();
+  else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
+  wireDynamic();
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderReminderBanner(){
+  const items = (REMINDERS && REMINDERS.items) || [];
+  if(!items.length) return '';
+  const urgent = REMINDERS.daysLeft!==undefined && REMINDERS.daysLeft<=7;
+  const q = REMINDERS.quarterKey ? TRIWULAN_LABELS[REMINDERS.quarterKey] : 'triwulan berjalan';
+  const names = items.slice(0,4).map(it=>escapeHtml(it.nama)).join(', ') + (items.length>4?`, dan ${items.length-4} lainnya`:'');
+  return `<div class="reminder-banner ${urgent?'urgent':''}">
+    ${ICONS.bell}
+    <div>
+      <b>${items.length} tugas belum mengisi realisasi ${q}${urgent?` — sisa ${REMINDERS.daysLeft} hari`:''}</b>
+      <div>${names}. Segera lengkapi di halaman Tugas Tim &amp; Target.</div>
+    </div>
+  </div>`;
+}
+
+function renderDashboard(){
+  const ikuYear = DB.iku.filter(i=>i.tahun===FILTER_YEAR);
+  const tugasYear = DB.tugas.filter(t=>t.tahun===FILTER_YEAR);
+
+  const ikuTercapai = ikuYear.filter(i=>ikuPct(i)>=100).length;
+  const tugasAvgPct = tugasYear.length ? Math.round(tugasYear.reduce((s,t)=>s+tugasPct(t),0)/tugasYear.length) : 0;
+  const kendalaOpen = DB.kegiatan.filter(k=>k.status!=='Selesai').length;
+  const fraCount = DB.fra.filter(f=>f.tahun===FILTER_YEAR || !f.tahun).length;
+
+  const kpis = `
+    <div class="grid-4">
+      <div class="kpi-card">
+        <span class="trend ${ikuYear.length && ikuTercapai/ikuYear.length>=.7?'up':'warn'}">${ikuYear.length?Math.round(ikuTercapai/ikuYear.length*100):0}%</span>
+        <div class="eyebrow">IKU Tahun ${FILTER_YEAR}</div>
+        <div class="value">${ikuTercapai}<span style="font-size:16px;color:var(--ink-faint);">/${ikuYear.length}</span></div>
+        <div class="sub">Indikator kinerja utama tercapai</div>
+      </div>
+      <div class="kpi-card">
+        <span class="trend ${tugasAvgPct>=75?'up':tugasAvgPct>=40?'warn':'down'}">${tugasAvgPct}%</span>
+        <div class="eyebrow">Rata-rata Realisasi Tugas</div>
+        <div class="value">${tugasYear.length}</div>
+        <div class="sub">Tugas tim aktif tahun ${FILTER_YEAR}</div>
+      </div>
+      <div class="kpi-card">
+        <span class="trend ${kendalaOpen===0?'up':'warn'}">${kendalaOpen} terbuka</span>
+        <div class="eyebrow">Analisis Kegiatan</div>
+        <div class="value">${DB.kegiatan.length}</div>
+        <div class="sub">Total kendala &amp; RTL tercatat</div>
+      </div>
+      <div class="kpi-card">
+        <span class="trend up">${DB.teams.length} tim</span>
+        <div class="eyebrow">FRA — Capaian Tim</div>
+        <div class="value">${fraCount}</div>
+        <div class="sub">Laporan capaian kinerja tercatat</div>
+      </div>
+    </div>`;
+
+  const teamRows = DB.teams.map(t=>{
+    const tt = tugasYear.filter(x=>x.timId===t.id);
+    const avg = tt.length ? Math.round(tt.reduce((s,x)=>s+tugasPct(x),0)/tt.length) : null;
+    const st = statusFor(avg);
+    return `<tr>
+      <td class="cell-title">${escapeHtml(t.name)}</td>
+      <td>${tt.length} tugas</td>
+      <td style="min-width:160px;">
+        <div class="pbar ${st.cls}"><div style="width:${avg===null?0:avg}%"></div></div>
+      </td>
+      <td>${avg===null?'<span class="text-muted text-xs">Belum ada data</span>':`<span class="tag ${st.tag}">${avg}% · ${st.label}</span>`}</td>
+    </tr>`;
+  }).join('');
+
+  const recentKegiatan = [...DB.kegiatan].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')).slice(0,5);
+  const recentList = recentKegiatan.length ? recentKegiatan.map(k=>`
+    <div style="padding:11px 0;border-bottom:1px solid var(--line);">
+      <div class="flex items-center gap-8" style="justify-content:space-between;">
+        <span class="cell-title" style="font-size:12.5px;">${escapeHtml(k.nama)}</span>
+        <span class="text-xs text-muted mono">${fmtDate(k.tanggal)}</span>
+      </div>
+      <div class="text-xs text-muted mt-8"><b style="color:var(--danger);">Kendala:</b> ${escapeHtml(truncate(k.kendala,70))}</div>
+    </div>`).join('') : `<div class="empty-state" style="padding:24px 0;">Belum ada catatan analisis kegiatan.</div>`;
+
+  return `
+    ${renderReminderBanner()}
+    ${kpis}
+    <div class="grid-2" style="margin-top:14px;">
+      <div class="panel">
+        <div class="panel-head"><div><h3>Progres Realisasi per Tim</h3><p>Rata-rata realisasi tugas triwulanan, tahun ${FILTER_YEAR}</p></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Tim</th><th>Jml Tugas</th><th>Progres</th><th>Status</th></tr></thead>
+          <tbody>${teamRows}</tbody>
+        </table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div></div>
+        <div class="panel-body" style="padding-top:8px;">
+          <canvas id="teamProgressChart" width="760" height="320" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;"></canvas>
+          <div id="teamProgressLegend" class="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>Analisis Kegiatan Terbaru</h3><p>5 catatan terakhir</p></div></div>
+        <div class="panel-body" style="padding-top:4px;">${recentList}</div>
+      </div>
+    </div>
+  `;
+}
+function truncate(s,n){ s=s||''; return s.length>n? s.slice(0,n)+'…' : s; }
+function formatNumber(n){ return n==null ? '0' : Number(n).toLocaleString('id-ID'); }
+function renderTeamProgressChart(){
+  const canvas = document.getElementById('teamProgressChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0,0,width,height);
+
+  const quarters = ['q1','q2','q3','q4'];
+  const labels = quarters.map(q=>TRIWULAN_LABELS[q]);
+  const teamsData = DB.teams.map(team=>{
+    const teamTasks = DB.tugas.filter(t=>t.tahun===FILTER_YEAR && t.timId===team.id);
+    const target = teamTasks.reduce((sum,t)=> sum + (Number(t.target)||0), 0);
+    if(!target) return null;
+    let cumulative = 0;
+    const points = quarters.map(q=>{
+      const qsum = teamTasks.reduce((sum,t)=> sum + (Number((t[q]||{}).realisasi)||0), 0);
+      cumulative += qsum;
+      return Math.min(100, target ? Math.round(cumulative/target*100) : 0);
+    });
+    return { name: team.name, points };
+  }).filter(x=>x && x.points.some(v=>v>0));
+  if(!teamsData.length){
+    ctx.fillStyle = '#65748b';
+    ctx.font = '14px Inter';
+    ctx.fillText('Belum ada data tugas per tim untuk tahun '+FILTER_YEAR, 18, 38);
+    return;
+  }
+
+  const palette = ['#163B5C','#B4872A','#2E7D57','#C9820B','#B23A34','#0E2A44'];
+  const padding = { top: 34, right: 18, bottom: 34, left: 48 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+  const maxY = 100;
+
+  ctx.strokeStyle = '#E8EDF1';
+  ctx.lineWidth = 1;
+  for(let y=0;y<=5;y++){
+    const yy = padding.top + chartH - (chartH/5)*y;
+    ctx.beginPath(); ctx.moveTo(padding.left, yy); ctx.lineTo(width-padding.right, yy); ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#A1AEBF';
+  ctx.fillStyle = '#65748b';
+  ctx.lineWidth = 1.5;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for(let y=0;y<=5;y++){
+    const value = y*20;
+    const yy = padding.top + chartH - (chartH/5)*y;
+    ctx.fillText(value+'%', padding.left-10, yy);
+  }
+
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  labels.forEach((label,i)=>{
+    const x = padding.left + (chartW/(quarters.length-1))*i;
+    ctx.fillText(label, x, padding.top+chartH+10);
+  });
+
+  teamsData.forEach((team, index)=>{
+    const color = palette[index % palette.length];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    team.points.forEach((value,i)=>{
+      const x = padding.left + (chartW/(quarters.length-1))*i;
+      const y = padding.top + chartH - (value/maxY)*chartH;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    team.points.forEach((value,i)=>{
+      const x = padding.left + (chartW/(quarters.length-1))*i;
+      const y = padding.top + chartH - (value/maxY)*chartH;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+    });
+  });
+
+  const legend = document.getElementById('teamProgressLegend');
+  if(legend) legend.innerHTML = teamsData.map((team,index)=>{
+    const color = palette[index % palette.length];
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);">
+      <span style="width:12px;height:12px;border-radius:50%;background:${color};display:inline-block;"></span>${escapeHtml(team.name)}
+    </div>`;
+  }).join('');
+}
+function statusFor(pct){
+  if(pct===null) return {cls:'',tag:'tag-muted',label:'—'};
+  if(pct>=100) return {cls:'success',tag:'tag-success',label:'Tercapai'};
+  if(pct>=60) return {cls:'',tag:'tag-primary',label:'Sesuai Rencana'};
+  if(pct>=30) return {cls:'warning',tag:'tag-warning',label:'Perlu Perhatian'};
+  return {cls:'danger',tag:'tag-danger',label:'Tertinggal'};
+}
+
+/* ============================================================
+   FRA — Monitoring Capaian Kinerja Tim
+   ============================================================ */
+function renderFraPage(){
+  const items = applyPageFilters([...DB.fra].sort((a,b)=>(b.periode||'').localeCompare(a.periode||'')), 'fra');
+  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>FRA</b> mencatat capaian kinerja setiap tim secara berkala. Setiap entri wajib disertai <b>bukti dukung</b> berupa laporan (PDF/Word).</div></div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('fra')}${exportButtons('fra')}</div>`;
+  if(!items.length){
+    return header + note + emptyState('fra','Belum ada capaian tim tercatat','Tambahkan capaian kinerja tim pertama untuk mulai memantau.');
+  }
+  const rows = items.map(f=>{
+    const pct = Number(f.persentase)||0;
+    const st = statusFor(pct);
+    return `<tr>
+      <td><span class="team-pill">${escapeHtml(teamName(f.timId))}</span></td>
+      <td class="mono">${escapeHtml(f.periode||'—')}</td>
+      <td style="min-width:220px;">
+        <div class="cell-title">${escapeHtml(f.uraian)}</div>
+        ${f.catatan?`<div class="cell-sub">${escapeHtml(f.catatan)}</div>`:''}
+      </td>
+      <td style="min-width:130px;">
+        <div class="flex items-center gap-8">
+          <div class="pbar ${st.cls}" style="width:70px;"><div style="width:${pct}%"></div></div>
+          <span class="mono text-xs">${pct}%</span>
+        </div>
+      </td>
+      <td>${evidenceCell(f, 'fra')}</td>
+      <td><span class="tag ${st.tag}">${st.label}</span></td>
+      <td>${rowActions('fra', f.id)}</td>
+    </tr>`;
+  }).join('');
+  return header + note + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Tim</th><th>Periode</th><th>Uraian Capaian</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+function evidenceCell(item, kind, qKey){
+  const src = qKey ? (item[qKey]||{}) : item;
+  const has = src.hasEvidence;
+  const name = src.evidenceOriginalName;
+  const size = src.evidenceSize;
+  const serverFilename = src.evidenceFileName;
+  if(has && serverFilename){
+    return `<div class="evidence-chip" title="${escapeHtml(name)}" style="cursor:pointer;" onclick="viewEvidence('${serverFilename}')">
+      ${ICONS.file}<span>${escapeHtml(name)}</span><span class="mono" style="color:var(--ink-faint);">(${fmtBytes(size)})</span>
+    </div>`;
+  }
+  return `<span class="tag tag-danger">Belum ada bukti</span>`;
+}
+function rowActions(kind, id){
+  const fnMap = {fra:'Fra', kegiatan:'Kegiatan', tugas:'Tugas', iku:'Iku', tim:'Tim'};
+  const f = fnMap[kind];
+  return `<div class="flex gap-6">
+    <button class="icon-btn" onclick="open${f}Modal('${id}')" title="Ubah">${ICONS.edit}</button>
+    <button class="icon-btn" onclick="deleteItem('${kind}','${id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+  </div>`;
+}
+function emptyState(kind, title, sub){
+  return `<div class="panel"><div class="empty-state">
+    ${ICONS.empty}
+    <div class="es-title">${title}</div>
+    <div class="text-xs">${sub}</div>
+  </div></div>`;
+}
+
+/* ============================================================
+   ANALISIS KEGIATAN
+   ============================================================ */
+function renderKegiatanPage(){
+  const items = applyPageFilters([...DB.kegiatan].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
+  const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
+  if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Catat kendala, solusi, dan rencana tindak lanjut kegiatan.');
+  const rows = items.map(k=>`
+    <tr>
+      <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
+      <td style="min-width:160px;">
+        <div class="cell-title">${escapeHtml(k.nama)}</div>
+        <div class="cell-sub mono">${fmtDate(k.tanggal)}</div>
+      </td>
+      <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
+      <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
+      <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
+      <td>${statusPill(k.status)}</td>
+      <td>${rowActions('kegiatan', k.id)}</td>
+    </tr>`).join('');
+  return header + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Tim</th><th>Kegiatan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+function statusPill(s){
+  const map = {'Belum Ditindaklanjuti':'tag-danger','Dalam Proses':'tag-warning','Selesai':'tag-success'};
+  return `<span class="tag ${map[s]||'tag-muted'}">${escapeHtml(s||'—')}</span>`;
+}
+
+/* ============================================================
+   TUGAS TIM & TARGET TAHUNAN
+   ============================================================ */
+function tugasPct(t){
+  const total = ['q1','q2','q3','q4'].reduce((s,q)=> s + (Number((t[q]||{}).realisasi)||0), 0);
+  const target = Number(t.target)||0;
+  if(!target) return 0;
+  return Math.min(999, Math.round(total/target*100));
+}
+function currentQuarterIndex(){
+  const m = new Date().getMonth();
+  return Math.floor(m/3); // 0..3
+}
+let TUGAS_ACTIVE_Q = {}; // { [tugasId]: 'q1'|'q2'|'q3'|'q4' }
+function renderTugasPage(){
+  const items = applyPageFilters(DB.tugas.filter(t=>t.tahun===FILTER_YEAR), 'tugas');
+  const note = `<div class="section-note">${ICONS.info}<div>Setiap tugas tim memiliki <b>target tahunan</b> dan wajib direalisasikan serta dipantau setiap <b>triwulan</b> (3 bulan), lengkap dengan bukti dukung laporan (PDF/Word) per periode.</div></div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('tugas')}${exportButtons('tugas')}</div>`;
+  if(!items.length) return header + note + emptyState('tugas', `Belum ada tugas tim untuk tahun ${FILTER_YEAR}`, 'Tambahkan tugas beserta target realisasi tahunan.');
+
+  const quarters = ['q1','q2','q3','q4'];
+  const cq = currentQuarterIndex();
+  const cards = items.map(t=>{
+    const pct = tugasPct(t);
+    const st = statusFor(pctExpected(t, pct));
+    const activeQ = TUGAS_ACTIVE_Q[t.id] || quarters[cq] || 'q1';
+    const options = quarters.map((q,idx)=>
+      `<option value="${q}" ${q===activeQ?'selected':''}>${TRIWULAN_LABELS[q]}${idx===cq?' — berjalan':''}</option>`
+    ).join('');
+    return `<div class="panel" style="margin-bottom:14px;">
+      <div class="panel-head">
+        <div>
+          <div class="flex items-center gap-8"><span class="team-pill">${escapeHtml(teamName(t.timId))}</span><span class="tag ${st.tag}">${st.label}</span></div>
+          <h3 style="margin-top:7px;">${escapeHtml(t.nama)}</h3>
+          <p>Target: <b class="mono">${fmtNum(t.target)} ${escapeHtml(t.satuan||'')}</b> — Tahun ${t.tahun} · Realisasi total: <b class="mono">${fmtNum(totalRealisasi(t))} ${escapeHtml(t.satuan||'')}</b> (${pct}%)</p>
+        </div>
+        <div class="flex gap-6">${rowActions('tugas', t.id)}</div>
+      </div>
+      <div class="panel-body">
+        <div class="pbar ${st.cls}"><div style="width:${Math.min(100,pct)}%"></div></div>
+        <div class="q-select-row">
+          <label for="qsel-${t.id}">Pilih Triwulan</label>
+          <select id="qsel-${t.id}" class="q-select" onchange="changeTugasQuarter('${t.id}', this.value)">${options}</select>
+        </div>
+        <div class="q-grid q-grid-single">
+          ${quarterCard(t, activeQ, quarters[cq]===activeQ)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return header + note + cards;
+}
+function changeTugasQuarter(id, q){
+  TUGAS_ACTIVE_Q[id] = q;
+  renderContent();
+}
+function fmtNum(n){ n=Number(n)||0; return n.toLocaleString('id-ID'); }
+function totalRealisasi(t){ return ['q1','q2','q3','q4'].reduce((s,q)=>s+(Number((t[q]||{}).realisasi)||0),0); }
+function pctExpected(t, actualPct){
+  // simple pacing heuristic vs current quarter, used only for coloring dashboard-level status
+  return actualPct;
+}
+function quarterCard(t, q, isCurrent){
+  const data = t[q] || {};
+  const has = !!data.realisasi || Number(data.realisasi)===0 && data.realisasi!==undefined;
+  const filled = data.realisasi!==undefined && data.realisasi!=='' && data.realisasi!==null;
+  const stampClass = filled ? 'filled' : 'empty';
+  return `<div class="q-card">
+    <div class="q-card-head">
+      <span class="q-label">${TRIWULAN_LABELS[q]} ${isCurrent?'<span class="tag tag-gold" style="margin-left:4px;">berjalan</span>':''}</span>
+      <div class="stamp ${stampClass}" style="width:34px;height:34px;">
+        <div style="text-align:center;">
+          <div class="stamp-q" style="font-size:11px;">${q.replace('q','Q')}</div>
+        </div>
+      </div>
+    </div>
+    <label class="text-xs text-muted" style="margin-bottom:-4px;">Realisasi (${escapeHtml(t.satuan||'unit')})</label>
+    <input type="number" class="q-input" value="${data.realisasi ?? ''}" placeholder="0"
+      onchange="updateQuarterField('${t.id}','${q}','realisasi', this.value)">
+    <label class="text-xs text-muted" style="margin-bottom:-4px;">Tanggal Update</label>
+    <input type="date" class="q-input" value="${data.tanggal || ''}"
+      onchange="updateQuarterField('${t.id}','${q}','tanggal', this.value)">
+    <div class="q-evidence-row">
+      ${data.hasEvidence ? evidenceCell(t,'tugas',q) : `<label class="btn btn-outline btn-sm" style="cursor:pointer;">
+        ${ICONS.upload} Unggah Bukti
+        <input type="file" class="file-input-hidden" accept=".pdf,.doc,.docx" onchange="uploadQuarterEvidence('${t.id}','${q}', this)">
+      </label>`}
+    </div>
+  </div>`;
+}
+async function updateQuarterField(id, q, field, value){
+  const t = DB.tugas.find(x=>x.id===id);
+  if(!t) return;
+  if(!t[q]) t[q] = {};
+  t[q][field] = field==='realisasi' ? (value===''?'':Number(value)) : value;
+  try{
+    await apiPut('tugas', id, t);
+    renderContent();
+  }catch(e){ toast(e.message || 'Gagal menyimpan perubahan', 'err'); }
+}
+async function uploadQuarterEvidence(id, q, inputEl){
+  const t = DB.tugas.find(x=>x.id===id);
+  if(!t) return;
+  if(!t[q]) t[q] = {};
+  await uploadQuarterFile(inputEl, async (meta)=>{
+    Object.assign(t[q], meta);
+    try{
+      await apiPut('tugas', id, t);
+      renderContent();
+    }catch(e){ toast(e.message || 'Gagal menyimpan bukti', 'err'); }
+  });
+}
+
+/* ============================================================
+   IKU — Indikator Kinerja Utama
+   ============================================================ */
+function ikuPct(i){
+  const target = Number(i.target)||0;
+  const capaian = Number(i.capaian)||0;
+  if(!target) return 0;
+  return Math.min(999, Math.round(capaian/target*100));
+}
+function renderIkuPage(){
+  const items = applyPageFilters(DB.iku.filter(i=>i.tahun===FILTER_YEAR), 'iku');
+  const note = `<div class="section-note">${ICONS.info}<div>Setiap <b>Indikator Kinerja Utama (IKU)</b> Badan Pusat Statistik wajib disertai bukti laporan capaian (PDF/Word).</div></div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('iku')}${exportButtons('iku')}</div>`;
+  if(!items.length) return header + note + emptyState('iku', `Belum ada IKU untuk tahun ${FILTER_YEAR}`, 'Tambahkan indikator kinerja utama beserta target.');
+  const rows = items.map(i=>{
+    const pct = ikuPct(i);
+    const st = statusFor(pct);
+    return `<tr>
+      <td class="mono">${escapeHtml(i.kode||'—')}</td>
+      <td style="min-width:200px;">
+        <div class="cell-title">${escapeHtml(i.nama)}</div>
+        <div class="cell-sub">${escapeHtml(teamName(i.timId))}</div>
+      </td>
+      <td class="mono">${fmtNum(i.target)} ${escapeHtml(i.satuan||'')}</td>
+      <td class="mono">${fmtNum(i.capaian)} ${escapeHtml(i.satuan||'')}</td>
+      <td style="min-width:120px;">
+        <div class="flex items-center gap-8">
+          <div class="pbar ${st.cls}" style="width:64px;"><div style="width:${Math.min(100,pct)}%"></div></div>
+          <span class="mono text-xs">${pct}%</span>
+        </div>
+      </td>
+      <td>${evidenceCell(i,'iku')}</td>
+      <td><span class="tag ${st.tag}">${st.label}</span></td>
+      <td>${rowActions('iku', i.id)}</td>
+    </tr>`;
+  }).join('');
+  return header + note + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Kode</th><th>Indikator</th><th>Target</th><th>Capaian</th><th>%</th><th>Bukti Laporan</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+
+/* ============================================================
+   TIM
+   ============================================================ */
+function renderTimPage(){
+  const items = applyPageFilters(DB.teams, 'tim');
+  const header = `<div class="page-actions-bar">${filterOptions('tim')}${exportButtons('tim')}</div>`;
+  if(!items.length) return header + emptyState('tim','Belum ada tim','Tambahkan tim kerja untuk digunakan pada seluruh modul.');
+  const rows = items.map(t=>{
+    const cIku = DB.iku.filter(i=>i.timId===t.id).length;
+    const cTugas = DB.tugas.filter(i=>i.timId===t.id).length;
+    return `<tr>
+      <td class="cell-title">${escapeHtml(t.name)}</td>
+      <td>${cIku} IKU</td>
+      <td>${cTugas} tugas</td>
+      <td>${rowActions('tim', t.id)}</td>
+    </tr>`;
+  }).join('');
+  return header + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Nama Tim</th><th>IKU Terkait</th><th>Tugas Terkait</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+
+function renderAuditPage(){
+  if(!AUDIT_LOGS.length) return emptyState('audit','Belum ada aktivitas','Log audit akan muncul setelah pengguna membuat, mengubah, atau menghapus data.');
+  const rows = AUDIT_LOGS.map(log=>`
+    <tr>
+      <td class="mono">${fmtDate(log.timestamp)}</td>
+      <td>${escapeHtml(log.user)} (${escapeHtml(log.role)})</td>
+      <td>${escapeHtml(log.action)}</td>
+      <td>${escapeHtml(log.collection)}</td>
+      <td class="cell-title">${escapeHtml(log.itemId || '—')}</td>
+      <td class="cell-sub">${escapeHtml(JSON.stringify(log.details || {}, null, 2))}</td>
+    </tr>`).join('');
+  return `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Modul</th><th>ID</th><th>Detail</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function modalShell(title, bodyHtml, footHtml){
+  return `<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-head"><h3>${title}</h3><button class="close-x" onclick="closeModal()">${ICONS.x}</button></div>
+      <div class="modal-body">${bodyHtml}</div>
+      <div class="modal-foot">${footHtml}</div>
+    </div>
+  </div>`;
+}
+function openModal(html){
+  const old = document.getElementById('modalOverlay');
+  if(old) old.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('modalOverlay').addEventListener('click', e=>{
+    if(e.target.id==='modalOverlay') closeModal();
+  });
+}
+function closeModal(){
+  const old = document.getElementById('modalOverlay');
+  if(old) old.remove();
+}
+function teamOptions(selected){
+  return DB.teams.map(t=>`<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtml(t.name)}</option>`).join('');
+}
+
+/* ---- TIM modal ---- */
+function openTimModal(id){
+  const t = id ? DB.teams.find(x=>x.id===id) : null;
+  const body = `<div class="field"><label>Nama Tim</label><input type="text" id="f_name" value="${t?escapeHtml(t.name):''}" placeholder="mis. Tim Statistik Sosial"></div>`;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveTim('${id||''}')">Simpan</button>`;
+  openModal(modalShell(t?'Ubah Tim':'Tambah Tim', body, foot));
+}
+async function saveTim(id){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ toast('Nama tim wajib diisi','err'); return; }
+  try{
+    if(id) await apiPut('teams', id, {name});
+    else await apiPost('teams', {name});
+    await loadAll();
+    closeModal(); toast('Tim disimpan','ok'); renderShell();
+  }catch(e){ toast(e.message || 'Gagal menyimpan tim','err'); }
+}
+
+/* ---- FRA modal ---- */
+function openFraModal(id){
+  const f = id ? DB.fra.find(x=>x.id===id) : null;
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(f?f.timId:null)}</select></div>
+      <div class="field"><label>Periode (mis. Triwulan II 2026)</label><input type="text" id="f_periode" value="${f?escapeHtml(f.periode):''}" placeholder="Triwulan II 2026"></div>
+    </div>
+    <div class="field"><label>Uraian Capaian Kinerja</label><textarea id="f_uraian" placeholder="Jelaskan capaian kinerja tim...">${f?escapeHtml(f.uraian):''}</textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Persentase Capaian (%)</label><input type="number" id="f_persen" value="${f?f.persentase:''}" min="0" max="200"></div>
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}"></div>
+    </div>
+    <div class="field"><label>Catatan (opsional)</label><input type="text" id="f_catatan" value="${f?escapeHtml(f.catatan||''):''}"></div>
+    ${evidenceField('fra', f)}
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFra('${id||''}')">Simpan</button>`;
+  openModal(modalShell(f?'Ubah Capaian Tim':'Tambah Capaian Tim (FRA)', body, foot));
+  wireEvidenceField('fra', id);
+}
+function evidenceField(kind, item){
+  const has = item && item.hasEvidence;
+  return `<div class="field">
+    <label>Bukti Dukung Laporan (PDF / Word, maks ${MAX_FILE_MB}MB) — tersimpan di server</label>
+    <div class="dropzone" id="dz_${kind}" onclick="document.getElementById('fileInput_${kind}').click()">
+      <div id="dzContent_${kind}">
+        ${has ? `<div class="dz-title">${escapeHtml(item.evidenceOriginalName)}</div><div class="dz-sub">${fmtBytes(item.evidenceSize)} — klik untuk mengganti berkas</div>`
+              : `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`}
+      </div>
+    </div>
+    <input type="file" class="file-input-hidden" id="fileInput_${kind}" accept=".pdf,.doc,.docx">
+  </div>`;
+}
+let PENDING_EVIDENCE = {};
+function wireEvidenceField(kind, id){
+  PENDING_EVIDENCE = {};
+  const input = document.getElementById(`fileInput_${kind}`);
+  if(!input) return;
+  input.addEventListener('change', async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    if(!validateFileOrToast(file)){ input.value=''; return; }
+    document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">Mengunggah…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
+    try{
+      const meta = await uploadFileToServer(file);
+      PENDING_EVIDENCE[kind] = meta;
+      document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">${escapeHtml(meta.originalName)}</div><div class="dz-sub">${fmtBytes(meta.size)} — tersimpan di server, siap dikaitkan</div>`;
+    }catch(e){
+      toast(e.message || 'Gagal mengunggah berkas','err');
+      document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`;
+    }
+  });
+}
+function persistPendingEvidence(kind){
+  const pending = PENDING_EVIDENCE[kind];
+  if(!pending) return null;
+  return {hasEvidence:true, evidenceFileName:pending.filename, evidenceOriginalName:pending.originalName, evidenceSize:pending.size};
+}
+async function saveFra(id){
+  const timId = document.getElementById('f_tim').value;
+  const periode = document.getElementById('f_periode').value.trim();
+  const uraian = document.getElementById('f_uraian').value.trim();
+  const persentase = Number(document.getElementById('f_persen').value)||0;
+  const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
+  const catatan = document.getElementById('f_catatan').value.trim();
+  if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
+  if(!uraian || uraian.length < 3){ toast('Uraian capaian wajib diisi, minimal 3 karakter','err'); return; }
+  let payload = {timId, periode, uraian, persentase, tahun, catatan};
+  const evMeta = persistPendingEvidence('fra');
+  if(evMeta) Object.assign(payload, evMeta);
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id) await apiPut('fra', id, payload);
+    else await apiPost('fra', payload);
+    await loadAll();
+    closeModal(); toast('Capaian tim disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan capaian tim','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+
+/* ---- KEGIATAN modal ---- */
+function openKegiatanModal(id){
+  const k = id ? DB.kegiatan.find(x=>x.id===id) : null;
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(k?k.timId:null)}</select></div>
+      <div class="field"><label>Tanggal</label><input type="date" id="f_tanggal" value="${k?k.tanggal:new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_nama" value="${k?escapeHtml(k.nama):''}" placeholder="mis. Pengumpulan data Susenas"></div>
+    <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
+    <div class="field"><label>Solusi</label><textarea id="f_solusi" placeholder="Solusi yang diterapkan...">${k?escapeHtml(k.solusi):''}</textarea></div>
+    <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea id="f_rtl" placeholder="Rencana tindak lanjut berikutnya...">${k?escapeHtml(k.rtl):''}</textarea></div>
+    <div class="field"><label>Status</label>
+      <select id="f_status">
+        ${['Belum Ditindaklanjuti','Dalam Proses','Selesai'].map(s=>`<option value="${s}" ${k&&k.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveKegiatan('${id||''}')">Simpan</button>`;
+  openModal(modalShell(k?'Ubah Analisis Kegiatan':'Tambah Analisis Kegiatan', body, foot));
+}
+async function saveKegiatan(id){
+  const timId = document.getElementById('f_tim').value;
+  const tanggal = document.getElementById('f_tanggal').value;
+  const nama = document.getElementById('f_nama').value.trim();
+  const kendala = document.getElementById('f_kendala').value.trim();
+  const solusi = document.getElementById('f_solusi').value.trim();
+  const rtl = document.getElementById('f_rtl').value.trim();
+  const status = document.getElementById('f_status').value;
+  if(!nama || nama.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
+  if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
+  if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
+  if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
+  const payload = {timId,tanggal,nama,kendala,solusi,rtl,status};
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id) await apiPut('kegiatan', id, payload);
+    else await apiPost('kegiatan', payload);
+    await loadAll();
+    closeModal(); toast('Analisis kegiatan disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan analisis kegiatan','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+
+/* ---- TUGAS modal (create/edit basic info; quarters edited inline in page) ---- */
+function openTugasModal(id){
+  const t = id ? DB.tugas.find(x=>x.id===id) : null;
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(t?t.timId:null)}</select></div>
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${t?t.tahun:FILTER_YEAR}"></div>
+    </div>
+    <div class="field"><label>Nama Tugas</label><input type="text" id="f_nama" value="${t?escapeHtml(t.nama):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
+    <div class="field-row">
+      <div class="field"><label>Target Tahunan</label><input type="number" id="f_target" value="${t?t.target:''}" placeholder="mis. 100"></div>
+      <div class="field"><label>Satuan</label><input type="text" id="f_satuan" value="${t?escapeHtml(t.satuan||''):''}" placeholder="mis. dokumen, %, laporan"></div>
+    </div>
+    <div class="text-xs text-muted">Realisasi, tanggal update, dan bukti dukung tiap triwulan dapat diisi langsung pada kartu tugas setelah disimpan.</div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveTugas('${id||''}')">Simpan</button>`;
+  openModal(modalShell(t?'Ubah Tugas Tim':'Tambah Tugas Tim', body, foot));
+}
+async function saveTugas(id){
+  const timId = document.getElementById('f_tim').value;
+  const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
+  const nama = document.getElementById('f_nama').value.trim();
+  const target = Number(document.getElementById('f_target').value)||0;
+  const satuan = document.getElementById('f_satuan').value.trim();
+  if(!nama || nama.length < 3){ toast('Nama tugas wajib diisi, minimal 3 karakter','err'); return; }
+  if(!target){ toast('Target tahunan wajib diisi','err'); return; }
+  if(!satuan){ toast('Satuan wajib diisi','err'); return; }
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id){
+      const existing = DB.tugas.find(x=>x.id===id);
+      await apiPut('tugas', id, {...existing, timId,tahun,nama,target,satuan});
+    } else {
+      await apiPost('tugas', {timId,tahun,nama,target,satuan, q1:{},q2:{},q3:{},q4:{}});
+    }
+    await loadAll();
+    closeModal(); toast('Tugas tim disimpan','ok'); FILTER_YEAR = tahun; renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan tugas tim','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+
+/* ---- IKU modal ---- */
+function openIkuModal(id){
+  const i = id ? DB.iku.find(x=>x.id===id) : null;
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Kode IKU</label><input type="text" id="f_kode" value="${i?escapeHtml(i.kode||''):''}" placeholder="mis. IKU-01"></div>
+      <div class="field"><label>Tim Penanggung Jawab</label><select id="f_tim">${teamOptions(i?i.timId:null)}</select></div>
+    </div>
+    <div class="field"><label>Nama Indikator</label><input type="text" id="f_nama" value="${i?escapeHtml(i.nama):''}" placeholder="mis. Persentase konsumen yang puas terhadap kualitas data statistik"></div>
+    <div class="field-row">
+      <div class="field"><label>Target</label><input type="number" id="f_target" value="${i?i.target:''}"></div>
+      <div class="field"><label>Capaian</label><input type="number" id="f_capaian" value="${i?i.capaian:''}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Satuan</label><input type="text" id="f_satuan" value="${i?escapeHtml(i.satuan||''):''}" placeholder="mis. %, indeks"></div>
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${i?i.tahun:FILTER_YEAR}"></div>
+    </div>
+    ${evidenceField('iku', i)}
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveIku('${id||''}')">Simpan</button>`;
+  openModal(modalShell(i?'Ubah IKU':'Tambah Indikator Kinerja Utama', body, foot));
+  wireEvidenceField('iku', id);
+}
+async function saveIku(id){
+  const kode = document.getElementById('f_kode').value.trim();
+  const timId = document.getElementById('f_tim').value;
+  const nama = document.getElementById('f_nama').value.trim();
+  const target = Number(document.getElementById('f_target').value)||0;
+  const capaian = Number(document.getElementById('f_capaian').value)||0;
+  const satuan = document.getElementById('f_satuan').value.trim();
+  const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
+  if(!nama || nama.length < 3){ toast('Nama indikator wajib diisi, minimal 3 karakter','err'); return; }
+  if(!target){ toast('Target wajib diisi','err'); return; }
+  if(!satuan){ toast('Satuan wajib diisi','err'); return; }
+  let payload = {kode,timId,nama,target,capaian,satuan,tahun};
+  const evMeta = persistPendingEvidence('iku');
+  if(evMeta) Object.assign(payload, evMeta);
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id) await apiPut('iku', id, payload);
+    else await apiPost('iku', payload);
+    await loadAll();
+    closeModal(); toast('IKU disimpan','ok'); FILTER_YEAR = tahun; renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan IKU','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+
+/* ---- delete ---- */
+async function deleteItem(kind, id){
+  if(!confirm('Hapus data ini? Tindakan tidak dapat dibatalkan.')) return;
+  const col = kind==='tim' ? 'teams' : kind;
+  try{
+    await apiDelete(col, id);
+    await loadAll();
+    toast('Data dihapus','ok'); renderShell();
+  }catch(e){ toast(e.message || 'Gagal menghapus data','err'); }
+}
+
+function wireDynamic(){ /* reserved for future dynamic listeners */ }
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(async function init(){
+  await initAuth();
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  if(AUTH.loggedIn){
+    await loadAll();
+  }
+  requireAuthOrLogin();
+})();
+</script>
+</body>
+</html>
