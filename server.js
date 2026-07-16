@@ -470,13 +470,19 @@ function collectEvidenceFileIds(name, item) {
 }
 
 async function deleteEvidenceFiles(fileIds) {
+  if (!fileIds.length) {
+    console.log('[OneDrive] Tidak ada berkas bukti terkait untuk dihapus (evidenceFileName kosong).');
+    return;
+  }
   for (const fileId of fileIds) {
+    console.log(`[OneDrive] Mencoba menghapus berkas dengan id: ${fileId}`);
     try {
       await onedrive.deleteFile(fileId);
+      console.log(`[OneDrive] Berhasil menghapus berkas dengan id: ${fileId}`);
     } catch (err) {
       // Jangan gagalkan proses hapus data hanya karena berkas di OneDrive
       // bermasalah (mis. sudah dihapus manual sebelumnya) — cukup dicatat.
-      console.error(`Gagal menghapus berkas OneDrive terkait (${fileId}):`, err.message);
+      console.error(`[OneDrive] Gagal menghapus berkas OneDrive terkait (${fileId}):`, err.message);
     }
   }
 }
@@ -640,6 +646,15 @@ app.get('/auth/redirect', requireLogin, requireAdmin, async (req, res) => {
   }
 });
 
+// Pemetaan modul -> nama folder OneDrive. Kalau kind tidak dikenali/tidak
+// dikirim, jatuh ke folder default (ONEDRIVE_FOLDER di .env / 'SIMONEV-Uploads').
+const UPLOAD_FOLDER_BY_KIND = {
+  fra: 'SIMONEV-FRA',
+  iku: 'SIMONEV-IKU',
+  tugas: 'SIMONEV-Tugas',
+  kegiatan: 'SIMONEV-Kegiatan',
+};
+
 app.post('/api/upload', requireLogin, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
@@ -648,7 +663,10 @@ app.post('/api/upload', requireLogin, (req, res) => {
       const originalName = sanitizeText(req.file.originalname);
       const ext = path.extname(req.file.originalname).toLowerCase();
       const storedName = `${uuidv4()}${ext}`;
-      const item = await onedrive.uploadFile(req.file.buffer, storedName);
+      const kind = sanitizeText(req.body.kind || '');
+      const folder = UPLOAD_FOLDER_BY_KIND[kind]; // undefined -> onedrive.js pakai default
+      console.log(`[Upload] req.body.kind = "${kind}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
+      const item = await onedrive.uploadFile(req.file.buffer, storedName, folder);
       // "filename" yang dikembalikan sekarang adalah ID item OneDrive
       // (bukan lagi nama file di disk lokal), dipakai untuk lihat/hapus berkas.
       res.json({ filename: item.id, originalName, size: req.file.size, mimetype: req.file.mimetype });

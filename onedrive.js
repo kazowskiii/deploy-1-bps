@@ -50,7 +50,6 @@ const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 const DATA_DIR = path.join(__dirname, 'data');
 const TOKEN_FILE = path.join(DATA_DIR, 'onedrive-token.json');
 
-let folderEnsured = false;
 
 function assertConfigured() {
   const missing = [];
@@ -190,12 +189,14 @@ function driveRootUrl() {
   return `${GRAPH_BASE}/me/drive`;
 }
 
-async function ensureFolder() {
-  if (folderEnsured) return;
-  const checkUrl = `${driveRootUrl()}/root:/${encodeURIComponent(ONEDRIVE_FOLDER)}`;
+const ensuredFolders = new Set();
+
+async function ensureFolder(folderName) {
+  if (ensuredFolders.has(folderName)) return;
+  const checkUrl = `${driveRootUrl()}/root:/${encodeURIComponent(folderName)}`;
   const res = await graphFetch(checkUrl);
   if (res.status === 200) {
-    folderEnsured = true;
+    ensuredFolders.add(folderName);
     return;
   }
   if (res.status !== 404) {
@@ -205,26 +206,29 @@ async function ensureFolder() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: ONEDRIVE_FOLDER,
+      name: folderName,
       folder: {},
       '@microsoft.graph.conflictBehavior': 'replace',
     }),
   });
   if (!createRes.ok) {
-    throw new Error(`Gagal membuat folder OneDrive "${ONEDRIVE_FOLDER}": ${await readGraphError(createRes)}`);
+    throw new Error(`Gagal membuat folder OneDrive "${folderName}": ${await readGraphError(createRes)}`);
   }
-  folderEnsured = true;
+  ensuredFolders.add(folderName);
 }
 
 /**
  * Unggah buffer berkas ke OneDrive lewat upload session (aman untuk berbagai
  * ukuran berkas, tidak dibatasi ~4MB seperti PUT langsung).
+ * `folderName` opsional — kalau tidak diisi, pakai folder default (ONEDRIVE_FOLDER).
+ * Dipakai supaya tiap modul (FRA/IKU/Tugas) bisa punya folder OneDrive sendiri.
  * Mengembalikan metadata item OneDrive (termasuk `id`, dipakai sebagai
  * pengenal berkas di sisi aplikasi, menggantikan nama file lokal).
  */
-async function uploadFile(buffer, filename) {
-  await ensureFolder();
-  const itemPath = `${ONEDRIVE_FOLDER}/${filename}`;
+async function uploadFile(buffer, filename, folderName) {
+  const folder = folderName || ONEDRIVE_FOLDER;
+  await ensureFolder(folder);
+  const itemPath = `${folder}/${filename}`;
 
   const sessionRes = await graphFetch(
     `${driveRootUrl()}/root:/${encodeURIComponent(itemPath)}:/createUploadSession`,
@@ -272,6 +276,10 @@ async function deleteFile(itemId) {
   const res = await graphFetch(`${driveRootUrl()}/items/${encodeURIComponent(itemId)}`, {
     method: 'DELETE',
   });
+  console.log(`[OneDrive] Graph API DELETE /items/${itemId} -> status ${res.status}`);
+  if (res.status === 404) {
+    console.log(`[OneDrive] Item ${itemId} tidak ditemukan di OneDrive (mungkin sudah terhapus sebelumnya, atau id salah).`);
+  }
   if (!res.ok && res.status !== 404) {
     throw new Error(`Gagal menghapus berkas di OneDrive: ${await readGraphError(res)}`);
   }

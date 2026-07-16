@@ -1,7 +1,8 @@
 node_modules/
 data/db.json
 data/onedrive-token.json
+data/backup/*
+!data/backup/.gitkeep
 uploads/*
 !uploads/.gitkeep
-
 .env

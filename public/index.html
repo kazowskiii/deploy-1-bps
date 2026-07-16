@@ -673,9 +673,18 @@ async function apiDelete(col, id){
   if(!r.ok) throw new Error(await parseApiError(r, 'Gagal menghapus data'));
   return r.json();
 }
-async function uploadFileToServer(file){
+async function apiDeleteFile(itemId){
+  if(!itemId) return;
+  try{
+    await fetch(`/api/files/${itemId}`, { method:'DELETE', credentials:'include' });
+  }catch(e){
+    console.error('Gagal menghapus berkas lama/salah pilih di OneDrive:', e.message || e);
+  }
+}
+async function uploadFileToServer(file, kind){
   const fd = new FormData();
   fd.append('file', file);
+  if(kind) fd.append('kind', kind);
   const r = await fetch('/api/upload', { method:'POST', credentials:'include', body:fd });
   const data = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(data.error || 'Gagal mengunggah berkas');
@@ -757,7 +766,7 @@ async function uploadQuarterFile(inputEl, onMeta){
   if(!file) return;
   if(!validateFileOrToast(file)){ inputEl.value=''; return; }
   try{
-    const meta = await uploadFileToServer(file);
+    const meta = await uploadFileToServer(file, 'tugas');
     onMeta({hasEvidence:true, evidenceFileName:meta.filename, evidenceOriginalName:meta.originalName, evidenceSize:meta.size});
     toast('Bukti dukung berhasil diunggah', 'ok');
   }catch(e){
@@ -1486,22 +1495,75 @@ function evidenceField(kind, item){
   </div>`;
 }
 let PENDING_EVIDENCE = {};
+let EVIDENCE_UPLOADING = {}; // true selama upload sebuah kind masih berjalan
+let AUTO_ATTACH_TARGET = {}; // {kind: {collection, id}} — record yang perlu dikaitkan otomatis begitu upload kind ini selesai
+let EVIDENCE_UPLOAD_TOKEN = {}; // penanda "upload ke berapa" per kind, dipakai untuk deteksi hasil basi
 function wireEvidenceField(kind, id){
-  PENDING_EVIDENCE = {};
+  PENDING_EVIDENCE[kind] = null;
+  EVIDENCE_UPLOADING[kind] = false;
+  EVIDENCE_UPLOAD_TOKEN[kind] = 0;
   const input = document.getElementById(`fileInput_${kind}`);
   if(!input) return;
   input.addEventListener('change', async ()=>{
     const file = input.files[0];
     if(!file) return;
     if(!validateFileOrToast(file)){ input.value=''; return; }
-    document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">Mengunggah…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
+
+    // User memilih file BARU — kalau ada file yang sudah kepencet/terunggah
+    // sebelumnya tapi belum sempat dikaitkan ke data manapun, itu langsung
+    // dianggap "salah pilih" dan dihapus dari OneDrive supaya tidak menumpuk.
+    const previouslyStaged = PENDING_EVIDENCE[kind];
+    if(previouslyStaged){
+      apiDeleteFile(previouslyStaged.filename);
+      PENDING_EVIDENCE[kind] = null;
+    }
+
+    const myToken = ++EVIDENCE_UPLOAD_TOKEN[kind]; // tandai upload kali ini sebagai yang terbaru
+    EVIDENCE_UPLOADING[kind] = true;
+    const dz = document.getElementById(`dzContent_${kind}`);
+    if(dz) dz.innerHTML = `<div class="dz-title">Mengunggah…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
     try{
-      const meta = await uploadFileToServer(file);
+      const meta = await uploadFileToServer(file, kind);
+
+      // Kalau selama upload ini berjalan user sudah ganti pilihan file lagi
+      // (token sudah berubah), hasil upload ini sudah basi — hapus langsung
+      // dari OneDrive, jangan disimpan sebagai PENDING_EVIDENCE.
+      if(myToken !== EVIDENCE_UPLOAD_TOKEN[kind]){
+        apiDeleteFile(meta.filename);
+        return;
+      }
+
       PENDING_EVIDENCE[kind] = meta;
-      document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">${escapeHtml(meta.originalName)}</div><div class="dz-sub">${fmtBytes(meta.size)} — tersimpan di server, siap dikaitkan</div>`;
+      const dz2 = document.getElementById(`dzContent_${kind}`);
+      if(dz2) dz2.innerHTML = `<div class="dz-title">${escapeHtml(meta.originalName)}</div><div class="dz-sub">${fmtBytes(meta.size)} — tersimpan di server, siap dikaitkan</div>`;
+      // Kalau user sudah terlanjur klik Simpan SEBELUM upload ini selesai, record-nya
+      // sudah tersimpan tanpa bukti. Begitu upload selesai (di sini), kaitkan otomatis
+      // ke record itu tanpa perlu user klik apa pun lagi.
+      const target = AUTO_ATTACH_TARGET[kind];
+      if(target){
+        AUTO_ATTACH_TARGET[kind] = null;
+        try{
+          const record = (DB[target.collection] || []).find(x=>x.id===target.id);
+          const base = record ? {...record} : {};
+          delete base.id;
+          await apiPut(target.collection, target.id, {
+            ...base,
+            hasEvidence:true, evidenceFileName:meta.filename,
+            evidenceOriginalName:meta.originalName, evidenceSize:meta.size
+          });
+          await loadAll();
+          renderContent();
+          toast('Berkas bukti berhasil dikaitkan ke data yang sudah disimpan','ok');
+        }catch(e){
+          toast('Berkas terunggah, tapi gagal mengaitkan otomatis ke data: ' + (e.message||''), 'err');
+        }
+      }
     }catch(e){
       toast(e.message || 'Gagal mengunggah berkas','err');
-      document.getElementById(`dzContent_${kind}`).innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`;
+      const dz3 = document.getElementById(`dzContent_${kind}`);
+      if(dz3) dz3.innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`;
+    }finally{
+      if(myToken === EVIDENCE_UPLOAD_TOKEN[kind]) EVIDENCE_UPLOADING[kind] = false;
     }
   });
 }
@@ -1509,6 +1571,17 @@ function persistPendingEvidence(kind){
   const pending = PENDING_EVIDENCE[kind];
   if(!pending) return null;
   return {hasEvidence:true, evidenceFileName:pending.filename, evidenceOriginalName:pending.originalName, evidenceSize:pending.size};
+}
+// Panggil setelah record berhasil disimpan (create/update). Kalau upload untuk
+// kind ini masih berjalan, daftarkan record ini supaya di-auto-attach nanti,
+// dan beri tahu user lewat toast bahwa itu akan menyusul otomatis.
+function registerAutoAttachIfUploading(kind, collection, id){
+  if(EVIDENCE_UPLOADING[kind] && !PENDING_EVIDENCE[kind]){
+    AUTO_ATTACH_TARGET[kind] = { collection, id };
+    toast('Data disimpan. Berkas masih diunggah dan akan dikaitkan otomatis begitu selesai.', 'ok');
+    return true;
+  }
+  return false;
 }
 async function saveFra(id){
   const timId = document.getElementById('f_tim').value;
@@ -1525,8 +1598,10 @@ async function saveFra(id){
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    if(id) await apiPut('fra', id, payload);
-    else await apiPost('fra', payload);
+    let saved;
+    if(id) saved = await apiPut('fra', id, payload);
+    else saved = await apiPost('fra', payload);
+    registerAutoAttachIfUploading('fra', 'fra', saved.id);
     await loadAll();
     closeModal(); toast('Capaian tim disimpan','ok'); renderShell();
   }catch(e){
@@ -1666,8 +1741,10 @@ async function saveIku(id){
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    if(id) await apiPut('iku', id, payload);
-    else await apiPost('iku', payload);
+    let saved;
+    if(id) saved = await apiPut('iku', id, payload);
+    else saved = await apiPost('iku', payload);
+    registerAutoAttachIfUploading('iku', 'iku', saved.id);
     await loadAll();
     closeModal(); toast('IKU disimpan','ok'); FILTER_YEAR = tahun; renderShell();
   }catch(e){
