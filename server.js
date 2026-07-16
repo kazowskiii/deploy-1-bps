@@ -409,6 +409,7 @@ function authorizePayload(req, res, next) {
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
+app.set('trust proxy', 1);
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
