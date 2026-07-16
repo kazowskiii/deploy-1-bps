@@ -667,7 +667,12 @@ app.post('/api/upload', requireLogin, (req, res) => {
     try {
       const originalName = sanitizeText(req.file.originalname);
       const ext = path.extname(req.file.originalname).toLowerCase();
-      const storedName = `${uuidv4()}${ext}`;
+      const baseName = path.basename(originalName, ext)
+      .replace(/[^a-zA-Z0-9-_ ]/g, '')   // buang karakter yang tidak aman untuk nama file
+      .trim()
+      .slice(0, 100);                    // batasi panjang biar tidak kepanjangan
+      const shortId = uuidv4().split('-')[0]; // ambil 8 karakter pertama UUID saja
+      const storedName = `${baseName}-${shortId}${ext}`;
       const kind = sanitizeText(req.body.kind || '');
       const folder = UPLOAD_FOLDER_BY_KIND[kind]; // undefined -> onedrive.js pakai default
       console.log(`[Upload] req.body.kind = "${kind}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
