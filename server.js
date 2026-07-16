@@ -410,10 +410,14 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 app.use(session({
-  secret: SESSION_SECRET,
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 },
+  cookie: { 
+    maxAge: undefined,   // tidak ada masa berlaku tetap = "session cookie"
+    secure: true,         // wajib HTTPS (aman karena Railway sudah HTTPS)
+    httpOnly: true        // cookie tidak bisa diakses lewat JavaScript (lebih aman)
+  }
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
