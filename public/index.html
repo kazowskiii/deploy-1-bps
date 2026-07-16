@@ -947,36 +947,35 @@ function renderDashboard(){
   const ikuYear = DB.iku.filter(i=>i.tahun===FILTER_YEAR);
   const tugasYear = DB.tugas.filter(t=>t.tahun===FILTER_YEAR);
 
-  const ikuTercapai = ikuYear.filter(i=>ikuPct(i)>=100).length;
-  const tugasAvgPct = tugasYear.length ? Math.round(tugasYear.reduce((s,t)=>s+tugasPct(t),0)/tugasYear.length) : 0;
-  const kendalaOpen = DB.kegiatan.filter(k=>k.status!=='Selesai').length;
-  const fraCount = DB.fra.filter(f=>f.tahun===FILTER_YEAR || !f.tahun).length;
+  const fraYear = DB.fra.filter(f=>Number(f.tahun)===FILTER_YEAR || !f.tahun);
+  const fraAvgPct = fraYear.length ? Math.round(fraYear.reduce((s,f)=>s+(Number(f.persentase)||0),0)/fraYear.length) : 0;
+  const totalKegiatan = DB.kegiatan.length;
 
   const kpis = `
     <div class="grid-4">
       <div class="kpi-card">
-        <span class="trend ${ikuYear.length && ikuTercapai/ikuYear.length>=.7?'up':'warn'}">${ikuYear.length?Math.round(ikuTercapai/ikuYear.length*100):0}%</span>
-        <div class="eyebrow">IKU Tahun ${FILTER_YEAR}</div>
-        <div class="value">${ikuTercapai}<span style="font-size:16px;color:var(--ink-faint);">/${ikuYear.length}</span></div>
-        <div class="sub">Indikator kinerja utama tercapai</div>
+        <span class="trend ${fraAvgPct>=75?'up':fraAvgPct>=40?'warn':'down'}">${fraAvgPct}%</span>
+        <div class="eyebrow">Realisasi Kerja</div>
+        <div class="value">${fraYear.length}</div>
+        <div class="sub">Rata-rata capaian FRA tahun ${FILTER_YEAR}</div>
       </div>
       <div class="kpi-card">
-        <span class="trend ${tugasAvgPct>=75?'up':tugasAvgPct>=40?'warn':'down'}">${tugasAvgPct}%</span>
-        <div class="eyebrow">Rata-rata Realisasi Tugas</div>
-        <div class="value">${tugasYear.length}</div>
-        <div class="sub">Tugas tim aktif tahun ${FILTER_YEAR}</div>
+        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <div class="eyebrow">Total Kendala</div>
+        <div class="value">${totalKegiatan}</div>
+        <div class="sub">Kendala tercatat pada Analisis Kegiatan</div>
       </div>
       <div class="kpi-card">
-        <span class="trend ${kendalaOpen===0?'up':'warn'}">${kendalaOpen} terbuka</span>
-        <div class="eyebrow">Analisis Kegiatan</div>
-        <div class="value">${DB.kegiatan.length}</div>
-        <div class="sub">Total kendala &amp; RTL tercatat</div>
+        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <div class="eyebrow">Solusi</div>
+        <div class="value">${totalKegiatan}</div>
+        <div class="sub">Solusi tercatat pada Analisis Kegiatan</div>
       </div>
       <div class="kpi-card">
-        <span class="trend up">${DB.teams.length} tim</span>
-        <div class="eyebrow">FRA — Capaian Tim</div>
-        <div class="value">${fraCount}</div>
-        <div class="sub">Laporan capaian kinerja tercatat</div>
+        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <div class="eyebrow">RTL</div>
+        <div class="value">${totalKegiatan}</div>
+        <div class="sub">Rencana tindak lanjut tercatat</div>
       </div>
     </div>`;
 
