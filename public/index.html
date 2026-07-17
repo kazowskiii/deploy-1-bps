@@ -1692,19 +1692,21 @@ function openModal(html){
   overlay.addEventListener('click', e=>{
     if(e.target.id==='modalOverlay') closeModal();
   });
-  overlay.addEventListener('keydown', e=>{
-    if(e.key !== 'Enter') return;
-    const isTextarea = e.target.tagName === 'TEXTAREA';
-    if(isTextarea && !(e.ctrlKey || e.metaKey)) return; // di textarea, Enter biasa = baris baru
-    e.preventDefault();
-    const btn = overlay.querySelector('.btn-primary');
-    if(btn && !btn.disabled) btn.click();
-  });
 }
 function closeModal(){
   const old = document.getElementById('modalOverlay');
   if(old) old.remove();
 }
+document.addEventListener('keydown', function(e){
+  if(e.key !== 'Enter') return;
+  const overlay = document.getElementById('modalOverlay');
+  if(!overlay) return; // tidak ada modal terbuka, biarkan perilaku normal
+  const isTextarea = e.target.tagName === 'TEXTAREA';
+  if(isTextarea && !(e.ctrlKey || e.metaKey)) return; // di textarea, Enter biasa = baris baru
+  e.preventDefault();
+  const btn = overlay.querySelector('.btn-primary');
+  if(btn && !btn.disabled) btn.click();
+});
 function teamOptions(selected){
   return DB.teams.map(t=>`<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtml(t.name)}</option>`).join('');
 }
