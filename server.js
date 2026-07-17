@@ -343,6 +343,7 @@ const teamSchema = Joi.object({
 const fraSchema = Joi.object({
   timId: Joi.string().required(),
   periode: Joi.string().trim().min(3).max(120).required(),
+  ikuNomor: Joi.number().integer().min(1).max(16).required(),
   uraian: Joi.string().trim().min(3).max(1000).required(),
   persentase: Joi.number().min(0).max(200).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),

@@ -1320,6 +1320,7 @@ function renderFraPage(){
     return `<tr>
       <td><span class="team-pill">${escapeHtml(teamName(f.timId))}</span></td>
       <td class="mono">${escapeHtml(f.periode||'—')}</td>
+      <td class="mono">${f.ikuNomor ? 'IKU '+f.ikuNomor : '—'}</td>
       <td style="min-width:220px;">
         <div class="cell-title">${escapeHtml(f.uraian)}</div>
         ${f.catatan?`<div class="cell-sub">${escapeHtml(f.catatan)}</div>`:''}
@@ -1336,7 +1337,7 @@ function renderFraPage(){
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>Tim</th><th>Periode</th><th>Uraian Capaian</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Tim</th><th>Periode</th><th>IKU</th><th>Uraian Capaian</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -1743,6 +1744,13 @@ function openFraModal(id){
       </select>
 </div>
     </div>
+    <div class="field"><label>IKU</label>
+      <select id="f_ikuNomor">
+      ${Array.from({length:16},(_,i)=>i+1).map(n=>
+      `<option value="${n}" ${f && Number(f.ikuNomor)===n ? 'selected' : ''}>IKU ${n}</option>`
+      ).join('')}
+      </select>
+    </div>
     <div class="field"><label>Uraian Capaian Kinerja</label><textarea id="f_uraian" placeholder="Jelaskan capaian kinerja tim...">${f?escapeHtml(f.uraian):''}</textarea></div>
     <div class="field-row">
       <div class="field"><label>Persentase Capaian (%)</label><input type="number" id="f_persen" value="${f?f.persentase:''}" min="0" max="200"></div>
@@ -1860,13 +1868,14 @@ function registerAutoAttachIfUploading(kind, collection, id){
 async function saveFra(id){
   const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value.trim();
+  const ikuNomor = Number(document.getElementById('f_ikuNomor').value)||1;
   const uraian = document.getElementById('f_uraian').value.trim();
   const persentase = Number(document.getElementById('f_persen').value)||0;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const catatan = document.getElementById('f_catatan').value.trim();
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
   if(!uraian || uraian.length < 3){ toast('Uraian capaian wajib diisi, minimal 3 karakter','err'); return; }
-  let payload = {timId, periode, uraian, persentase, tahun, catatan};
+  let payload = {timId, periode, ikuNomor, uraian, persentase, tahun, catatan};
   const evMeta = persistPendingEvidence('fra');
   if(evMeta) Object.assign(payload, evMeta);
   const btn = document.querySelector('#modalOverlay .btn-primary');
