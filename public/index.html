@@ -554,7 +554,19 @@ function teamFilterOptions(){
 }
 function updatePageFilter(key, value){
   PAGE_FILTERS[key] = value;
+  const activeId = document.activeElement ? document.activeElement.id : null;
+  const cursorPos = (activeId && document.activeElement.selectionStart !== undefined)
+    ? document.activeElement.selectionStart : null;
   renderContent();
+  if(activeId){
+    const el = document.getElementById(activeId);
+    if(el){
+      el.focus();
+      if(cursorPos !== null && el.setSelectionRange){
+        el.setSelectionRange(cursorPos, cursorPos);
+      }
+    }
+  }
 }
 function applyPageFilters(items, collection){
   let result = Array.isArray(items) ? [...items] : [];
