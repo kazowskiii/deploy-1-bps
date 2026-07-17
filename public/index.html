@@ -1693,11 +1693,12 @@ function openModal(html){
     if(e.target.id==='modalOverlay') closeModal();
   });
   overlay.addEventListener('keydown', e=>{
-    if(e.key === 'Enter' && e.target.tagName !== 'TEXTAREA'){
-      e.preventDefault();
-      const btn = overlay.querySelector('.btn-primary');
-      if(btn && !btn.disabled) btn.click();
-    }
+    if(e.key !== 'Enter') return;
+    const isTextarea = e.target.tagName === 'TEXTAREA';
+    if(isTextarea && !(e.ctrlKey || e.metaKey)) return; // di textarea, Enter biasa = baris baru
+    e.preventDefault();
+    const btn = overlay.querySelector('.btn-primary');
+    if(btn && !btn.disabled) btn.click();
   });
 }
 function closeModal(){
