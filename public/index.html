@@ -473,6 +473,8 @@ let bellOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '' };
 let ROUTE = 'dashboard';
 let FILTER_YEAR = new Date().getFullYear();
+let AUTH_VIEW = 'login';
+let REGISTER_TEAMS = [];
 
 async function initAuth(){
   try {
@@ -492,7 +494,7 @@ function setAuth(user){
 async function requireAuthOrLogin(){
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if(AUTH.loggedIn){
-    if(path === '/login') history.replaceState(null, '', '/');
+    if(path === '/login' || path === '/register') history.replaceState(null, '', '/');
     renderShell();
     return;
   }
@@ -505,10 +507,30 @@ async function requireAuthOrLogin(){
   }
   if(NEEDS_SETUP){
     renderSetupPage();
+    return;
+  }
+  if(path === '/register'){
+    await showRegisterView();
   } else {
     if(path !== '/login') history.replaceState(null, '', '/login');
     renderLoginPage();
   }
+}
+function showLoginView(){
+  AUTH_VIEW = 'login';
+  history.replaceState(null, '', '/login');
+  renderLoginPage();
+}
+async function showRegisterView(){
+  AUTH_VIEW = 'register';
+  history.replaceState(null, '', '/register');
+  try{
+    const res = await fetch('/api/teams-public');
+    REGISTER_TEAMS = await res.json();
+  }catch(e){
+    REGISTER_TEAMS = [];
+  }
+  renderRegisterPage();
 }
 function isAdmin(){
   return AUTH.user && AUTH.user.role === 'admin';
@@ -712,11 +734,83 @@ function renderLoginPage(){
             </button>
           </form>
           <div class="login-note">Akses hanya untuk pegawai berwenang.</div>
+          <div class="login-note">Belum punya akun? <a href="#" onclick="showRegisterView();return false;" style="color:#1f8f7d;font-weight:600;">Daftar di sini</a></div>
         </div>
       </div>
     </div>`;
 }
-
+function renderRegisterPage(){
+  const app = document.getElementById('app');
+  const teamOptionsHtml = REGISTER_TEAMS.map(t=>`<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+  app.innerHTML = `
+    <div class="login-shell">
+      <div class="login-visual">
+        <div class="login-eyebrow">Badan Pusat Statistik</div>
+        <h1>Bergabung dengan<br>SIMONEV BPS.</h1>
+        <p class="lede">Daftarkan akun untuk mulai memantau IKU, tugas tim, FRA, dan tindak lanjut kegiatan timmu.</p>
+        <div class="login-shield">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <span>Akun baru otomatis berperan sebagai operator sesuai tim yang dipilih.</span>
+        </div>
+      </div>
+      <div class="login-panel">
+        <div class="login-card">
+          <div class="login-brandrow">
+            <div class="login-brandmark">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+            </div>
+            <div>
+              <div class="lb-name">SIMONEV</div>
+              <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
+            </div>
+          </div>
+          <div class="eyebrow">Portal Internal</div>
+          <h2>Buat akun baru</h2>
+          <p>Isi data berikut untuk mendaftar sebagai operator tim.</p>
+          <form onsubmit="submitRegister(event)">
+            <div class="field"><label>Username</label><input id="regUsername" name="username" type="text" autocomplete="username" placeholder="mis. operator_baru" required minlength="3"></div>
+            <div class="field"><label>Email</label><input id="regEmail" name="email" type="email" autocomplete="email" placeholder="nama@bps.go.id" required></div>
+            <div class="field"><label>Tim</label><select id="regTeam" required>
+              <option value="">Pilih tim...</option>
+              ${teamOptionsHtml}
+            </select></div>
+            <div class="field"><label>Kata sandi</label><input id="regPassword" name="new-password" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter" required minlength="6"></div>
+            <div class="field"><label>Ulangi kata sandi</label><input id="regPassword2" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi" required minlength="6"></div>
+            <button class="btn-login" type="submit">
+              Daftar Akun
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <div class="login-note">Sudah punya akun? <a href="#" onclick="showLoginView();return false;" style="color:#1f8f7d;font-weight:600;">Masuk di sini</a></div>
+        </div>
+      </div>
+    </div>`;
+}
+async function submitRegister(event){
+  if(event && event.preventDefault) event.preventDefault();
+  const username = document.getElementById('regUsername').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const teamId = document.getElementById('regTeam').value;
+  const password = document.getElementById('regPassword').value;
+  const password2 = document.getElementById('regPassword2').value;
+  if(!teamId){ toast('Silakan pilih tim','err'); return; }
+  if(password !== password2){ toast('Kata sandi dan ulangi kata sandi tidak sama','err'); return; }
+  try{
+    const res = await fetch('/api/register', {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ username, email, password, teamId }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Gagal mendaftar');
+    setAuth(data);
+    toast('Pendaftaran berhasil. Selamat datang, ' + data.username + '!', 'ok');
+    history.replaceState(null, '', '/');
+    await loadAll();
+    renderShell();
+  }catch(e){
+    toast(e.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server.' : e.message, 'err');
+  }
+}
 
 /* ---------------- API helpers (backend Express + penyimpanan file di server) ---------------- */
 async function apiGet(col){

@@ -475,7 +475,38 @@ const upload = multer({
 app.get('/api/setup-status', (req, res) => {
   res.json({ needsSetup: !hasAnyUser() });
 });
+app.get('/api/teams-public', (req, res) => {
+  res.json((DB.teams || []).map(t => ({ id: t.id, name: t.name })));
+});
 
+const registerSchema = Joi.object({
+  username: Joi.string().trim().min(3).max(50).required(),
+  email: Joi.string().trim().email().required(),
+  password: Joi.string().min(6).required(),
+  teamId: Joi.string().required(),
+});
+
+app.post('/api/register', isJsonRequest, validateBody(registerSchema), async (req, res) => {
+  const { username, email, password, teamId } = req.body;
+  const emailLower = email.toLowerCase();
+  const dup = (DB.users || []).find(
+    (u) => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === emailLower
+  );
+  if (dup) {
+    return res.status(400).json({ error: 'Username atau email sudah terdaftar. Silakan masuk.' });
+  }
+  const team = DB.teams.find((t) => t.id === teamId);
+  if (!team) {
+    return res.status(400).json({ error: 'Tim tidak ditemukan' });
+  }
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: uuidv4(), username, email: emailLower, passwordHash, role: 'operator', teamId };
+  DB.users.push(user);
+  await saveDB();
+  req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role, teamId: user.teamId };
+  await auditLog(req.session.user, 'create', 'users', user.id, { username, email: emailLower, role: 'operator', note: 'daftar mandiri' });
+  res.json(req.session.user);
+});
 app.post('/api/setup-first-admin', isJsonRequest, validateBody(Joi.object({
   username: Joi.string().trim().min(3).max(50).required(),
   email: Joi.string().trim().email().required(),
