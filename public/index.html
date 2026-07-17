@@ -727,7 +727,12 @@ function renderLoginPage(){
           <p>Masuk menggunakan akun instansi yang telah didaftarkan.</p>
           <form onsubmit="login(event)">
             <div class="field"><label>Username atau Email</label><input id="loginUsername" type="text" autocomplete="username" placeholder="username atau nama@bps.go.id" value="" required></div>
-            <div class="field"><label>Kata sandi</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+            <div class="field"><label>Kata sandi</label>
+              <div class="pw-wrap">
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required>
+                <button type="button" class="pw-toggle" onclick="togglePasswordField('loginPassword', this)" tabindex="-1">${ICONS.eye}</button>
+              </div>
+            </div>
             <button class="btn-login" type="submit">
               Masuk ke SIMONEV
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
