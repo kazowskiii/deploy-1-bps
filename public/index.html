@@ -868,13 +868,15 @@ function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.rando
 
 async function loadAll(){
   try{
-    const [teams, users, iku, fra, kegiatan, tugas] = await Promise.all([
-      apiGet('teams'), apiGet('users'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas')
+    const [teams, iku, fra, kegiatan, tugas] = await Promise.all([
+      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas')
     ]);
-    DB.teams = teams; DB.users = users; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas;
+    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas;
     if(isAdmin()){
+      DB.users = await apiGet('users');
       AUDIT_LOGS = await apiGet('audit');
     } else {
+      DB.users = [];
       AUDIT_LOGS = [];
     }
     try{ REMINDERS = await apiGet('reminders'); }catch(e){ REMINDERS = { items: [], daysLeft: 0 }; }
@@ -981,7 +983,10 @@ function renderShell(){
         ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
         ${navItem('tugas','tugas','Tugas Tim &amp; Target', DB.tugas.length)}
         ${navItem('iku','iku','IKU Badan', DB.iku.length)}
-        ${isAdmin() ? `<div class="nav-group-label">Admin</div>${navItem('tim','tim','Kelola Tim', DB.teams.length)}${navItem('users','tim','Kelola User', (DB.users||[]).length)}${navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length)}` : ''}
+        <div class="nav-group-label">Admin</div>
+        ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
+        ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
+        ${isAdmin() ? navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length) : ''}
       </div>
       <div class="sidebar-foot">
         Data &amp; berkas bukti dukung tersimpan di server ini (folder /data &amp; /uploads).<br>SIMONEV BPS · v1.0
