@@ -23,6 +23,7 @@ const Joi = require('joi');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const onedrive = require('./onedrive');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,16 +33,6 @@ const DATA_DIR = path.join(__dirname, 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backup');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const MAX_FILE_MB = 10;
-
-const USER_ACCOUNTS = [
-  { username: 'admin', password: 'admin123', role: 'admin' },
-  { username: 'operator_sosial', password: 'opsosial1', role: 'operator', teamName: 'Tim Statistik Sosial' },
-  { username: 'operator_produksi', password: 'opprod1', role: 'operator', teamName: 'Tim Statistik Produksi' },
-  { username: 'operator_distribusi', password: 'opdist1', role: 'operator', teamName: 'Tim Statistik Distribusi' },
-  { username: 'operator_neraca', password: 'opneraca1', role: 'operator', teamName: 'Tim Neraca & Analisis Statistik' },
-  { username: 'operator_ipds', password: 'opipds1', role: 'operator', teamName: 'Tim IPDS (Integrasi Pengolahan & Diseminasi Statistik)' },
-  { username: 'operator_tu', password: 'optu1', role: 'operator', teamName: 'Tim Tata Usaha' },
-];
 
 function ensureDirectory(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -79,6 +70,7 @@ function seedTeams() {
 function createInitialDB() {
   return {
     teams: seedTeams(),
+    users: [],
     iku: [],
     fra: [],
     kegiatan: [],
@@ -116,6 +108,8 @@ function loadDB() {
 }
 
 let DB = loadDB();
+DB.users = DB.users || [];
+seedDefaultUsersIfEmpty();
 let writeQueue = Promise.resolve();
 function saveDB() {
   writeQueue = writeQueue.then(() => fs.promises.writeFile(DB_FILE, JSON.stringify(DB, null, 2)));
@@ -209,17 +203,43 @@ function findTeamIdByName(name) {
   return team ? team.id : null;
 }
 
-function mapUserTeams() {
-  USER_ACCOUNTS.forEach((user) => {
-    if (user.teamName) {
-      user.teamId = findTeamIdByName(user.teamName);
-    }
-  });
+function findUserByLogin(loginInput) {
+  const needle = String(loginInput || '').trim().toLowerCase();
+  return (DB.users || []).find(
+    (u) => u.username.toLowerCase() === needle || u.email.toLowerCase() === needle
+  );
 }
-mapUserTeams();
 
-function getUserByUsername(username) {
-  return USER_ACCOUNTS.find((u) => u.username === username);
+function sanitizeUserForClient(u) {
+  const { passwordHash, ...rest } = u;
+  return rest;
+}
+
+async function seedDefaultUsersIfEmpty() {
+  if (DB.users && DB.users.length) return;
+  const defaults = [
+    { username: 'admin', email: 'admin@bps.go.id', password: 'admin123', role: 'admin' },
+    { username: 'operator_sosial', email: 'sosial@bps.go.id', password: 'opsosial1', role: 'operator', teamName: 'Tim Statistik Sosial' },
+    { username: 'operator_produksi', email: 'produksi@bps.go.id', password: 'opprod1', role: 'operator', teamName: 'Tim Statistik Produksi' },
+    { username: 'operator_distribusi', email: 'distribusi@bps.go.id', password: 'opdist1', role: 'operator', teamName: 'Tim Statistik Distribusi' },
+    { username: 'operator_neraca', email: 'neraca@bps.go.id', password: 'opneraca1', role: 'operator', teamName: 'Tim Neraca & Analisis Statistik' },
+    { username: 'operator_ipds', email: 'ipds@bps.go.id', password: 'opipds1', role: 'operator', teamName: 'Tim IPDS (Integrasi Pengolahan & Diseminasi Statistik)' },
+    { username: 'operator_tu', email: 'tu@bps.go.id', password: 'optu1', role: 'operator', teamName: 'Tim Tata Usaha' },
+  ];
+  DB.users = [];
+  for (const d of defaults) {
+    const passwordHash = await bcrypt.hash(d.password, 10);
+    DB.users.push({
+      id: uuidv4(),
+      username: d.username,
+      email: d.email,
+      passwordHash,
+      role: d.role,
+      teamId: d.teamName ? findTeamIdByName(d.teamName) : null,
+    });
+  }
+  await saveDB();
+  console.log('Akun default (admin & 6 operator) dibuat otomatis. Segera ganti password default lewat menu Kelola User.');
 }
 
 function getItemStatus(collection, item) {
@@ -366,6 +386,21 @@ const ikuSchema = Joi.object({
   evidenceSize: Joi.number().min(0).allow(null),
 });
 
+const userCreateSchema = Joi.object({
+  username: Joi.string().trim().min(3).max(50).required(),
+  email: Joi.string().trim().email().required(),
+  password: Joi.string().min(6).required(),
+  role: Joi.string().valid('admin', 'operator').required(),
+  teamId: Joi.string().allow(null, '').when('role', { is: 'operator', then: Joi.string().required() }),
+});
+const userUpdateSchema = Joi.object({
+  username: Joi.string().trim().min(3).max(50).required(),
+  email: Joi.string().trim().email().required(),
+  password: Joi.string().min(6).allow('', null),
+  role: Joi.string().valid('admin', 'operator').required(),
+  teamId: Joi.string().allow(null, '').when('role', { is: 'operator', then: Joi.string().required() }),
+});
+
 function validateBody(schema) {
   return (req, res, next) => {
     const payload = sanitizePayload(req.body);
@@ -437,15 +472,42 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
 });
 
-app.post('/api/login', isJsonRequest, validateBody(Joi.object({ username: Joi.string().trim().required(), password: Joi.string().required() })), (req, res) => {
-  const { username, password } = req.body;
-  const user = getUserByUsername(username);
-  if (!user || user.password !== password) {
-    return res.status(401).json({ error: 'Username atau kata sandi tidak cocok' });
+app.get('/api/setup-status', (req, res) => {
+  res.json({ needsSetup: !hasAnyUser() });
+});
+
+app.post('/api/setup-first-admin', isJsonRequest, validateBody(Joi.object({
+  username: Joi.string().trim().min(3).max(50).required(),
+  email: Joi.string().trim().email().required(),
+  password: Joi.string().min(6).required(),
+})), async (req, res) => {
+  if (hasAnyUser()) {
+    return res.status(400).json({ error: 'Setup awal sudah pernah dilakukan. Gunakan halaman login biasa.' });
   }
-  req.session.user = { username: user.username, role: user.role, teamId: user.teamId || null };
+  const { username, email, password } = req.body;
+  const emailLower = email.toLowerCase();
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: uuidv4(), username, email: emailLower, passwordHash, role: 'admin', teamId: null };
+  DB.users = [user];
+  await saveDB();
+  req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role, teamId: null };
+  auditLog(req.session.user, 'create', 'users', user.id, { username, email: emailLower, role: 'admin', note: 'setup awal' });
+  res.json(req.session.user);
+});
+
+app.post('/api/login', isJsonRequest, validateBody(Joi.object({ username: Joi.string().trim().required(), password: Joi.string().required() })), async (req, res) => {
+  const { username, password } = req.body;
+  const user = findUserByLogin(username);
+  if (!user) {
+    return res.status(401).json({ error: 'Username/email atau kata sandi tidak cocok' });
+  }
+  const valid = await bcrypt.compare(password, user.passwordHash);
+  if (!valid) {
+    return res.status(401).json({ error: 'Username/email atau kata sandi tidak cocok' });
+  }
+  req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role, teamId: user.teamId || null };
   auditLog(req.session.user, 'login', 'auth', null, { ip: req.ip });
-  res.json({ username: user.username, role: user.role, teamId: user.teamId || null });
+  res.json(req.session.user);
 });
 
 app.post('/api/logout', requireLogin, (req, res) => {
@@ -559,6 +621,48 @@ getCollectionRoute('fra', fraSchema);
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
+
+app.get('/api/users', requireLogin, requireAdmin, (req, res) => {
+  res.json((DB.users || []).map(sanitizeUserForClient));
+});
+
+app.post('/api/users', requireLogin, requireAdmin, validateBody(userCreateSchema), async (req, res) => {
+  const { username, email, password, role, teamId } = req.body;
+  const emailLower = email.toLowerCase();
+  const dup = (DB.users || []).find(u => u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === emailLower);
+  if (dup) return res.status(400).json({ error: 'Username atau email sudah digunakan' });
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = { id: uuidv4(), username, email: emailLower, passwordHash, role, teamId: role === 'admin' ? null : teamId };
+  DB.users.push(user);
+  await auditLog(req.session.user, 'create', 'users', user.id, { username, email: emailLower, role });
+  await saveDB();
+  res.json(sanitizeUserForClient(user));
+});
+
+app.put('/api/users/:id', requireLogin, requireAdmin, validateBody(userUpdateSchema), async (req, res) => {
+  const idx = (DB.users || []).findIndex(u => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'User tidak ditemukan' });
+  const { username, email, password, role, teamId } = req.body;
+  const emailLower = email.toLowerCase();
+  const dup = DB.users.find(u => u.id !== req.params.id && (u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === emailLower));
+  if (dup) return res.status(400).json({ error: 'Username atau email sudah digunakan oleh user lain' });
+  const existing = DB.users[idx];
+  const passwordHash = password ? await bcrypt.hash(password, 10) : existing.passwordHash;
+  DB.users[idx] = { ...existing, username, email: emailLower, passwordHash, role, teamId: role === 'admin' ? null : teamId };
+  await auditLog(req.session.user, 'update', 'users', req.params.id, { username, email: emailLower, role });
+  await saveDB();
+  res.json(sanitizeUserForClient(DB.users[idx]));
+});
+
+app.delete('/api/users/:id', requireLogin, requireAdmin, async (req, res) => {
+  const idx = (DB.users || []).findIndex(u => u.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'User tidak ditemukan' });
+  if (DB.users[idx].id === req.session.user.id) return res.status(400).json({ error: 'Tidak dapat menghapus akun sendiri' });
+  const deleted = DB.users.splice(idx, 1)[0];
+  await auditLog(req.session.user, 'delete', 'users', req.params.id, { username: deleted.username });
+  await saveDB();
+  res.json({ deleted: true });
+});
 
 app.get('/api/audit', requireLogin, requireAdmin, (req, res) => {
   res.json(DB.auditLogs || []);

@@ -465,7 +465,8 @@ const MAX_FILE_MB = 10;
 
 const CREDENTIALS = { username: 'admin', password: 'admin123' };
 let AUTH = { loggedIn: false, user: null };
-let DB = { teams: [], iku: [], fra: [], kegiatan: [], tugas: [] };
+let NEEDS_SETUP = false;
+let DB = { teams: [], users: [], iku: [], fra: [], kegiatan: [], tugas: [] };
 let AUDIT_LOGS = [];
 let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
@@ -488,11 +489,22 @@ function setAuth(user){
   AUTH.loggedIn = !!user;
   AUTH.user = user || null;
 }
-function requireAuthOrLogin(){
+async function requireAuthOrLogin(){
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   if(AUTH.loggedIn){
     if(path === '/login') history.replaceState(null, '', '/');
     renderShell();
+    return;
+  }
+  try{
+    const res = await fetch('/api/setup-status');
+    const data = await res.json();
+    NEEDS_SETUP = !!data.needsSetup;
+  }catch(e){
+    NEEDS_SETUP = false;
+  }
+  if(NEEDS_SETUP){
+    renderSetupPage();
   } else {
     if(path !== '/login') history.replaceState(null, '', '/login');
     renderLoginPage();
@@ -602,6 +614,68 @@ async function logout(){
   history.replaceState(null, '', '/login');
   renderLoginPage();
 }
+function renderSetupPage(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="login-shell">
+      <div class="login-visual">
+        <div class="login-eyebrow">Badan Pusat Statistik</div>
+        <h1>Selamat datang di<br>SIMONEV BPS.</h1>
+        <p class="lede">Belum ada akun terdaftar. Buat akun admin pertama untuk mulai mengelola sistem.</p>
+        <div class="login-shield">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+          <span>Akun ini akan menjadi admin utama dan bisa membuat akun operator lainnya.</span>
+        </div>
+      </div>
+      <div class="login-panel">
+        <div class="login-card">
+          <div class="login-brandrow">
+            <div class="login-brandmark">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+            </div>
+            <div>
+              <div class="lb-name">SIMONEV</div>
+              <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
+            </div>
+          </div>
+          <div class="eyebrow">Setup Awal</div>
+          <h2>Buat akun admin</h2>
+          <p>Isi data berikut untuk membuat akun administrator pertama.</p>
+          <form onsubmit="submitSetup(event)">
+            <div class="field"><label>Username</label><input id="setupUsername" type="text" autocomplete="username" placeholder="mis. admin_bps" required></div>
+            <div class="field"><label>Email</label><input id="setupEmail" type="email" autocomplete="email" placeholder="nama@bps.go.id" required></div>
+            <div class="field"><label>Kata sandi</label><input id="setupPassword" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter" required minlength="6"></div>
+            <button class="btn-login" type="submit">
+              Buat Akun Admin
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <div class="login-note">Langkah ini hanya muncul sekali saat sistem pertama kali digunakan.</div>
+        </div>
+      </div>
+    </div>`;
+}
+async function submitSetup(event){
+  if(event && event.preventDefault) event.preventDefault();
+  const username = document.getElementById('setupUsername').value.trim();
+  const email = document.getElementById('setupEmail').value.trim();
+  const password = document.getElementById('setupPassword').value;
+  try{
+    const res = await fetch('/api/setup-first-admin', {
+      method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ username, email, password }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Gagal membuat akun admin');
+    setAuth(data);
+    toast('Akun admin berhasil dibuat. Selamat datang!', 'ok');
+    history.replaceState(null, '', '/');
+    await loadAll();
+    renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal membuat akun admin', 'err');
+  }
+}
 function renderLoginPage(){
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -630,7 +704,7 @@ function renderLoginPage(){
           <h2>Selamat datang kembali</h2>
           <p>Masuk menggunakan akun instansi yang telah didaftarkan.</p>
           <form onsubmit="login(event)">
-            <div class="field"><label>Username / Email</label><input id="loginUsername" type="text" autocomplete="username" placeholder="nama@bps.go.id" value="admin" required></div>
+            <div class="field"><label>Username atau Email</label><input id="loginUsername" type="text" autocomplete="username" placeholder="username atau nama@bps.go.id" value="" required></div>
             <div class="field"><label>Kata sandi</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
             <button class="btn-login" type="submit">
               Masuk ke SIMONEV
@@ -695,10 +769,10 @@ function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.rando
 
 async function loadAll(){
   try{
-    const [teams, iku, fra, kegiatan, tugas] = await Promise.all([
-      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas')
+    const [teams, users, iku, fra, kegiatan, tugas] = await Promise.all([
+      apiGet('teams'), apiGet('users'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas')
     ]);
-    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas;
+    DB.teams = teams; DB.users = users; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas;
     if(isAdmin()){
       AUDIT_LOGS = await apiGet('audit');
     } else {
@@ -808,7 +882,7 @@ function renderShell(){
         ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
         ${navItem('tugas','tugas','Tugas Tim &amp; Target', DB.tugas.length)}
         ${navItem('iku','iku','IKU Badan', DB.iku.length)}
-        ${isAdmin() ? `<div class="nav-group-label">Admin</div>${navItem('tim','tim','Kelola Tim', DB.teams.length)}${navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length)}` : ''}
+        ${isAdmin() ? `<div class="nav-group-label">Admin</div>${navItem('tim','tim','Kelola Tim', DB.teams.length)}${navItem('users','tim','Kelola User', (DB.users||[]).length)}${navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length)}` : ''}
       </div>
       <div class="sidebar-foot">
         Data &amp; berkas bukti dukung tersimpan di server ini (folder /data &amp; /uploads).<br>SIMONEV BPS · v1.0
@@ -838,6 +912,7 @@ function renderTopbar(){
     tugas:['Tugas Tim & Target Tahunan','Target per tahun, realisasi, dan monitoring per triwulan'],
     iku:['Indikator Kinerja Utama (IKU)','Capaian IKU Badan Pusat Statistik beserta bukti laporan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
+    users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
   };
   const [t, sub] = titles[ROUTE];
@@ -905,6 +980,7 @@ function routeAddButton(){
     tugas: ['openTugasModal()','Tambah Tugas'],
     iku: ['openIkuModal()','Tambah IKU'],
     tim: ['openTimModal()','Tambah Tim'],
+    users: ['openUserModal()','Tambah User'],
   };
   if(!map[ROUTE]) return '';
   const [fn, label] = map[ROUTE];
@@ -921,6 +997,7 @@ function renderContent(){
   else if(ROUTE==='tugas') c.innerHTML = renderTugasPage();
   else if(ROUTE==='iku') c.innerHTML = renderIkuPage();
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
+  else if(ROUTE==='users') c.innerHTML = renderUserPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
   wireDynamic();
 }
@@ -1397,6 +1474,83 @@ function renderTimPage(){
   </table></div></div>`;
 }
 
+function renderUserPage(){
+  const items = DB.users || [];
+  if(!items.length) return emptyState('users','Belum ada user','Tambahkan user admin/operator.');
+  const rows = items.map(u=>`
+    <tr>
+      <td class="cell-title">${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td><span class="tag ${u.role==='admin'?'tag-primary':'tag-muted'}">${u.role==='admin'?'Admin':'Operator'}</span></td>
+      <td>${u.teamId ? escapeHtml(teamName(u.teamId)) : '—'}</td>
+      <td>
+        <div class="flex gap-6">
+          <button class="icon-btn" onclick="openUserModal('${u.id}')" title="Ubah">${ICONS.edit}</button>
+          <button class="icon-btn" onclick="deleteUser('${u.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+        </div>
+      </td>
+    </tr>`).join('');
+  return `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Tim</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+function openUserModal(id){
+  const u = id ? DB.users.find(x=>x.id===id) : null;
+  const body = `
+    <div class="field"><label>Username</label><input type="text" id="f_username" value="${u?escapeHtml(u.username):''}" placeholder="mis. operator_sosial"></div>
+    <div class="field"><label>Email</label><input type="text" id="f_email" value="${u?escapeHtml(u.email):''}" placeholder="mis. nama@bps.go.id"></div>
+    <div class="field"><label>Kata Sandi ${u?'(kosongkan jika tidak ingin mengganti)':''}</label><input type="text" id="f_password" placeholder="${u?'••••••••':'Minimal 6 karakter'}"></div>
+    <div class="field"><label>Role</label>
+      <select id="f_role" onchange="toggleUserTeamField(this.value)">
+        <option value="operator" ${u&&u.role==='operator'?'selected':''}>Operator</option>
+        <option value="admin" ${u&&u.role==='admin'?'selected':''}>Admin</option>
+      </select>
+    </div>
+    <div class="field" id="f_teamWrap" style="display:${u&&u.role==='admin'?'none':'block'};">
+      <label>Tim</label>
+      <select id="f_teamId">${teamOptions(u?u.teamId:null)}</select>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveUser('${id||''}')">Simpan</button>`;
+  openModal(modalShell(u?'Ubah User':'Tambah User', body, foot));
+}
+function toggleUserTeamField(role){
+  document.getElementById('f_teamWrap').style.display = role==='admin' ? 'none' : 'block';
+}
+async function saveUser(id){
+  const username = document.getElementById('f_username').value.trim();
+  const email = document.getElementById('f_email').value.trim();
+  const password = document.getElementById('f_password').value;
+  const role = document.getElementById('f_role').value;
+  const teamId = role==='admin' ? null : document.getElementById('f_teamId').value;
+  if(!username || username.length<3){ toast('Username wajib diisi, minimal 3 karakter','err'); return; }
+  if(!email || !email.includes('@')){ toast('Email wajib diisi dengan format yang benar','err'); return; }
+  if(!id && (!password || password.length<6)){ toast('Kata sandi wajib diisi, minimal 6 karakter','err'); return; }
+  if(id && password && password.length<6){ toast('Kata sandi baru minimal 6 karakter','err'); return; }
+  const payload = { username, email, role, teamId };
+  if(password) payload.password = password;
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id) await apiPut('users', id, payload);
+    else await apiPost('users', payload);
+    await loadAll();
+    closeModal(); toast('User disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan user','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+async function deleteUser(id){
+  if(!confirm('Hapus user ini? Tindakan tidak dapat dibatalkan.')) return;
+  try{
+    await apiDelete('users', id);
+    await loadAll();
+    toast('User dihapus','ok'); renderShell();
+  }catch(e){ toast(e.message || 'Gagal menghapus user','err'); }
+}
+
 function renderAuditPage(){
   if(!AUDIT_LOGS.length) return emptyState('audit','Belum ada aktivitas','Log audit akan muncul setelah pengguna membuat, mengubah, atau menghapus data.');
   const rows = AUDIT_LOGS.map(log=>`
@@ -1781,7 +1935,7 @@ function wireDynamic(){ /* reserved for future dynamic listeners */ }
   if(AUTH.loggedIn){
     await loadAll();
   }
-  requireAuthOrLogin();
+  await requireAuthOrLogin();
 })();
 </script>
 </body>
