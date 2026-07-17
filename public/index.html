@@ -1466,7 +1466,13 @@ function openFraModal(id){
   const body = `
     <div class="field-row">
       <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(f?f.timId:null)}</select></div>
-      <div class="field"><label>Periode (mis. Triwulan II 2026)</label><input type="text" id="f_periode" value="${f?escapeHtml(f.periode):''}" placeholder="Triwulan II 2026"></div>
+      <div class="field"><label>Periode</label>
+      <select id="f_periode">
+      ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>
+      `<option value="${p}" ${f && f.periode===p ? 'selected' : ''}>${p}</option>`
+      ).join('')}
+      </select>
+</div>
     </div>
     <div class="field"><label>Uraian Capaian Kinerja</label><textarea id="f_uraian" placeholder="Jelaskan capaian kinerja tim...">${f?escapeHtml(f.uraian):''}</textarea></div>
     <div class="field-row">
