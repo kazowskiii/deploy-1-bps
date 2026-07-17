@@ -568,6 +568,33 @@ function updatePageFilter(key, value){
     }
   }
 }
+function buildSearchRegex(rawNeedle){
+  const escaped = rawNeedle.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if(!escaped) return null;
+  return new RegExp('\\b' + escaped + '\\b', 'i');
+}
+const ROMAN_TO_ARABIC = { i: 1, ii: 2, iii: 3, iv: 4 };
+function periodeToArabic(periode){
+  if(!periode) return null;
+  const m = /triwulan\s+(iv|iii|ii|i)\b/i.exec(periode);
+  if(!m) return null;
+  return ROMAN_TO_ARABIC[m[1].toLowerCase()] || null;
+}
+function buildSearchableText(item, collection){
+  let extra = '';
+  if(collection === 'fra'){
+    const arabic = periodeToArabic(item.periode);
+    if(arabic) extra += ` triwulan ${arabic}`;
+    if(item.ikuNomor) extra += ` iku ${item.ikuNomor}`;
+  }
+  if(collection === 'iku' && item.kode){
+    extra += ` kode ${item.kode}`;
+  }
+  if(collection === 'tugas' && item.tahun){
+    extra += ` tahun ${item.tahun}`;
+  }
+  return (JSON.stringify(item) + ' ' + extra).toLowerCase();
+}
 function applyPageFilters(items, collection){
   let result = Array.isArray(items) ? [...items] : [];
   if(PAGE_FILTERS.teamId){
@@ -577,8 +604,10 @@ function applyPageFilters(items, collection){
     result = result.filter(item=>statusLabelFor(collection, item).toLowerCase()===PAGE_FILTERS.status.toLowerCase());
   }
   if(PAGE_FILTERS.search){
-    const needle = PAGE_FILTERS.search.toLowerCase();
-    result = result.filter(item=>JSON.stringify(item).toLowerCase().includes(needle));
+    const regex = buildSearchRegex(PAGE_FILTERS.search);
+    if(regex){
+      result = result.filter(item=>regex.test(buildSearchableText(item, collection)));
+    }
   }
   return result;
 }
