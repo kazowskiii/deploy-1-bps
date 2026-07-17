@@ -1688,8 +1688,16 @@ function openModal(html){
   const old = document.getElementById('modalOverlay');
   if(old) old.remove();
   document.body.insertAdjacentHTML('beforeend', html);
-  document.getElementById('modalOverlay').addEventListener('click', e=>{
+  const overlay = document.getElementById('modalOverlay');
+  overlay.addEventListener('click', e=>{
     if(e.target.id==='modalOverlay') closeModal();
+  });
+  overlay.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' && e.target.tagName !== 'TEXTAREA'){
+      e.preventDefault();
+      const btn = overlay.querySelector('.btn-primary');
+      if(btn && !btn.disabled) btn.click();
+    }
   });
 }
 function closeModal(){
