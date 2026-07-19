@@ -1449,63 +1449,68 @@ function currentQuarterKey(){
 }
 function renderTugasPage(){
   const items = applyPageFilters(DB.tugas.filter(t=>t.tahun===FILTER_YEAR), 'tugas');
-  const note = `<div class="section-note">${ICONS.info}<div>Setiap tugas tim direalisasikan dan dipantau setiap <b>triwulan</b> (3 bulan), lengkap dengan target dan bukti dukung laporan (PDF/Word) per periode.</div></div>`;
+  const note = `<div class="section-note">${ICONS.info}<div>Setiap tugas tim direalisasikan dan dipantau setiap <b>triwulan</b> (3 bulan), lengkap dengan target dan bukti dukung laporan (PDF/Word) per periode. Data ditampilkan berurutan dari Triwulan I hingga Triwulan IV.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('tugas')}${exportButtons('tugas')}</div>`;
   if(!items.length) return header + note + emptyState('tugas', `Belum ada tugas tim untuk tahun ${FILTER_YEAR}`, 'Tambahkan tugas beserta triwulan, target, dan realisasi.');
 
-  const groups = {};
-  items.forEach(t=>{
-    const key = t.timId + '|' + (t.nama||'').toLowerCase();
-    if(!groups[key]) groups[key] = { timId:t.timId, nama:t.nama, entries:[] };
-    groups[key].entries.push(t);
-  });
-  const quarterOrder = {q1:0,q2:1,q3:2,q4:3};
   const cqKey = currentQuarterKey();
+  const quarters = ['q1','q2','q3','q4'];
 
-  const cards = Object.values(groups).map(g=>{
-    g.entries.sort((a,b)=>(quarterOrder[a.triwulan]||0)-(quarterOrder[b.triwulan]||0));
-    const totalTarget = g.entries.reduce((s,e)=>s+(Number(e.target)||0),0);
-    const totalReal = g.entries.reduce((s,e)=>s+(Number(e.realisasi)||0),0);
+  const sections = quarters.map(qKey=>{
+    const entries = items.filter(t=>t.triwulan===qKey)
+      .sort((a,b)=> teamName(a.timId).localeCompare(teamName(b.timId)) || (a.nama||'').localeCompare(b.nama||''));
+    const isCurrent = qKey===cqKey;
+    const totalTarget = entries.reduce((s,e)=>s+(Number(e.target)||0),0);
+    const totalReal = entries.reduce((s,e)=>s+(Number(e.realisasi)||0),0);
     const overallPct = totalTarget ? Math.round(totalReal/totalTarget*100) : 0;
-    const st = statusFor(overallPct);
-    const satuan = g.entries[0] ? g.entries[0].satuan : '';
-    const rows = g.entries.map(e=>{
-      const pct = tugasPct(e);
-      const est = statusFor(pct);
-      return `<tr>
-        <td class="mono">${TRIWULAN_LABELS[e.triwulan]||e.triwulan}${e.triwulan===cqKey?' <span class="tag tag-gold" style="margin-left:4px;">berjalan</span>':''}</td>
-        <td class="mono">${fmtNum(e.target)} ${escapeHtml(e.satuan||'')}</td>
-        <td class="mono">${fmtNum(e.realisasi)} ${escapeHtml(e.satuan||'')}</td>
-        <td>
-          <div class="flex items-center gap-8">
-            <div class="pbar ${est.cls}" style="width:60px;"><div style="width:${Math.min(100,pct)}%"></div></div>
-            <span class="mono text-xs">${pct}%</span>
-          </div>
-        </td>
-        <td class="mono">${fmtDate(e.tanggal)}</td>
-        <td>${evidenceCell(e,'tugas')}</td>
-        <td><span class="tag ${est.tag}">${est.label}</span></td>
-        <td>${rowActions('tugas', e.id)}</td>
-      </tr>`;
-    }).join('');
+    const st = statusFor(entries.length ? overallPct : null);
+
+    const body = entries.length ? `<div class="table-wrap"><table>
+        <thead><tr><th>Tim</th><th>Nama Tugas</th><th>Target</th><th>Realisasi</th><th>%</th><th>Tgl Update</th><th>Bukti</th><th>Status</th><th></th></tr></thead>
+        <tbody>${entries.map(e=>{
+          const pct = tugasPct(e);
+          const est = statusFor(pct);
+          return `<tr>
+            <td><span class="team-pill">${escapeHtml(teamName(e.timId))}</span></td>
+            <td class="cell-title">${escapeHtml(e.nama)}</td>
+            <td class="mono">${fmtNum(e.target)} ${escapeHtml(e.satuan||'')}</td>
+            <td class="mono">${fmtNum(e.realisasi)} ${escapeHtml(e.satuan||'')}</td>
+            <td>
+              <div class="flex items-center gap-8">
+                <div class="pbar ${est.cls}" style="width:60px;"><div style="width:${Math.min(100,pct)}%"></div></div>
+                <span class="mono text-xs">${pct}%</span>
+              </div>
+            </td>
+            <td class="mono">${fmtDate(e.tanggal)}</td>
+            <td>${evidenceCell(e,'tugas')}</td>
+            <td><span class="tag ${est.tag}">${est.label}</span></td>
+            <td>${rowActions('tugas', e.id)}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`
+      : `<div class="empty-state" style="padding:24px 0;">Belum ada tugas untuk ${TRIWULAN_LABELS[qKey]} tahun ${FILTER_YEAR}.</div>`;
+
     return `<div class="panel" style="margin-bottom:14px;">
       <div class="panel-head">
         <div>
-          <div class="flex items-center gap-8"><span class="team-pill">${escapeHtml(teamName(g.timId))}</span><span class="tag ${st.tag}">${st.label}</span></div>
-          <h3 style="margin-top:7px;">${escapeHtml(g.nama)}</h3>
-          <p>Total Target: <b class="mono">${fmtNum(totalTarget)} ${escapeHtml(satuan)}</b> — Tahun ${FILTER_YEAR} · Total Realisasi: <b class="mono">${fmtNum(totalReal)} ${escapeHtml(satuan)}</b> (${overallPct}%)</p>
+          <div class="flex items-center gap-8">
+            <h3 style="margin:0;">${TRIWULAN_LABELS[qKey]}</h3>
+            ${isCurrent ? '<span class="tag tag-gold">berjalan</span>' : ''}
+            ${entries.length ? `<span class="tag ${st.tag}">${st.label}</span>` : ''}
+          </div>
+          ${entries.length
+            ? `<p>${entries.length} tugas · Total Target: <b class="mono">${fmtNum(totalTarget)}</b> — Total Realisasi: <b class="mono">${fmtNum(totalReal)}</b> (${overallPct}%)</p>`
+            : '<p>Belum ada data tugas pada triwulan ini</p>'}
         </div>
       </div>
       <div class="panel-body">
-        <div class="pbar ${st.cls}"><div style="width:${Math.min(100,overallPct)}%"></div></div>
-        <div class="table-wrap" style="margin-top:14px;"><table>
-          <thead><tr><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>%</th><th>Tgl Update</th><th>Bukti</th><th>Status</th><th></th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
+        ${entries.length ? `<div class="pbar ${st.cls}" style="margin-bottom:14px;"><div style="width:${Math.min(100,overallPct)}%"></div></div>` : ''}
+        ${body}
       </div>
     </div>`;
   }).join('');
-  return header + note + cards;
+
+  return header + note + sections;
 }
 
 /* ============================================================
