@@ -596,7 +596,9 @@ function getCollectionRoute(name, schema, options = {}) {
     if (user.role !== 'admin' && req.body.timId && req.body.timId !== user.teamId) {
       return res.status(403).json({ error: 'Tidak dapat menambahkan data untuk tim lain' });
     }
-    const item = { id: uuidv4(), ...req.body };
+    // createdAt selalu diisi server dengan jam asli saat disimpan (bukan dari input user),
+    // dipakai untuk menampilkan "jam upload" yang sebenarnya di frontend.
+    const item = { id: uuidv4(), ...req.body, createdAt: new Date().toISOString() };
     DB[name].push(item);
     await auditLog(user, 'create', name, item.id, { item });
     await saveDB();
