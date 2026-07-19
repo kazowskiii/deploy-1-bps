@@ -1274,13 +1274,18 @@ function renderTeamProgressChart(){
     const target = teamTasks.reduce((sum,t)=> sum + (Number(t.target)||0), 0);
     if(!target) return null;
     let cumulative = 0;
+    // Titik hanya dihitung untuk triwulan yang SUDAH punya entri tugas.
+    // Triwulan yang belum diisi sama sekali diberi nilai null (bukan flat mengikuti
+    // triwulan sebelumnya), supaya garis berhenti di titik data terakhir yang nyata.
     const points = quarters.map(q=>{
-      const qsum = teamTasks.filter(t=>t.triwulan===q).reduce((sum,t)=> sum + (Number(t.realisasi)||0), 0);
+      const qtasks = teamTasks.filter(t=>t.triwulan===q);
+      if(!qtasks.length) return null;
+      const qsum = qtasks.reduce((sum,t)=> sum + (Number(t.realisasi)||0), 0);
       cumulative += qsum;
       return Math.min(100, target ? Math.round(cumulative/target*100) : 0);
     });
     return { name: team.name, points };
-  }).filter(x=>x && x.points.some(v=>v>0));
+  }).filter(x=>x && x.points.some(v=>v!==null && v>0));
   if(!teamsData.length){
     ctx.fillStyle = '#65748b';
     ctx.font = '14px Inter';
@@ -1322,13 +1327,16 @@ function renderTeamProgressChart(){
     ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
+    let started = false;
     team.points.forEach((value,i)=>{
+      if(value===null) return; // lewati triwulan yang belum ada data, garis tidak dilanjutkan ke situ
       const x = padding.left + (chartW/(quarters.length-1))*i;
       const y = padding.top + chartH - (value/maxY)*chartH;
-      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      if(!started){ ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
     });
     ctx.stroke();
     team.points.forEach((value,i)=>{
+      if(value===null) return; // tidak menggambar titik untuk triwulan yang belum ada data
       const x = padding.left + (chartW/(quarters.length-1))*i;
       const y = padding.top + chartH - (value/maxY)*chartH;
       ctx.fillStyle = color;
