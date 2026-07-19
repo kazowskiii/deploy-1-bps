@@ -1203,15 +1203,15 @@ function renderDashboard(){
     </tr>`;
   }).join('');
 
-  const recentKegiatan = [...DB.kegiatan].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')).slice(0,5);
-  const recentList = recentKegiatan.length ? recentKegiatan.map(k=>`
+  const starredKegiatan = DB.kegiatan.filter(k=>k.starred).sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
+  const recentList = starredKegiatan.length ? starredKegiatan.map(k=>`
     <div style="padding:11px 0;border-bottom:1px solid var(--line);">
       <div class="flex items-center gap-8" style="justify-content:space-between;">
-        <span class="cell-title" style="font-size:12.5px;">${escapeHtml(k.nama)}</span>
+        <span class="flex items-center gap-6" style="color:#B4872A;">${ICON_STAR_FILLED}<span class="cell-title" style="font-size:12.5px;color:var(--ink);">${escapeHtml(k.nama)}</span></span>
         <span class="text-xs text-muted mono">${fmtDate(k.tanggal)}</span>
       </div>
       <div class="text-xs text-muted mt-8"><b style="color:var(--danger);">Kendala:</b> ${escapeHtml(truncate(k.kendala,70))}</div>
-    </div>`).join('') : `<div class="empty-state" style="padding:24px 0;">Belum ada catatan analisis kegiatan.</div>`;
+    </div>`).join('') : `<div class="empty-state" style="padding:24px 0;">Belum ada kegiatan yang dibintangi. Tandai kegiatan di halaman Analisis Kegiatan agar muncul di sini.</div>`;
 
   return `
     ${renderReminderBanner()}
@@ -1232,7 +1232,7 @@ function renderDashboard(){
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h3>Analisis Kegiatan Terbaru</h3><p>5 catatan terakhir</p></div></div>
+        <div class="panel-head"><div><h3>Analisis Kegiatan Ditandai</h3><p>Kegiatan yang dibintangi untuk dipantau</p></div></div>
         <div class="panel-body" style="padding-top:4px;">${recentList}</div>
       </div>
     </div>
@@ -1418,7 +1418,7 @@ function renderKegiatanPage(){
       <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
       <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
       <td>${statusPill(k.status)}</td>
-      <td>${rowActions('kegiatan', k.id)}</td>
+      <td>${kegiatanActions(k)}</td>
     </tr>`).join('');
   return header + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr><th>Tim</th><th>Kegiatan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
@@ -1428,6 +1428,33 @@ function renderKegiatanPage(){
 function statusPill(s){
   const map = {'Belum Ditindaklanjuti':'tag-danger','Dalam Proses':'tag-warning','Selesai':'tag-success'};
   return `<span class="tag ${map[s]||'tag-muted'}">${escapeHtml(s||'—')}</span>`;
+}
+const ICON_STAR_OUTLINE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 3l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 18l-5.9 3.2 1.2-6.6L2.5 10l6.6-.9L12 3Z"/></svg>';
+const ICON_STAR_FILLED = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 3l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 18l-5.9 3.2 1.2-6.6L2.5 10l6.6-.9L12 3Z"/></svg>';
+function kegiatanActions(k){
+  const starred = !!k.starred;
+  return `<div class="flex gap-6">
+    <button class="icon-btn" onclick="toggleStarKegiatan('${k.id}')" title="${starred?'Hapus dari Dashboard':'Tampilkan di Dashboard'}" style="color:${starred?'#B4872A':'var(--ink-muted)'};">${starred?ICON_STAR_FILLED:ICON_STAR_OUTLINE}</button>
+    <button class="icon-btn" onclick="openKegiatanModal('${k.id}')" title="Ubah">${ICONS.edit}</button>
+    <button class="icon-btn" onclick="deleteItem('kegiatan','${k.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+  </div>`;
+}
+async function toggleStarKegiatan(id){
+  const item = DB.kegiatan.find(x=>x.id===id);
+  if(!item) return;
+  const payload = {
+    timId:item.timId, tanggal:item.tanggal, nama:item.nama, kendala:item.kendala,
+    solusi:item.solusi, rtl:item.rtl, status:item.status, starred: !item.starred,
+  };
+  try{
+    await apiPut('kegiatan', id, payload);
+    await loadAll();
+    renderContent();
+    if(ROUTE==='dashboard') renderTeamProgressChart();
+    toast(payload.starred ? 'Ditambahkan ke Dashboard' : 'Dihapus dari Dashboard', 'ok');
+  }catch(e){
+    toast(e.message || 'Gagal memperbarui status bintang','err');
+  }
 }
 
 /* ============================================================

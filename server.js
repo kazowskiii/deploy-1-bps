@@ -360,6 +360,7 @@ const kegiatanSchema = Joi.object({
   solusi: Joi.string().trim().min(3).max(1000).required(),
   rtl: Joi.string().trim().min(3).max(1000).required(),
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
+  starred: Joi.boolean().optional(),
 });
 const tugasSchema = Joi.object({
   timId: Joi.string().required(),
