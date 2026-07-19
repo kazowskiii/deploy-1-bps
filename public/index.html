@@ -1819,6 +1819,10 @@ function wireEvidenceField(kind, id){
         if(periodeEl) extra.periode = periodeEl.value;
         if(ikuEl) extra.ikuNomor = ikuEl.value;
       }
+      if(kind === 'tugas'){
+        const triwulanEl = document.getElementById('f_triwulan');
+        if(triwulanEl) extra.triwulan = triwulanEl.value;
+      }
       const meta = await uploadFileToServer(file, kind, extra);
 
       // Kalau selama upload ini berjalan user sudah ganti pilihan file lagi
@@ -1981,6 +1985,12 @@ function openTugasModal(id){
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveTugas('${id||''}')">Simpan</button>`;
   openModal(modalShell(t?'Ubah Tugas Tim':'Tambah Tugas Tim', body, foot));
   wireEvidenceField('tugas', id);
+  const triwulanEl = document.getElementById('f_triwulan');
+  if(triwulanEl) triwulanEl.addEventListener('change', ()=>{
+    if(PENDING_EVIDENCE['tugas']){
+      toast('Triwulan diubah setelah upload — silakan pilih ulang berkasnya agar tersimpan di folder yang benar','err');
+    }
+  });
 }
 async function saveTugas(id){
   const timId = document.getElementById('f_tim').value;

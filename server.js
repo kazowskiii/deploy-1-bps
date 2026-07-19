@@ -801,8 +801,13 @@ function periodeToTriwulanNumber(periode) {
   return TRIWULAN_ROMAN_TO_ARABIC[match[1].toUpperCase()] || null;
 }
 
+// Map format triwulan modul Tugas ("q1".."q4") ke angka biasa.
+const TUGAS_QKEY_TO_ARABIC = { q1: 1, q2: 2, q3: 3, q4: 4 };
+
 // Untuk FRA: kalau periode & ikuNomor valid, arahkan ke folder bertingkat
-// "SIMONEV-FRA/Triwulan {n}/IKU {n}". Modul lain tetap folder flat seperti biasa.
+// "SIMONEV-FRA/Triwulan {n}/IKU {n}".
+// Untuk Tugas: kalau triwulan valid, arahkan ke "SIMONEV-Tugas/Triwulan {n}".
+// Modul lain tetap folder flat seperti biasa.
 function buildUploadFolder(kind, meta) {
   const baseFolder = UPLOAD_FOLDER_BY_KIND[kind];
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
@@ -811,6 +816,12 @@ function buildUploadFolder(kind, meta) {
     const ikuNum = Number(meta.ikuNomor);
     if (triwulanNum && ikuNum >= 1 && ikuNum <= 16) {
       return `${baseFolder}/Triwulan ${triwulanNum}/IKU ${ikuNum}`;
+    }
+  }
+  if (kind === 'tugas') {
+    const triwulanNum = TUGAS_QKEY_TO_ARABIC[meta.triwulan];
+    if (triwulanNum) {
+      return `${baseFolder}/Triwulan ${triwulanNum}`;
     }
   }
   return baseFolder;
@@ -832,8 +843,9 @@ app.post('/api/upload', requireLogin, (req, res) => {
       const kind = sanitizeText(req.body.kind || '');
       const periode = sanitizeText(req.body.periode || '');
       const ikuNomor = req.body.ikuNomor;
-      const folder = buildUploadFolder(kind, { periode, ikuNomor }); // undefined -> onedrive.js pakai default
-      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
+      const triwulan = sanitizeText(req.body.triwulan || '');
+      const folder = buildUploadFolder(kind, { periode, ikuNomor, triwulan }); // undefined -> onedrive.js pakai default
+      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
       const item = await onedrive.uploadFile(req.file.buffer, storedName, folder);
       // "filename" yang dikembalikan sekarang adalah ID item OneDrive
       // (bukan lagi nama file di disk lokal), dipakai untuk lihat/hapus berkas.
