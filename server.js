@@ -275,11 +275,10 @@ function currentQuarterInfo() {
 
 function computeReminders(user) {
   const { quarterKey, quarterIndex, year, daysLeft } = currentQuarterInfo();
-  const scoped = filterItems(DB.tugas, user, 'tugas', {}).filter((t) => Number(t.tahun) === year);
+  const scoped = filterItems(DB.tugas, user, 'tugas', {}).filter((t) => Number(t.tahun) === year && t.triwulan === quarterKey);
   const reminders = [];
   scoped.forEach((t) => {
-    const q = t[quarterKey] || {};
-    const realisasi = Number(q.realisasi) || 0;
+    const realisasi = Number(t.realisasi) || 0;
     if (realisasi <= 0) {
       const team = DB.teams.find((tm) => tm.id === t.timId);
       reminders.push({
@@ -366,12 +365,15 @@ const tugasSchema = Joi.object({
   timId: Joi.string().required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   nama: Joi.string().trim().min(3).max(250).required(),
+  triwulan: Joi.string().valid('q1','q2','q3','q4').required(),
   target: Joi.number().min(1).required(),
   satuan: Joi.string().trim().min(1).max(50).required(),
-  q1: Joi.object().pattern(/.*/, Joi.any()).default({}),
-  q2: Joi.object().pattern(/.*/, Joi.any()).default({}),
-  q3: Joi.object().pattern(/.*/, Joi.any()).default({}),
-  q4: Joi.object().pattern(/.*/, Joi.any()).default({}),
+  realisasi: Joi.number().min(0).allow(null,''),
+  tanggal: Joi.string().allow('', null),
+  hasEvidence: Joi.boolean().optional(),
+  evidenceFileName: Joi.string().trim().allow('', null),
+  evidenceOriginalName: Joi.string().trim().allow('', null),
+  evidenceSize: Joi.number().min(0).allow(null),
 });
 const ikuSchema = Joi.object({
   kode: Joi.string().trim().max(50).allow('', null),
@@ -559,12 +561,6 @@ function collectEvidenceFileIds(name, item) {
   if (!item) return [];
   const ids = [];
   if (item.evidenceFileName) ids.push(item.evidenceFileName);
-  if (name === 'tugas') {
-    ['q1', 'q2', 'q3', 'q4'].forEach((q) => {
-      const quarter = item[q];
-      if (quarter && quarter.evidenceFileName) ids.push(quarter.evidenceFileName);
-    });
-  }
   return ids;
 }
 

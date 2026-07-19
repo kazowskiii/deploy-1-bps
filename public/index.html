@@ -973,19 +973,6 @@ function validateFileOrToast(file){
   }
   return true;
 }
-// Dipakai untuk unggah bukti triwulan (Tugas Tim), langsung upload ke server lalu simpan metanya di record
-async function uploadQuarterFile(inputEl, onMeta){
-  const file = inputEl.files[0];
-  if(!file) return;
-  if(!validateFileOrToast(file)){ inputEl.value=''; return; }
-  try{
-    const meta = await uploadFileToServer(file, 'tugas');
-    onMeta({hasEvidence:true, evidenceFileName:meta.filename, evidenceOriginalName:meta.originalName, evidenceSize:meta.size});
-    toast('Bukti dukung berhasil diunggah', 'ok');
-  }catch(e){
-    toast(e.message || 'Gagal mengunggah berkas', 'err');
-  }
-}
 function viewEvidence(serverFilename){
   window.open(`/api/files/${serverFilename}`, '_blank');
 }
@@ -1111,7 +1098,6 @@ function gotoReminder(tugasId){
   bellOpen = false;
   ROUTE = 'tugas';
   FILTER_YEAR = REMINDERS.year || FILTER_YEAR;
-  TUGAS_ACTIVE_Q[tugasId] = REMINDERS.quarterKey;
   renderShell();
 }
 
@@ -1265,7 +1251,7 @@ function renderTeamProgressChart(){
     if(!target) return null;
     let cumulative = 0;
     const points = quarters.map(q=>{
-      const qsum = teamTasks.reduce((sum,t)=> sum + (Number((t[q]||{}).realisasi)||0), 0);
+      const qsum = teamTasks.filter(t=>t.triwulan===q).reduce((sum,t)=> sum + (Number(t.realisasi)||0), 0);
       cumulative += qsum;
       return Math.min(100, target ? Math.round(cumulative/target*100) : 0);
     });
@@ -1443,113 +1429,78 @@ function statusPill(s){
    TUGAS TIM & TARGET TAHUNAN
    ============================================================ */
 function tugasPct(t){
-  const total = ['q1','q2','q3','q4'].reduce((s,q)=> s + (Number((t[q]||{}).realisasi)||0), 0);
   const target = Number(t.target)||0;
+  const realisasi = Number(t.realisasi)||0;
   if(!target) return 0;
-  return Math.min(999, Math.round(total/target*100));
+  return Math.min(999, Math.round(realisasi/target*100));
 }
 function currentQuarterIndex(){
   const m = new Date().getMonth();
   return Math.floor(m/3); // 0..3
 }
-let TUGAS_ACTIVE_Q = {}; // { [tugasId]: 'q1'|'q2'|'q3'|'q4' }
+function fmtNum(n){ n=Number(n)||0; return n.toLocaleString('id-ID'); }
+function currentQuarterKey(){
+  return ['q1','q2','q3','q4'][currentQuarterIndex()];
+}
 function renderTugasPage(){
   const items = applyPageFilters(DB.tugas.filter(t=>t.tahun===FILTER_YEAR), 'tugas');
-  const note = `<div class="section-note">${ICONS.info}<div>Setiap tugas tim memiliki <b>target tahunan</b> dan wajib direalisasikan serta dipantau setiap <b>triwulan</b> (3 bulan), lengkap dengan bukti dukung laporan (PDF/Word) per periode.</div></div>`;
+  const note = `<div class="section-note">${ICONS.info}<div>Setiap tugas tim direalisasikan dan dipantau setiap <b>triwulan</b> (3 bulan), lengkap dengan target dan bukti dukung laporan (PDF/Word) per periode.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('tugas')}${exportButtons('tugas')}</div>`;
-  if(!items.length) return header + note + emptyState('tugas', `Belum ada tugas tim untuk tahun ${FILTER_YEAR}`, 'Tambahkan tugas beserta target realisasi tahunan.');
+  if(!items.length) return header + note + emptyState('tugas', `Belum ada tugas tim untuk tahun ${FILTER_YEAR}`, 'Tambahkan tugas beserta triwulan, target, dan realisasi.');
 
-  const quarters = ['q1','q2','q3','q4'];
-  const cq = currentQuarterIndex();
-  const cards = items.map(t=>{
-    const pct = tugasPct(t);
-    const st = statusFor(pctExpected(t, pct));
-    const activeQ = TUGAS_ACTIVE_Q[t.id] || quarters[cq] || 'q1';
-    const options = quarters.map((q,idx)=>
-      `<option value="${q}" ${q===activeQ?'selected':''}>${TRIWULAN_LABELS[q]}${idx===cq?' — berjalan':''}</option>`
-    ).join('');
+  const groups = {};
+  items.forEach(t=>{
+    const key = t.timId + '|' + (t.nama||'').toLowerCase();
+    if(!groups[key]) groups[key] = { timId:t.timId, nama:t.nama, entries:[] };
+    groups[key].entries.push(t);
+  });
+  const quarterOrder = {q1:0,q2:1,q3:2,q4:3};
+  const cqKey = currentQuarterKey();
+
+  const cards = Object.values(groups).map(g=>{
+    g.entries.sort((a,b)=>(quarterOrder[a.triwulan]||0)-(quarterOrder[b.triwulan]||0));
+    const totalTarget = g.entries.reduce((s,e)=>s+(Number(e.target)||0),0);
+    const totalReal = g.entries.reduce((s,e)=>s+(Number(e.realisasi)||0),0);
+    const overallPct = totalTarget ? Math.round(totalReal/totalTarget*100) : 0;
+    const st = statusFor(overallPct);
+    const satuan = g.entries[0] ? g.entries[0].satuan : '';
+    const rows = g.entries.map(e=>{
+      const pct = tugasPct(e);
+      const est = statusFor(pct);
+      return `<tr>
+        <td class="mono">${TRIWULAN_LABELS[e.triwulan]||e.triwulan}${e.triwulan===cqKey?' <span class="tag tag-gold" style="margin-left:4px;">berjalan</span>':''}</td>
+        <td class="mono">${fmtNum(e.target)} ${escapeHtml(e.satuan||'')}</td>
+        <td class="mono">${fmtNum(e.realisasi)} ${escapeHtml(e.satuan||'')}</td>
+        <td>
+          <div class="flex items-center gap-8">
+            <div class="pbar ${est.cls}" style="width:60px;"><div style="width:${Math.min(100,pct)}%"></div></div>
+            <span class="mono text-xs">${pct}%</span>
+          </div>
+        </td>
+        <td class="mono">${fmtDate(e.tanggal)}</td>
+        <td>${evidenceCell(e,'tugas')}</td>
+        <td><span class="tag ${est.tag}">${est.label}</span></td>
+        <td>${rowActions('tugas', e.id)}</td>
+      </tr>`;
+    }).join('');
     return `<div class="panel" style="margin-bottom:14px;">
       <div class="panel-head">
         <div>
-          <div class="flex items-center gap-8"><span class="team-pill">${escapeHtml(teamName(t.timId))}</span><span class="tag ${st.tag}">${st.label}</span></div>
-          <h3 style="margin-top:7px;">${escapeHtml(t.nama)}</h3>
-          <p>Target: <b class="mono">${fmtNum(t.target)} ${escapeHtml(t.satuan||'')}</b> — Tahun ${t.tahun} · Realisasi total: <b class="mono">${fmtNum(totalRealisasi(t))} ${escapeHtml(t.satuan||'')}</b> (${pct}%)</p>
+          <div class="flex items-center gap-8"><span class="team-pill">${escapeHtml(teamName(g.timId))}</span><span class="tag ${st.tag}">${st.label}</span></div>
+          <h3 style="margin-top:7px;">${escapeHtml(g.nama)}</h3>
+          <p>Total Target: <b class="mono">${fmtNum(totalTarget)} ${escapeHtml(satuan)}</b> — Tahun ${FILTER_YEAR} · Total Realisasi: <b class="mono">${fmtNum(totalReal)} ${escapeHtml(satuan)}</b> (${overallPct}%)</p>
         </div>
-        <div class="flex gap-6">${rowActions('tugas', t.id)}</div>
       </div>
       <div class="panel-body">
-        <div class="pbar ${st.cls}"><div style="width:${Math.min(100,pct)}%"></div></div>
-        <div class="q-select-row">
-          <label for="qsel-${t.id}">Pilih Triwulan</label>
-          <select id="qsel-${t.id}" class="q-select" onchange="changeTugasQuarter('${t.id}', this.value)">${options}</select>
-        </div>
-        <div class="q-grid q-grid-single">
-          ${quarterCard(t, activeQ, quarters[cq]===activeQ)}
-        </div>
+        <div class="pbar ${st.cls}"><div style="width:${Math.min(100,overallPct)}%"></div></div>
+        <div class="table-wrap" style="margin-top:14px;"><table>
+          <thead><tr><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>%</th><th>Tgl Update</th><th>Bukti</th><th>Status</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
       </div>
     </div>`;
   }).join('');
   return header + note + cards;
-}
-function changeTugasQuarter(id, q){
-  TUGAS_ACTIVE_Q[id] = q;
-  renderContent();
-}
-function fmtNum(n){ n=Number(n)||0; return n.toLocaleString('id-ID'); }
-function totalRealisasi(t){ return ['q1','q2','q3','q4'].reduce((s,q)=>s+(Number((t[q]||{}).realisasi)||0),0); }
-function pctExpected(t, actualPct){
-  // simple pacing heuristic vs current quarter, used only for coloring dashboard-level status
-  return actualPct;
-}
-function quarterCard(t, q, isCurrent){
-  const data = t[q] || {};
-  const has = !!data.realisasi || Number(data.realisasi)===0 && data.realisasi!==undefined;
-  const filled = data.realisasi!==undefined && data.realisasi!=='' && data.realisasi!==null;
-  const stampClass = filled ? 'filled' : 'empty';
-  return `<div class="q-card">
-    <div class="q-card-head">
-      <span class="q-label">${TRIWULAN_LABELS[q]} ${isCurrent?'<span class="tag tag-gold" style="margin-left:4px;">berjalan</span>':''}</span>
-      <div class="stamp ${stampClass}" style="width:34px;height:34px;">
-        <div style="text-align:center;">
-          <div class="stamp-q" style="font-size:11px;">${q.replace('q','Q')}</div>
-        </div>
-      </div>
-    </div>
-    <label class="text-xs text-muted" style="margin-bottom:-4px;">Realisasi (${escapeHtml(t.satuan||'unit')})</label>
-    <input type="number" class="q-input" value="${data.realisasi ?? ''}" placeholder="0"
-      onchange="updateQuarterField('${t.id}','${q}','realisasi', this.value)">
-    <label class="text-xs text-muted" style="margin-bottom:-4px;">Tanggal Update</label>
-    <input type="date" class="q-input" value="${data.tanggal || ''}"
-      onchange="updateQuarterField('${t.id}','${q}','tanggal', this.value)">
-    <div class="q-evidence-row">
-      ${data.hasEvidence ? evidenceCell(t,'tugas',q) : `<label class="btn btn-outline btn-sm" style="cursor:pointer;">
-        ${ICONS.upload} Unggah Bukti
-        <input type="file" class="file-input-hidden" accept=".pdf,.doc,.docx" onchange="uploadQuarterEvidence('${t.id}','${q}', this)">
-      </label>`}
-    </div>
-  </div>`;
-}
-async function updateQuarterField(id, q, field, value){
-  const t = DB.tugas.find(x=>x.id===id);
-  if(!t) return;
-  if(!t[q]) t[q] = {};
-  t[q][field] = field==='realisasi' ? (value===''?'':Number(value)) : value;
-  try{
-    await apiPut('tugas', id, t);
-    renderContent();
-  }catch(e){ toast(e.message || 'Gagal menyimpan perubahan', 'err'); }
-}
-async function uploadQuarterEvidence(id, q, inputEl){
-  const t = DB.tugas.find(x=>x.id===id);
-  if(!t) return;
-  if(!t[q]) t[q] = {};
-  await uploadQuarterFile(inputEl, async (meta)=>{
-    Object.assign(t[q], meta);
-    try{
-      await apiPut('tugas', id, t);
-      renderContent();
-    }catch(e){ toast(e.message || 'Gagal menyimpan bukti', 'err'); }
-  });
 }
 
 /* ============================================================
@@ -1988,32 +1939,47 @@ function openTugasModal(id){
     </div>
     <div class="field"><label>Nama Tugas</label><input type="text" id="f_nama" value="${t?escapeHtml(t.nama):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
     <div class="field-row">
-      <div class="field"><label>Target Tahunan</label><input type="number" id="f_target" value="${t?t.target:''}" placeholder="mis. 100"></div>
+      <div class="field"><label>Triwulan</label>
+        <select id="f_triwulan">
+          ${['q1','q2','q3','q4'].map(q=>`<option value="${q}" ${t&&t.triwulan===q?'selected':''}>${TRIWULAN_LABELS[q]}</option>`).join('')}
+        </select>
+      </div>
       <div class="field"><label>Satuan</label><input type="text" id="f_satuan" value="${t?escapeHtml(t.satuan||''):''}" placeholder="mis. dokumen, %, laporan"></div>
     </div>
-    <div class="text-xs text-muted">Realisasi, tanggal update, dan bukti dukung tiap triwulan dapat diisi langsung pada kartu tugas setelah disimpan.</div>
+    <div class="field-row">
+      <div class="field"><label>Target Triwulan Ini</label><input type="number" id="f_target" value="${t?t.target:''}" placeholder="mis. 25"></div>
+      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${t?(t.realisasi??''):''}" placeholder="0"></div>
+    </div>
+    <div class="field"><label>Tanggal Update</label><input type="date" id="f_tanggal" value="${t?(t.tanggal||''):''}"></div>
+    ${evidenceField('tugas', t)}
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveTugas('${id||''}')">Simpan</button>`;
   openModal(modalShell(t?'Ubah Tugas Tim':'Tambah Tugas Tim', body, foot));
+  wireEvidenceField('tugas', id);
 }
 async function saveTugas(id){
   const timId = document.getElementById('f_tim').value;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const nama = document.getElementById('f_nama').value.trim();
-  const target = Number(document.getElementById('f_target').value)||0;
+  const triwulan = document.getElementById('f_triwulan').value;
   const satuan = document.getElementById('f_satuan').value.trim();
+  const target = Number(document.getElementById('f_target').value)||0;
+  const realisasiRaw = document.getElementById('f_realisasi').value;
+  const realisasi = realisasiRaw===''?0:Number(realisasiRaw);
+  const tanggal = document.getElementById('f_tanggal').value;
   if(!nama || nama.length < 3){ toast('Nama tugas wajib diisi, minimal 3 karakter','err'); return; }
-  if(!target){ toast('Target tahunan wajib diisi','err'); return; }
+  if(!target){ toast('Target wajib diisi','err'); return; }
   if(!satuan){ toast('Satuan wajib diisi','err'); return; }
+  let payload = {timId,tahun,nama,triwulan,target,satuan,realisasi,tanggal};
+  const evMeta = persistPendingEvidence('tugas');
+  if(evMeta) Object.assign(payload, evMeta);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    if(id){
-      const existing = DB.tugas.find(x=>x.id===id);
-      await apiPut('tugas', id, {...existing, timId,tahun,nama,target,satuan});
-    } else {
-      await apiPost('tugas', {timId,tahun,nama,target,satuan, q1:{},q2:{},q3:{},q4:{}});
-    }
+    let saved;
+    if(id) saved = await apiPut('tugas', id, payload);
+    else saved = await apiPost('tugas', payload);
+    registerAutoAttachIfUploading('tugas', 'tugas', saved.id);
     await loadAll();
     closeModal(); toast('Tugas tim disimpan','ok'); FILTER_YEAR = tahun; renderShell();
   }catch(e){
