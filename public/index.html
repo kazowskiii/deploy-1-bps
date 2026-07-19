@@ -582,20 +582,32 @@ function periodeToArabic(periode){
   if(!m) return null;
   return ROMAN_TO_ARABIC[m[1].toLowerCase()] || null;
 }
+// Field per koleksi yang boleh diikutkan dalam pencarian bebas. Sengaja TIDAK
+// menyertakan field angka murni (target, capaian, persentase, realisasi, dst)
+// supaya mencari "11" tidak ikut menangkap data lain yang kebetulan bernilai 11.
+const SEARCHABLE_FIELDS = {
+  fra: ['periode', 'uraian', 'catatan'],
+  kegiatan: ['nama', 'kendala', 'solusi', 'rtl', 'status'],
+  tugas: ['nama', 'satuan'],
+  iku: ['kode', 'nama', 'satuan'],
+  tim: ['name'],
+};
 function buildSearchableText(item, collection){
-  let extra = '';
+  const fields = SEARCHABLE_FIELDS[collection] || [];
+  let text = fields.map(f=>item[f]!=null ? String(item[f]) : '').join(' ');
+  text += ' ' + teamName(item.timId || item.id);
   if(collection === 'fra'){
     const arabic = periodeToArabic(item.periode);
-    if(arabic) extra += ` triwulan ${arabic}`;
-    if(item.ikuNomor) extra += ` iku ${item.ikuNomor}`;
+    if(arabic) text += ` triwulan ${arabic}`;
+    if(item.ikuNomor) text += ` iku ${item.ikuNomor}`;
   }
   if(collection === 'iku' && item.kode){
-    extra += ` kode ${item.kode}`;
+    text += ` kode ${item.kode}`;
   }
   if(collection === 'tugas' && item.tahun){
-    extra += ` tahun ${item.tahun}`;
+    text += ` tahun ${item.tahun}`;
   }
-  return (JSON.stringify(item) + ' ' + extra).toLowerCase();
+  return text.toLowerCase();
 }
 function applyPageFilters(items, collection){
   let result = Array.isArray(items) ? [...items] : [];
