@@ -191,37 +191,60 @@ function driveRootUrl() {
 
 const ensuredFolders = new Set();
 
-async function ensureFolder(folderName) {
-  if (ensuredFolders.has(folderName)) return;
-  const checkUrl = `${driveRootUrl()}/root:/${encodeURIComponent(folderName)}`;
-  const res = await graphFetch(checkUrl);
-  if (res.status === 200) {
-    ensuredFolders.add(folderName);
-    return;
+/** Encode tiap segmen path secara terpisah — slash pemisah folder TIDAK ikut di-encode. */
+function encodeGraphPath(p) {
+  return p.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+}
+
+/**
+ * Pastikan folder ada, termasuk folder bertingkat (mis. "SIMONEV-FRA/Triwulan 1/IKU 3").
+ * Setiap level dicek & dibuat satu per satu kalau belum ada.
+ */
+async function ensureFolder(folderPath) {
+  if (ensuredFolders.has(folderPath)) return;
+  const segments = folderPath.split('/').filter(Boolean);
+  let parentPath = '';
+  let builtPath = '';
+
+  for (const segment of segments) {
+    parentPath = builtPath;
+    builtPath = builtPath ? `${builtPath}/${segment}` : segment;
+    if (ensuredFolders.has(builtPath)) continue;
+
+    const checkUrl = `${driveRootUrl()}/root:/${encodeGraphPath(builtPath)}`;
+    const res = await graphFetch(checkUrl);
+    if (res.status === 200) {
+      ensuredFolders.add(builtPath);
+      continue;
+    }
+    if (res.status !== 404) {
+      throw new Error(`Gagal memeriksa folder OneDrive "${builtPath}": ${await readGraphError(res)}`);
+    }
+
+    const createUrl = parentPath
+      ? `${driveRootUrl()}/root:/${encodeGraphPath(parentPath)}:/children`
+      : `${driveRootUrl()}/root/children`;
+    const createRes = await graphFetch(createUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: segment,
+        folder: {},
+        '@microsoft.graph.conflictBehavior': 'replace',
+      }),
+    });
+    if (!createRes.ok) {
+      throw new Error(`Gagal membuat folder OneDrive "${builtPath}": ${await readGraphError(createRes)}`);
+    }
+    ensuredFolders.add(builtPath);
   }
-  if (res.status !== 404) {
-    throw new Error(`Gagal memeriksa folder OneDrive: ${await readGraphError(res)}`);
-  }
-  const createRes = await graphFetch(`${driveRootUrl()}/root/children`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: folderName,
-      folder: {},
-      '@microsoft.graph.conflictBehavior': 'replace',
-    }),
-  });
-  if (!createRes.ok) {
-    throw new Error(`Gagal membuat folder OneDrive "${folderName}": ${await readGraphError(createRes)}`);
-  }
-  ensuredFolders.add(folderName);
 }
 
 /**
  * Unggah buffer berkas ke OneDrive lewat upload session (aman untuk berbagai
  * ukuran berkas, tidak dibatasi ~4MB seperti PUT langsung).
- * `folderName` opsional — kalau tidak diisi, pakai folder default (ONEDRIVE_FOLDER).
- * Dipakai supaya tiap modul (FRA/IKU/Tugas) bisa punya folder OneDrive sendiri.
+ * `folderName` opsional — boleh berupa path bertingkat, mis. "SIMONEV-FRA/Triwulan 1/IKU 3".
+ * Kalau tidak diisi, pakai folder default (ONEDRIVE_FOLDER).
  * Mengembalikan metadata item OneDrive (termasuk `id`, dipakai sebagai
  * pengenal berkas di sisi aplikasi, menggantikan nama file lokal).
  */
@@ -231,7 +254,7 @@ async function uploadFile(buffer, filename, folderName) {
   const itemPath = `${folder}/${filename}`;
 
   const sessionRes = await graphFetch(
-    `${driveRootUrl()}/root:/${encodeURIComponent(itemPath)}:/createUploadSession`,
+    `${driveRootUrl()}/root:/${encodeGraphPath(itemPath)}:/createUploadSession`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

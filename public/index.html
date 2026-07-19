@@ -892,10 +892,15 @@ async function apiDeleteFile(itemId){
     console.error('Gagal menghapus berkas lama/salah pilih di OneDrive:', e.message || e);
   }
 }
-async function uploadFileToServer(file, kind){
+async function uploadFileToServer(file, kind, extra){
   const fd = new FormData();
   fd.append('file', file);
   if(kind) fd.append('kind', kind);
+  if(extra){
+    Object.keys(extra).forEach(k=>{
+      if(extra[k]!==undefined && extra[k]!==null) fd.append(k, extra[k]);
+    });
+  }
   const r = await fetch('/api/upload', { method:'POST', credentials:'include', body:fd });
   const data = await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(data.error || 'Gagal mengunggah berkas');
@@ -1751,6 +1756,14 @@ function openFraModal(id){
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFra('${id||''}')">Simpan</button>`;
   openModal(modalShell(f?'Ubah Capaian Tim':'Tambah Capaian Tim (FRA)', body, foot));
   wireEvidenceField('fra', id);
+  ['f_periode','f_ikuNomor'].forEach(fieldId=>{
+    const el = document.getElementById(fieldId);
+    if(el) el.addEventListener('change', ()=>{
+      if(PENDING_EVIDENCE['fra']){
+        toast('Triwulan/IKU diubah setelah upload — silakan pilih ulang berkasnya agar tersimpan di folder yang benar','err');
+      }
+    });
+  });
 }
 function evidenceField(kind, item){
   const has = item && item.hasEvidence;
@@ -1794,7 +1807,14 @@ function wireEvidenceField(kind, id){
     const dz = document.getElementById(`dzContent_${kind}`);
     if(dz) dz.innerHTML = `<div class="dz-title">Mengunggah…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
     try{
-      const meta = await uploadFileToServer(file, kind);
+      let extra = {};
+      if(kind === 'fra'){
+        const periodeEl = document.getElementById('f_periode');
+        const ikuEl = document.getElementById('f_ikuNomor');
+        if(periodeEl) extra.periode = periodeEl.value;
+        if(ikuEl) extra.ikuNomor = ikuEl.value;
+      }
+      const meta = await uploadFileToServer(file, kind, extra);
 
       // Kalau selama upload ini berjalan user sudah ganti pilihan file lagi
       // (token sudah berubah), hasil upload ini sudah basi — hapus langsung
