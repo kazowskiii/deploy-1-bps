@@ -997,8 +997,63 @@ function validateFileOrToast(file){
   }
   return true;
 }
-function viewEvidence(serverFilename){
-  window.open(`/api/files/${serverFilename}`, '_blank');
+async function viewEvidence(serverFilename){
+  openFileViewerModal(); // tampilkan modal dengan status loading dulu
+  try{
+    const r = await fetch(`/api/files/${serverFilename}/info`, { credentials:'include' });
+    const info = await r.json().catch(()=>({}));
+    if(!r.ok || !info.downloadUrl) throw new Error(info.error || 'Berkas tidak ditemukan');
+    renderFileViewer(info, serverFilename);
+  }catch(e){
+    renderFileViewerError(e.message || 'Gagal memuat berkas', serverFilename);
+  }
+}
+function openFileViewerModal(){
+  const old = document.getElementById('fileViewerOverlay');
+  if(old) old.remove();
+  const html = `<div class="modal-overlay" id="fileViewerOverlay">
+    <div class="modal" style="max-width:900px;width:95%;">
+      <div class="modal-head"><h3 id="fileViewerTitle">Memuat berkas…</h3><button class="close-x" onclick="closeFileViewerModal()">${ICONS.x}</button></div>
+      <div class="modal-body" style="padding:0;max-height:80vh;">
+        <div id="fileViewerBody" style="min-height:420px;display:flex;align-items:center;justify-content:center;color:var(--ink-muted);font-size:13px;">
+          <div class="spinner" style="width:26px;height:26px;"></div>
+        </div>
+      </div>
+      <div class="modal-foot" id="fileViewerFoot"></div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const overlay = document.getElementById('fileViewerOverlay');
+  overlay.addEventListener('click', e=>{ if(e.target.id==='fileViewerOverlay') closeFileViewerModal(); });
+}
+function closeFileViewerModal(){
+  const old = document.getElementById('fileViewerOverlay');
+  if(old) old.remove();
+}
+function renderFileViewer(info, serverFilename){
+  const titleEl = document.getElementById('fileViewerTitle');
+  const bodyEl = document.getElementById('fileViewerBody');
+  const footEl = document.getElementById('fileViewerFoot');
+  if(!titleEl || !bodyEl) return;
+  titleEl.textContent = info.name || 'Pratinjau Berkas';
+  const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(info.downloadUrl)}&embedded=true`;
+  bodyEl.innerHTML = `<iframe src="${viewerUrl}" style="width:100%;height:75vh;border:none;display:block;" title="Pratinjau berkas"></iframe>`;
+  footEl.innerHTML = `
+    <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Buka di Tab Baru</button>
+    <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+  `;
+}
+function renderFileViewerError(message, serverFilename){
+  const titleEl = document.getElementById('fileViewerTitle');
+  const bodyEl = document.getElementById('fileViewerBody');
+  const footEl = document.getElementById('fileViewerFoot');
+  if(!titleEl || !bodyEl) return;
+  titleEl.textContent = 'Gagal memuat berkas';
+  bodyEl.innerHTML = `<div style="padding:30px;text-align:center;color:var(--danger);font-size:13px;">${escapeHtml(message)}</div>`;
+  footEl.innerHTML = `
+    <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Coba Buka di Tab Baru</button>
+    <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+  `;
 }
 
 /* ============================================================
@@ -1752,6 +1807,10 @@ function closeModal(){
   if(old) old.remove();
 }
 document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const viewerOverlay = document.getElementById('fileViewerOverlay');
+    if(viewerOverlay) closeFileViewerModal();
+  }
   if(e.key !== 'Enter') return;
   const overlay = document.getElementById('modalOverlay');
   if(!overlay) return; // tidak ada modal terbuka, biarkan perilaku normal

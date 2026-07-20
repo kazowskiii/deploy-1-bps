@@ -1072,15 +1072,28 @@ app.post('/api/upload', requireLogin, (req, res) => {
   });
 });
 
-// Endpoint untuk MELIHAT berkas (preview) — redirect ke viewer OneDrive Online (webUrl),
-// bukan link download langsung, supaya tidak otomatis mengunduh saat diklik.
+// Endpoint JSON: kembalikan info berkas (termasuk downloadUrl sementara) supaya
+// frontend bisa menampilkannya dalam modal viewer di dalam web sendiri (tidak pindah situs, tidak download).
+app.get('/api/files/:filename/info', requireLogin, async (req, res) => {
+  try {
+    const itemId = req.params.filename;
+    const info = await onedrive.getDownloadUrl(itemId);
+    if (!info) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
+    res.json({ downloadUrl: info.downloadUrl, webUrl: info.webUrl, name: info.name, mimeType: info.mimeType });
+  } catch (err) {
+    console.error('Gagal mengambil info berkas dari OneDrive:', err.message);
+    res.status(502).json({ error: `Gagal mengambil info berkas dari OneDrive: ${err.message}` });
+  }
+});
+
+// Fallback: buka langsung viewer OneDrive Online di tab baru (dipakai tombol "Buka di tab baru" pada modal).
 app.get('/api/files/:filename', requireLogin, async (req, res) => {
   try {
     const itemId = req.params.filename;
     const info = await onedrive.getDownloadUrl(itemId);
     if (!info) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
     if (info.webUrl) return res.redirect(info.webUrl);
-    if (info.downloadUrl) return res.redirect(info.downloadUrl); // fallback kalau webUrl tidak tersedia
+    if (info.downloadUrl) return res.redirect(info.downloadUrl);
     return res.status(404).json({ error: 'Berkas tidak ditemukan' });
   } catch (err) {
     console.error('Gagal mengambil berkas dari OneDrive:', err.message);
