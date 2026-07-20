@@ -1559,6 +1559,7 @@ function renderKegiatanPage(){
   const rows = items.map(k=>`
     <tr>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
+      <td class="mono">${k.ikuNomor ? 'IKU '+k.ikuNomor : '—'}</td>
       <td style="min-width:160px;">
         <div class="cell-title">${escapeHtml(k.nama)}</div>
         <div class="cell-sub mono">${fmtDate(k.tanggal)}${k.createdAt ? ' · '+fmtTime(k.createdAt) : ''}</div>
@@ -1570,7 +1571,7 @@ function renderKegiatanPage(){
       <td>${kegiatanActions(k)}</td>
     </tr>`).join('');
   return header + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>Tim</th><th>Kegiatan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Tim</th><th>IKU</th><th>Kegiatan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2134,6 +2135,13 @@ function openKegiatanModal(id){
       <div class="field"><label>Tanggal</label><input type="date" id="f_tanggal" value="${k?k.tanggal:new Date().toISOString().slice(0,10)}"></div>
     </div>
     <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${k?(k.tahun||FILTER_YEAR):FILTER_YEAR}"></div>
+    <div class="field"><label>IKU</label>
+      <select id="f_ikuNomor">
+      ${Array.from({length:16},(_,i)=>i+1).map(n=>
+      `<option value="${n}" ${k && Number(k.ikuNomor)===n ? 'selected' : ''}>IKU ${n}</option>`
+      ).join('')}
+      </select>
+    </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_nama" value="${k?escapeHtml(k.nama):''}" placeholder="mis. Pengumpulan data Susenas"></div>
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
     <div class="field"><label>Solusi</label><textarea id="f_solusi" placeholder="Solusi yang diterapkan...">${k?escapeHtml(k.solusi):''}</textarea></div>
@@ -2151,6 +2159,7 @@ async function saveKegiatan(id){
   const timId = document.getElementById('f_tim').value;
   const tanggal = document.getElementById('f_tanggal').value;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
+  const ikuNomor = Number(document.getElementById('f_ikuNomor').value)||1;
   const nama = document.getElementById('f_nama').value.trim();
   const kendala = document.getElementById('f_kendala').value.trim();
   const solusi = document.getElementById('f_solusi').value.trim();
@@ -2160,7 +2169,7 @@ async function saveKegiatan(id){
   if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
   if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
   if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
-  const payload = {timId,tanggal,tahun,nama,kendala,solusi,rtl,status};
+  const payload = {timId,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,status};
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{

@@ -569,6 +569,7 @@ const kegiatanSchema = Joi.object({
   timId: Joi.string().required(),
   tanggal: Joi.string().isoDate().required(),
   nama: Joi.string().trim().min(3).max(250).required(),
+  ikuNomor: Joi.number().integer().min(1).max(16).required(),
   kendala: Joi.string().trim().min(3).max(1000).required(),
   solusi: Joi.string().trim().min(3).max(1000).required(),
   rtl: Joi.string().trim().min(3).max(1000).required(),
