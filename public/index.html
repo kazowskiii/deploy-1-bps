@@ -246,6 +246,15 @@ tbody tr:last-child td{border-bottom:none;}
 .evidence-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .file-input-hidden{display:none;}
 
+.evidence-view-btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:8px;
+  border:1.5px solid var(--success);background:#fff;color:var(--success);
+  cursor:pointer;transition:background .12s,transform .1s;
+}
+.evidence-view-btn:hover{background:var(--success-soft);}
+.evidence-view-btn:active{transform:scale(.94);}
+
 /* ===== Modal ===== */
 .modal-overlay{
   position:fixed;inset:0;background:rgba(14,24,34,.5);backdrop-filter:blur(1.5px);
@@ -1500,12 +1509,11 @@ function evidenceCell(item, kind, qKey){
   const src = qKey ? (item[qKey]||{}) : item;
   const has = src.hasEvidence;
   const name = src.evidenceOriginalName;
-  const size = src.evidenceSize;
   const serverFilename = src.evidenceFileName;
   if(has && serverFilename){
-    return `<div class="evidence-chip" title="${escapeHtml(name)}" style="cursor:pointer;" onclick="viewEvidence('${serverFilename}')">
-      ${ICONS.file}<span>${escapeHtml(name)}</span><span class="mono" style="color:var(--ink-faint);">(${fmtBytes(size)})</span>
-    </div>`;
+    return `<button type="button" class="evidence-view-btn" title="${escapeHtml(name || 'Lihat bukti dukung')}" onclick="viewEvidence('${serverFilename}')">
+      ${ICONS.eye}
+    </button>`;
   }
   return `<span class="tag tag-danger">Belum ada bukti</span>`;
 }
