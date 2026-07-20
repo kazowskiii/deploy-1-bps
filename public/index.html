@@ -1495,7 +1495,10 @@ function renderFraPage(){
     const pct = Number(f.persentase)||0;
     const st = statusFor(pct);
     return `<tr>
-      <td><span class="team-pill">${escapeHtml(teamName(f.timId))}</span></td>
+      <td>
+        <span class="team-pill">${escapeHtml(teamName(f.timId))}</span>
+        <div class="cell-sub mono" style="margin-top:4px;">${fmtDate(f.createdAt)}${f.createdAt ? ' · '+fmtTime(f.createdAt) : ''}</div>
+      </td>
       <td class="mono">${f.ikuNomor ? 'IKU '+f.ikuNomor : '—'}</td>
       <td style="min-width:200px;">
         <div class="cell-title">${escapeHtml(f.namaKegiatan || f.uraian || '—')}</div>
