@@ -529,7 +529,9 @@ function filterItems(items, user, collection, query) {
     result = result.filter((item) => item.timId === query.teamId || item.id === query.teamId);
   }
   if (query.tahun) {
-    result = result.filter((item) => Number(item.tahun) === Number(query.tahun));
+    // Item yang memang tidak punya field "tahun" (mis. Analisis Kegiatan) tidak ikut
+    // difilter berdasarkan tahun — supaya tidak hilang begitu saja saat export.
+    result = result.filter((item) => item.tahun === undefined || item.tahun === null || Number(item.tahun) === Number(query.tahun));
   }
   if (query.status) {
     result = result.filter((item) => getItemStatus(collection, item).toLowerCase() === String(query.status).toLowerCase());
