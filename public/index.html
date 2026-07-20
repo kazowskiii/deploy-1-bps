@@ -1296,24 +1296,22 @@ function renderDashboard(){
   return `
     ${renderReminderBanner()}
     ${kpis}
-    <div class="grid-2" style="margin-top:14px;">
-      <div class="panel">
-        <div class="panel-head"><div><h3>Progres Realisasi per Tim</h3><p>Rata-rata realisasi tugas triwulanan, tahun ${FILTER_YEAR}</p></div></div>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Tim</th><th>Jml Tugas</th><th>Progres</th><th>Status</th></tr></thead>
-          <tbody>${teamRows}</tbody>
-        </table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div></div>
-        <div class="panel-body" style="padding-top:8px;">
-          <canvas id="teamProgressChart" width="760" height="320" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;"></canvas>
-          <div id="teamProgressLegend" class="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h3>Analisis Kegiatan Ditandai</h3><p>Kegiatan yang dibintangi untuk dipantau</p></div></div>
-        <div class="panel-body" style="padding-top:4px;">${recentList}</div>
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-head"><div><h3>Progres Realisasi per Tim</h3><p>Rata-rata realisasi tugas triwulanan, tahun ${FILTER_YEAR}</p></div></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Tim</th><th>Jml Tugas</th><th>Progres</th><th>Status</th></tr></thead>
+        <tbody>${teamRows}</tbody>
+      </table></div>
+    </div>
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-head"><div><h3>Analisis Kegiatan Ditandai</h3><p>Kegiatan yang dibintangi untuk dipantau</p></div></div>
+      <div class="panel-body" style="padding-top:4px;">${recentList}</div>
+    </div>
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-head"><div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div></div>
+      <div class="panel-body" style="padding-top:8px;">
+        <canvas id="teamProgressChart" width="1200" height="360" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;"></canvas>
+        <div id="teamProgressLegend" class="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
       </div>
     </div>
   `;
