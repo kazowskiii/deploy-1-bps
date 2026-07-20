@@ -380,7 +380,7 @@ function buildPdfRow(collection, item) {
 
 function drawPdfCover(doc, title) {
   const pageWidth = doc.page.width;
-  const logoW = 190;
+  const logoW = 230;
 
   // Judul laporan di paling atas.
   let cursorY = 130;
@@ -391,10 +391,14 @@ function drawPdfCover(doc, title) {
   cursorY = doc.y + 50;
   if (fs.existsSync(LOGO_PATH)) {
     try {
+      // Hitung tinggi ASLI gambar berdasarkan rasio aspek sebenarnya,
+      // supaya jarak ke teks di bawahnya presisi (tidak tumpang tindih).
+      const img = doc.openImage(LOGO_PATH);
+      const logoH = (img.height / img.width) * logoW;
       doc.image(LOGO_PATH, (pageWidth - logoW) / 2, cursorY, { width: logoW });
-      cursorY += logoW * 0.42 + 40;
+      cursorY += logoH + 40;
     } catch (e) {
-      cursorY += 40;
+      cursorY += logoW * 0.42 + 40;
     }
   } else {
     cursorY += 40;
