@@ -1738,8 +1738,7 @@ function renderIkuPage(){
    ============================================================ */
 function renderTimPage(){
   const items = DB.teams;
-  const header = `<div class="page-actions-bar" style="justify-content:flex-end;">${exportButtons('tim')}</div>`;
-  if(!items.length) return header + emptyState('tim','Belum ada tim','Tambahkan tim kerja untuk digunakan pada seluruh modul.');
+  if(!items.length) return emptyState('tim','Belum ada tim','Tambahkan tim kerja untuk digunakan pada seluruh modul.');
   const rows = items.map(t=>{
     const cIku = DB.iku.filter(i=>i.timId===t.id).length;
     const cTugas = DB.tugas.filter(i=>i.timId===t.id).length;
@@ -1750,7 +1749,7 @@ function renderTimPage(){
       <td>${rowActions('tim', t.id)}</td>
     </tr>`;
   }).join('');
-  return header + `<div class="panel"><div class="table-wrap"><table>
+  return `<div class="panel"><div class="table-wrap"><table>
     <thead><tr><th>Nama Tim</th><th>IKU Terkait</th><th>Tugas Terkait</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
