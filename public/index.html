@@ -1327,7 +1327,10 @@ function renderDashboard(){
         </select>
       </div>
       <div class="panel-body" style="padding-top:8px;">
-        <canvas id="teamProgressChart" width="1200" height="360" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;"></canvas>
+        <div id="teamProgressChartWrap" style="position:relative;">
+          <canvas id="teamProgressChart" width="1200" height="360" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;display:block;"></canvas>
+          <div id="teamProgressEmpty" class="empty-state" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;"></div>
+        </div>
         <div id="teamProgressLegend" class="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
       </div>
     </div>
@@ -1345,6 +1348,8 @@ function wireChartTeamFilter(){
 function renderTeamProgressChart(){
   const canvas = document.getElementById('teamProgressChart');
   if(!canvas) return;
+  const emptyEl = document.getElementById('teamProgressEmpty');
+  const legend = document.getElementById('teamProgressLegend');
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
@@ -1370,12 +1375,22 @@ function renderTeamProgressChart(){
     });
     return { name: team.name, points };
   }).filter(x=>x && x.points.some(v=>v!==null && v>0));
+
+  // ===== Tidak ada data: sembunyikan grafik, tampilkan empty-state, kosongkan legend =====
   if(!teamsData.length){
-    ctx.fillStyle = '#65748b';
-    ctx.font = '14px Inter';
-    ctx.fillText('Belum ada data tugas per tim untuk tahun '+FILTER_YEAR, 18, 38);
+    if(emptyEl){
+      const teamLabel = CHART_TEAM_FILTER ? teamName(CHART_TEAM_FILTER) : null;
+      emptyEl.style.display = 'flex';
+      emptyEl.innerHTML = `
+        ${ICONS.empty}
+        <div class="es-title">Belum ada data tugas${teamLabel ? ' untuk ' + escapeHtml(teamLabel) : ''}</div>
+        <div class="text-xs">Belum ada tugas tercatat untuk tahun ${FILTER_YEAR}${teamLabel ? ' pada tim ini' : ' pada tim manapun'}.</div>
+      `;
+    }
+    if(legend) legend.innerHTML = '';
     return;
   }
+  if(emptyEl) emptyEl.style.display = 'none';
 
   const palette = ['#163B5C','#B4872A','#2E7D57','#C9820B','#B23A34','#0E2A44'];
   const padding = { top: 34, right: 44, bottom: 34, left: 48 };
@@ -1428,7 +1443,6 @@ function renderTeamProgressChart(){
     });
   });
 
-  const legend = document.getElementById('teamProgressLegend');
   if(legend) legend.innerHTML = teamsData.map((team,index)=>{
     const color = palette[index % palette.length];
     return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);">
