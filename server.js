@@ -253,15 +253,206 @@ function getItemStatus(collection, item) {
     return 'Tertinggal';
   }
   if (collection === 'tugas') {
-    const total = ['q1', 'q2', 'q3', 'q4'].reduce((sum, q) => sum + (Number((item[q] || {}).realisasi) || 0), 0);
     const target = Number(item.target) || 0;
+    const realisasi = Number(item.realisasi) || 0;
     if (!target) return 'Tertinggal';
-    const pct = Math.round((total / target) * 100);
+    const pct = Math.round((realisasi / target) * 100);
+    if (pct >= 100) return 'Tercapai';
+    if (pct >= 60) return 'Perlu Perhatian';
+    return 'Tertinggal';
+  }
+  if (collection === 'fra') {
+    const pct = Number(item.persentase) || 0;
     if (pct >= 100) return 'Tercapai';
     if (pct >= 60) return 'Perlu Perhatian';
     return 'Tertinggal';
   }
   return item.status || '—';
+}
+/* ===================== Helper export PDF (cover + tabel) ===================== */
+const LOGO_PATH = path.join(__dirname, 'public', 'assets', 'logo-bps.png');
+const TRIWULAN_LABELS_SERVER = { q1: 'Triwulan I', q2: 'Triwulan II', q3: 'Triwulan III', q4: 'Triwulan IV' };
+
+const PDF_TITLES = {
+  fra: 'Laporan FRA — Capaian Kinerja Tim',
+  kegiatan: 'Laporan Analisis Kegiatan',
+  tugas: 'Laporan Tugas Tim & Target Tahunan',
+  iku: 'Laporan Indikator Kinerja Utama (IKU)',
+  teams: 'Laporan Data Tim',
+};
+
+const PDF_COLUMNS = {
+  teams: [{ key: 'name', label: 'Nama Tim', width: 480 }],
+  fra: [
+    { key: 'team', label: 'Tim', width: 90 },
+    { key: 'periode', label: 'Periode', width: 65 },
+    { key: 'iku', label: 'IKU', width: 40 },
+    { key: 'uraian', label: 'Uraian Capaian', width: 150 },
+    { key: 'persen', label: 'Capaian', width: 50 },
+    { key: 'status', label: 'Status', width: 65 },
+  ],
+  kegiatan: [
+    { key: 'team', label: 'Tim', width: 80 },
+    { key: 'nama', label: 'Kegiatan', width: 80 },
+    { key: 'kendala', label: 'Kendala', width: 100 },
+    { key: 'solusi', label: 'Solusi', width: 100 },
+    { key: 'rtl', label: 'RTL', width: 75 },
+    { key: 'status', label: 'Status', width: 65 },
+  ],
+  tugas: [
+    { key: 'team', label: 'Tim', width: 75 },
+    { key: 'nama', label: 'Nama Tugas', width: 110 },
+    { key: 'triwulan', label: 'Triwulan', width: 55 },
+    { key: 'target', label: 'Target', width: 55 },
+    { key: 'realisasi', label: 'Realisasi', width: 60 },
+    { key: 'persen', label: '%', width: 35 },
+    { key: 'status', label: 'Status', width: 70 },
+  ],
+  iku: [
+    { key: 'kode', label: 'Kode', width: 40 },
+    { key: 'nama', label: 'Indikator', width: 135 },
+    { key: 'team', label: 'Tim', width: 90 },
+    { key: 'target', label: 'Target', width: 55 },
+    { key: 'capaian', label: 'Capaian', width: 55 },
+    { key: 'persen', label: '%', width: 35 },
+    { key: 'status', label: 'Status', width: 65 },
+  ],
+};
+
+function teamNameServer(id) {
+  const t = DB.teams.find((x) => x.id === id);
+  return t ? t.name : '—';
+}
+
+function buildPdfRow(collection, item) {
+  if (collection === 'teams') return { name: item.name || '-' };
+  const teamNm = teamNameServer(item.timId || item.id);
+  if (collection === 'fra') {
+    return {
+      team: teamNm,
+      periode: item.periode || '-',
+      iku: item.ikuNomor ? `IKU ${item.ikuNomor}` : '-',
+      uraian: item.uraian || '-',
+      persen: `${Number(item.persentase) || 0}%`,
+      status: getItemStatus('fra', item),
+    };
+  }
+  if (collection === 'kegiatan') {
+    return {
+      team: teamNm,
+      nama: item.nama || '-',
+      kendala: item.kendala || '-',
+      solusi: item.solusi || '-',
+      rtl: item.rtl || '-',
+      status: item.status || '-',
+    };
+  }
+  if (collection === 'tugas') {
+    const target = Number(item.target) || 0;
+    const realisasi = Number(item.realisasi) || 0;
+    const pct = target ? Math.min(999, Math.round((realisasi / target) * 100)) : 0;
+    return {
+      team: teamNm,
+      nama: item.nama || '-',
+      triwulan: TRIWULAN_LABELS_SERVER[item.triwulan] || item.triwulan || '-',
+      target: String(target),
+      realisasi: String(realisasi),
+      persen: `${pct}%`,
+      status: getItemStatus('tugas', item),
+    };
+  }
+  if (collection === 'iku') {
+    const target = Number(item.target) || 0;
+    const capaian = Number(item.capaian) || 0;
+    const pct = target ? Math.min(999, Math.round((capaian / target) * 100)) : 0;
+    return {
+      kode: item.kode || '-',
+      nama: item.nama || '-',
+      team: teamNm,
+      target: String(target),
+      capaian: String(capaian),
+      persen: `${pct}%`,
+      status: getItemStatus('iku', item),
+    };
+  }
+  return {};
+}
+
+function drawPdfCover(doc, title) {
+  const pageWidth = doc.page.width;
+  const logoW = 90;
+  let cursorY = 90;
+  if (fs.existsSync(LOGO_PATH)) {
+    try {
+      doc.image(LOGO_PATH, (pageWidth - logoW) / 2, cursorY, { width: logoW });
+      cursorY += logoW * 0.45 + 30;
+    } catch (e) {
+      cursorY += 20;
+    }
+  } else {
+    cursorY += 20;
+  }
+  doc.font('Helvetica-Bold').fontSize(18).fillColor('#163B5C')
+    .text('BADAN PUSAT STATISTIK', 40, cursorY, { align: 'center' });
+  doc.fontSize(15).text('KABUPATEN KEPULAUAN ANAMBAS', 40, doc.y + 2, { align: 'center' });
+  const titleY = doc.y + 60;
+  doc.font('Helvetica-Bold').fontSize(21).fillColor('#0E2A44')
+    .text(title, 40, titleY, { align: 'center', width: pageWidth - 80 });
+  doc.font('Helvetica').fontSize(10.5).fillColor('#5B6B78')
+    .text(`Dicetak melalui SIMONEV BPS pada ${new Date().toLocaleString('id-ID')}`, 40, doc.y + 18, {
+      align: 'center', width: pageWidth - 80,
+    });
+  doc.addPage();
+}
+
+function drawPdfTable(doc, columns, rows) {
+  const startX = doc.page.margins.left;
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const padX = 5, padY = 4, headerH = 22;
+
+  function drawHeader(y) {
+    doc.rect(startX, y, usableWidth, headerH).fill('#163B5C');
+    let x = startX;
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff');
+    columns.forEach((col) => {
+      doc.text(col.label, x + padX, y + 7, { width: col.width - padX * 2 });
+      x += col.width;
+    });
+    return y + headerH;
+  }
+
+  function rowHeight(row) {
+    doc.font('Helvetica').fontSize(8.5);
+    let maxH = 18;
+    columns.forEach((col) => {
+      const text = String(row[col.key] ?? '-');
+      const h = doc.heightOfString(text, { width: col.width - padX * 2 });
+      if (h + padY * 2 > maxH) maxH = h + padY * 2;
+    });
+    return maxH;
+  }
+
+  let y = drawHeader(doc.y);
+  rows.forEach((row, idx) => {
+    const h = rowHeight(row);
+    if (y + h > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage();
+      y = drawHeader(doc.page.margins.top);
+    }
+    if (idx % 2 === 1) doc.rect(startX, y, usableWidth, h).fill('#F7F8F5');
+    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, usableWidth, h).stroke();
+    let x = startX;
+    doc.font('Helvetica').fontSize(8.5).fillColor('#16232E');
+    columns.forEach((col) => {
+      const text = String(row[col.key] ?? '-');
+      doc.text(text, x + padX, y + padY, { width: col.width - padX * 2 });
+      doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
+      x += col.width;
+    });
+    doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
+    y += h;
+  });
+  doc.y = y + 10;
 }
 
 function currentQuarterInfo() {
@@ -741,19 +932,24 @@ app.get('/api/export/pdf', requireLogin, (req, res) => {
   const user = req.session.user;
   const collection = req.query.collection || 'tugas';
   const items = filterItems(DB[collection] || [], user, collection, req.query);
+
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   res.setHeader('Content-Disposition', `attachment; filename=simonev-${collection}.pdf`);
   res.setHeader('Content-Type', 'application/pdf');
   doc.pipe(res);
-  doc.fontSize(18).text(`Laporan ${collection.toUpperCase()}`, { underline: true });
-  doc.moveDown(0.5);
-  doc.fontSize(12).text(`Dibuat: ${new Date().toLocaleString('id-ID')}`);
-  doc.moveDown(1);
-  items.forEach((item, idx) => {
-    doc.fontSize(12).text(`${idx + 1}. ${item.nama || item.periode || item.kode || item.name || 'Data'}`);
-    doc.fontSize(10).text(JSON.stringify(item, null, 2));
-    doc.moveDown(0.5);
-  });
+
+  drawPdfCover(doc, PDF_TITLES[collection] || `Laporan ${collection.toUpperCase()}`);
+
+  const columns = PDF_COLUMNS[collection] || PDF_COLUMNS.teams;
+  const rows = items.map((item) => buildPdfRow(collection, item));
+
+  if (!rows.length) {
+    doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
+      .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
+  } else {
+    drawPdfTable(doc, columns, rows);
+  }
+
   doc.end();
 });
 
