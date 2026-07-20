@@ -1113,8 +1113,6 @@ function renderShell(){
         <div class="nav-group-label">Modul Kinerja</div>
         ${navItem('fra','fra','FRA — Capaian Tim', DB.fra.length)}
         ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
-        ${navItem('tugas','tugas','Tugas Tim &amp; Target', DB.tugas.length)}
-        ${navItem('iku','iku','IKU Badan', DB.iku.length)}
         <div class="nav-group-label">Admin</div>
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
         ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
@@ -1145,8 +1143,6 @@ function renderTopbar(){
     dashboard:['Dashboard','Ringkasan capaian kinerja seluruh tim & indikator utama'],
     fra:['FRA — Monitoring Capaian Kinerja Tim','Pantau capaian tiap tim beserta bukti dukung laporan'],
     kegiatan:['Analisis Kegiatan','Kendala, solusi, dan rencana tindak lanjut (RTL) tiap kegiatan'],
-    tugas:['Tugas Tim & Target Tahunan','Target per tahun, realisasi, dan monitoring per triwulan'],
-    iku:['Indikator Kinerja Utama (IKU)','Capaian IKU Badan Pusat Statistik beserta bukti laporan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
@@ -1154,7 +1150,7 @@ function renderTopbar(){
   const [t, sub] = titles[ROUTE];
   // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
   // tampilkan badge kecil supaya tahun aktif tetap terlihat jelas.
-  const yearContextRoutes = ['tugas','iku','fra','kegiatan'];
+  const yearContextRoutes = ['fra','kegiatan'];
   const yearBadge = yearContextRoutes.includes(ROUTE)
     ? `<span class="tag tag-primary" title="Tahun aktif dipilih dari halaman Dashboard">Tahun ${FILTER_YEAR}</span>`
     : '';
@@ -1222,8 +1218,6 @@ function routeAddButton(){
   const map = {
     fra: ['openFraModal()','Tambah Capaian'],
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],
-    tugas: ['openTugasModal()','Tambah Tugas'],
-    iku: ['openIkuModal()','Tambah IKU'],
     tim: ['openTimModal()','Tambah Tim'],
     users: ['openUserModal()','Tambah User'],
   };
@@ -1234,14 +1228,13 @@ function routeAddButton(){
 
 function renderContent(){
   const c = document.getElementById('content');
+  if(ROUTE==='tugas' || ROUTE==='iku') ROUTE = 'dashboard'; // modul dihapus, alihkan ke dashboard
   if(ROUTE==='dashboard'){
     c.innerHTML = renderDashboard();
     renderTeamProgressChart();
     wireChartTeamFilter();
   } else if(ROUTE==='fra') c.innerHTML = renderFraPage();
   else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanPage();
-  else if(ROUTE==='tugas') c.innerHTML = renderTugasPage();
-  else if(ROUTE==='iku') c.innerHTML = renderIkuPage();
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
   else if(ROUTE==='users') c.innerHTML = renderUserPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
