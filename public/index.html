@@ -475,6 +475,7 @@ let bellOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '' };
 let ROUTE = 'dashboard';
 let FILTER_YEAR = new Date().getFullYear();
+let CHART_TEAM_FILTER = '';
 let AUTH_VIEW = 'login';
 let REGISTER_TEAMS = [];
 
@@ -1214,6 +1215,7 @@ function renderContent(){
   if(ROUTE==='dashboard'){
     c.innerHTML = renderDashboard();
     renderTeamProgressChart();
+    wireChartTeamFilter();
   } else if(ROUTE==='fra') c.innerHTML = renderFraPage();
   else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanPage();
   else if(ROUTE==='tugas') c.innerHTML = renderTugasPage();
@@ -1317,7 +1319,13 @@ function renderDashboard(){
       <div class="panel-body" style="padding-top:4px;">${recentList}</div>
     </div>
     <div class="panel" style="margin-top:14px;">
-      <div class="panel-head"><div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div></div>
+      <div class="panel-head">
+        <div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div>
+        <select class="select-mini" id="chartTeamFilter">
+          <option value="">Semua Tim</option>
+          ${DB.teams.map(t=>`<option value="${t.id}" ${t.id===CHART_TEAM_FILTER?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+        </select>
+      </div>
       <div class="panel-body" style="padding-top:8px;">
         <canvas id="teamProgressChart" width="1200" height="360" style="width:100%;max-width:100%;height:auto;border:1px solid var(--line);border-radius:14px;background:#fff;"></canvas>
         <div id="teamProgressLegend" class="chart-legend" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;"></div>
@@ -1327,6 +1335,13 @@ function renderDashboard(){
 }
 function truncate(s,n){ s=s||''; return s.length>n? s.slice(0,n)+'…' : s; }
 function formatNumber(n){ return n==null ? '0' : Number(n).toLocaleString('id-ID'); }
+function wireChartTeamFilter(){
+  const el = document.getElementById('chartTeamFilter');
+  if(el) el.addEventListener('change', e=>{
+    CHART_TEAM_FILTER = e.target.value;
+    renderTeamProgressChart();
+  });
+}
 function renderTeamProgressChart(){
   const canvas = document.getElementById('teamProgressChart');
   if(!canvas) return;
@@ -1337,7 +1352,8 @@ function renderTeamProgressChart(){
 
   const quarters = ['q1','q2','q3','q4'];
   const labels = quarters.map(q=>TRIWULAN_LABELS[q]);
-  const teamsData = DB.teams.map(team=>{
+  const visibleTeams = CHART_TEAM_FILTER ? DB.teams.filter(tm=>tm.id===CHART_TEAM_FILTER) : DB.teams;
+  const teamsData = visibleTeams.map(team=>{
     const teamTasks = DB.tugas.filter(t=>t.tahun===FILTER_YEAR && t.timId===team.id);
     const target = teamTasks.reduce((sum,t)=> sum + (Number(t.target)||0), 0);
     if(!target) return null;
