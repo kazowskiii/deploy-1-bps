@@ -481,7 +481,7 @@ let DB = { teams: [], users: [], iku: [], fra: [], kegiatan: [], tugas: [] };
 let AUDIT_LOGS = [];
 let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
-let PAGE_FILTERS = { search: '', teamId: '', status: '' };
+let PAGE_FILTERS = { search: '', teamId: '', status: '', triwulan: '' };
 let ROUTE = 'dashboard';
 let FILTER_YEAR = new Date().getFullYear();
 let CHART_TEAM_FILTER = '';
@@ -554,8 +554,18 @@ function filterOptions(collection){
     {value:'Perlu Perhatian',label:'Perlu Perhatian'},
     {value:'Tertinggal',label:'Tertinggal'},
   ];
+  const triwulanOptions = [
+    {value:'',label:'Semua Triwulan'},
+    {value:'1',label:'Triwulan I'},
+    {value:'2',label:'Triwulan II'},
+    {value:'3',label:'Triwulan III'},
+    {value:'4',label:'Triwulan IV'},
+  ];
+  const firstField = collection === 'fra'
+    ? `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`
+    : `<div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>`;
   return `<div class="page-filters">
-    <div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>
+    ${firstField}
     <div class="field"><label>Tim</label><select id="pageTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">${teamFilterOptions()}</select></div>
     <div class="field"><label>Status</label><select id="pageStatus" class="q-select" onchange="updatePageFilter('status', this.value)">${statusOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.status?'selected':''}>${o.label}</option>`).join('')}</select></div>
   </div>`;
@@ -627,7 +637,10 @@ function applyPageFilters(items, collection){
   if(PAGE_FILTERS.status){
     result = result.filter(item=>statusLabelFor(collection, item).toLowerCase()===PAGE_FILTERS.status.toLowerCase());
   }
-  if(PAGE_FILTERS.search){
+  if(collection === 'fra' && PAGE_FILTERS.triwulan){
+    result = result.filter(item=>String(periodeToArabic(item.periode))===PAGE_FILTERS.triwulan);
+  }
+  if(collection !== 'fra' && PAGE_FILTERS.search){
     const regex = buildSearchRegex(PAGE_FILTERS.search);
     if(regex){
       result = result.filter(item=>regex.test(buildSearchableText(item, collection)));
