@@ -280,7 +280,7 @@ async function uploadFile(buffer, filename, folderName) {
   return uploadRes.json(); // { id, name, size, ... }
 }
 
-/** Ambil link unduh sementara (pre-authenticated) untuk sebuah item berdasarkan id-nya. */
+/** Ambil link unduh sementara (pre-authenticated) & link viewer OneDrive untuk sebuah item berdasarkan id-nya. */
 async function getDownloadUrl(itemId) {
   const res = await graphFetch(`${driveRootUrl()}/items/${encodeURIComponent(itemId)}`);
   if (res.status === 404) return null;
@@ -289,7 +289,8 @@ async function getDownloadUrl(itemId) {
   }
   const data = await res.json();
   return {
-    downloadUrl: data['@microsoft.graph.downloadUrl'],
+    downloadUrl: data['@microsoft.graph.downloadUrl'], // link raw, otomatis download kalau dibuka
+    webUrl: data.webUrl, // link viewer OneDrive Online, dibuka di tab tanpa mengunduh
     name: data.name,
     mimeType: data.file ? data.file.mimeType : undefined,
   };
