@@ -405,8 +405,11 @@ function drawPdfCover(doc, title) {
   }
 
   // Waktu cetak (jam:menit saja, tanpa detik), di bawah logo.
+  // timeZone dipaksa ke Asia/Jakarta (WIB) supaya konsisten, tidak mengikuti
+  // timezone server hosting (Railway biasanya UTC).
   const printedAt = new Date().toLocaleString('id-ID', {
     day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Asia/Jakarta',
   });
   doc.font('Helvetica').fontSize(10.5).fillColor('#5B6B78')
     .text(`Dicetak melalui SIMONEV BPS pada ${printedAt}`, 40, cursorY, {
