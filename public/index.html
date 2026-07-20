@@ -1124,9 +1124,15 @@ function renderTopbar(){
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
   };
   const [t, sub] = titles[ROUTE];
-  const yearFilter = ['dashboard','iku','tugas'].includes(ROUTE);
+  // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
+  // tampilkan badge kecil supaya tahun aktif tetap terlihat jelas.
+  const yearContextRoutes = ['tugas','iku'];
+  const yearBadge = yearContextRoutes.includes(ROUTE)
+    ? `<span class="tag tag-primary" title="Tahun aktif dipilih dari halaman Dashboard">Tahun ${FILTER_YEAR}</span>`
+    : '';
+  const yearFilter = ROUTE === 'dashboard'; // pemilih tahun kini terpusat di Dashboard saja
   document.getElementById('topbar').innerHTML = `
-    <div class="topbar-title"><h1>${t}</h1><p>${sub}</p></div>
+    <div class="topbar-title"><h1 class="flex items-center gap-8" style="display:flex;">${t} ${yearBadge}</h1><p>${sub}</p></div>
     <div class="topbar-actions">
       ${yearFilter ? `<select class="select-mini" id="yearFilter">
         ${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
