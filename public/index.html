@@ -1187,6 +1187,10 @@ function gotoReminder(tugasId){
 }
 
 function routeAddButton(){
+  if(ROUTE === 'audit'){
+    if(!AUDIT_LOGS.length) return '';
+    return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
+  }
   const map = {
     fra: ['openFraModal()','Tambah Capaian'],
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],
@@ -1783,6 +1787,19 @@ function renderAuditPage(){
     <thead><tr><th>Waktu</th><th>User</th><th>Aksi</th><th>Modul</th><th>ID</th><th>Detail</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
+}
+async function clearAuditLog(){
+  if(!confirm(`Kosongkan seluruh Riwayat Aktivitas (${AUDIT_LOGS.length} entri)? Tindakan ini tidak dapat dibatalkan, tapi pencatatan aktivitas baru akan tetap berjalan seperti biasa.`)) return;
+  try{
+    const r = await fetch('/api/audit', { method:'DELETE', credentials:'include' });
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error || 'Gagal mengosongkan riwayat aktivitas');
+    AUDIT_LOGS = [];
+    toast(`Riwayat aktivitas dikosongkan (${data.totalDeleted||0} entri dihapus)`, 'ok');
+    renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal mengosongkan riwayat aktivitas', 'err');
+  }
 }
 
 /* ============================================================

@@ -906,6 +906,16 @@ app.get('/api/audit', requireLogin, requireAdmin, (req, res) => {
   res.json(DB.auditLogs || []);
 });
 
+// Mengosongkan seluruh riwayat aktivitas (audit log) — hanya admin.
+// Tindakan ini sendiri TIDAK dicatat di log (karena log-nya baru saja dikosongkan),
+// tapi tetap aman: fitur audit log tetap aktif mencatat aktivitas berikutnya seperti biasa.
+app.delete('/api/audit', requireLogin, requireAdmin, async (req, res) => {
+  const totalBefore = (DB.auditLogs || []).length;
+  DB.auditLogs = [];
+  await saveDB();
+  res.json({ deleted: true, totalDeleted: totalBefore });
+});
+
 app.get('/api/reminders', requireLogin, (req, res) => {
   res.json(computeReminders(req.session.user));
 });
