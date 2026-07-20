@@ -596,7 +596,7 @@ function periodeToArabic(periode){
 // menyertakan field angka murni (target, capaian, persentase, realisasi, dst)
 // supaya mencari "11" tidak ikut menangkap data lain yang kebetulan bernilai 11.
 const SEARCHABLE_FIELDS = {
-  fra: ['periode', 'uraian', 'catatan'],
+  fra: ['periode', 'namaKegiatan', 'catatan'],
   kegiatan: ['nama', 'kendala', 'solusi', 'rtl', 'status'],
   tugas: ['nama', 'satuan'],
   iku: ['kode', 'nama', 'satuan'],
@@ -1485,13 +1485,15 @@ function renderFraPage(){
       <td><span class="team-pill">${escapeHtml(teamName(f.timId))}</span></td>
       <td class="mono">${escapeHtml(f.periode||'—')}</td>
       <td class="mono">${f.ikuNomor ? 'IKU '+f.ikuNomor : '—'}</td>
-      <td style="min-width:220px;">
-        <div class="cell-title">${escapeHtml(f.uraian)}</div>
+      <td style="min-width:200px;">
+        <div class="cell-title">${escapeHtml(f.namaKegiatan || f.uraian || '—')}</div>
         ${f.catatan?`<div class="cell-sub">${escapeHtml(f.catatan)}</div>`:''}
       </td>
+      <td class="mono">${fmtNum(f.target)}</td>
+      <td class="mono">${fmtNum(f.realisasi)}</td>
       <td style="min-width:130px;">
         <div class="flex items-center gap-8">
-          <div class="pbar ${st.cls}" style="width:70px;"><div style="width:${pct}%"></div></div>
+          <div class="pbar ${st.cls}" style="width:70px;"><div style="width:${Math.min(100,pct)}%"></div></div>
           <span class="mono text-xs">${pct}%</span>
         </div>
       </td>
@@ -1501,7 +1503,7 @@ function renderFraPage(){
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>Tim</th><th>Periode</th><th>IKU</th><th>Uraian Capaian</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Tim</th><th>Periode</th><th>IKU</th><th>Nama Kegiatan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -1930,9 +1932,16 @@ function openFraModal(id){
       ).join('')}
       </select>
     </div>
-    <div class="field"><label>Uraian Capaian Kinerja</label><textarea id="f_uraian" placeholder="Jelaskan capaian kinerja tim...">${f?escapeHtml(f.uraian):''}</textarea></div>
+    <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_namaKegiatan" value="${f?escapeHtml(f.namaKegiatan||''):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
     <div class="field-row">
-      <div class="field"><label>Persentase Capaian (%)</label><input type="number" id="f_persen" value="${f?f.persentase:''}" min="0" max="200"></div>
+      <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:''}" min="0" placeholder="mis. 100" oninput="updateFraCapaianPreview()"></div>
+      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75" oninput="updateFraCapaianPreview()"></div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Capaian (%) — dihitung otomatis</label>
+        <input type="text" id="f_persenPreview" value="${f && f.target ? Math.round((Number(f.realisasi)||0)/Number(f.target)*100) : 0}%" disabled style="background:var(--surface-2);font-weight:600;color:var(--primary-dark);">
+      </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}"></div>
     </div>
     <div class="field"><label>Catatan (opsional)</label><input type="text" id="f_catatan" value="${f?escapeHtml(f.catatan||''):''}"></div>
@@ -1949,6 +1958,16 @@ function openFraModal(id){
       }
     });
   });
+}
+function updateFraCapaianPreview(){
+  const targetEl = document.getElementById('f_target');
+  const realisasiEl = document.getElementById('f_realisasi');
+  const previewEl = document.getElementById('f_persenPreview');
+  if(!targetEl || !realisasiEl || !previewEl) return;
+  const target = Number(targetEl.value)||0;
+  const realisasi = Number(realisasiEl.value)||0;
+  const pct = target>0 ? Math.round(realisasi/target*100) : 0;
+  previewEl.value = pct + '%';
 }
 function evidenceField(kind, item){
   const has = item && item.hasEvidence;
@@ -2067,13 +2086,16 @@ async function saveFra(id){
   const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value.trim();
   const ikuNomor = Number(document.getElementById('f_ikuNomor').value)||1;
-  const uraian = document.getElementById('f_uraian').value.trim();
-  const persentase = Number(document.getElementById('f_persen').value)||0;
+  const namaKegiatan = document.getElementById('f_namaKegiatan').value.trim();
+  const target = Number(document.getElementById('f_target').value)||0;
+  const realisasi = Number(document.getElementById('f_realisasi').value)||0;
+  const persentase = target>0 ? Math.round(realisasi/target*100) : 0;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const catatan = document.getElementById('f_catatan').value.trim();
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
-  if(!uraian || uraian.length < 3){ toast('Uraian capaian wajib diisi, minimal 3 karakter','err'); return; }
-  let payload = {timId, periode, ikuNomor, uraian, persentase, tahun, catatan};
+  if(!namaKegiatan || namaKegiatan.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
+  if(!target){ toast('Target wajib diisi','err'); return; }
+  let payload = {timId, periode, ikuNomor, namaKegiatan, target, realisasi, persentase, tahun, catatan};
   const evMeta = persistPendingEvidence('fra');
   if(evMeta) Object.assign(payload, evMeta);
   const btn = document.querySelector('#modalOverlay .btn-primary');
