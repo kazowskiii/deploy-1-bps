@@ -975,9 +975,14 @@ function fmtBytes(n){
 function teamName(id){ const t = DB.teams.find(t=>t.id===id); return t ? t.name : '—'; }
 function yearsAvailable(){
   const ys = new Set([FILTER_YEAR]);
-  DB.iku.forEach(i=>ys.add(i.tahun));
-  DB.tugas.forEach(i=>ys.add(i.tahun));
-  return Array.from(ys).sort((a,b)=>b-a);
+  const thisYear = new Date().getFullYear();
+  ys.add(thisYear);
+  ys.add(thisYear + 1);
+  DB.iku.forEach(i=>ys.add(Number(i.tahun)));
+  DB.tugas.forEach(i=>ys.add(Number(i.tahun)));
+  DB.fra.forEach(f=>{ if(f.tahun) ys.add(Number(f.tahun)); });
+  DB.kegiatan.forEach(k=>{ if(k.tahun) ys.add(Number(k.tahun)); });
+  return Array.from(ys).filter(y=>!isNaN(y)).sort((a,b)=>b-a);
 }
 
 /* ---------------- evidence handling (berkas fisik tersimpan di server, folder /uploads) ---------------- */
@@ -1126,7 +1131,7 @@ function renderTopbar(){
   const [t, sub] = titles[ROUTE];
   // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
   // tampilkan badge kecil supaya tahun aktif tetap terlihat jelas.
-  const yearContextRoutes = ['tugas','iku'];
+  const yearContextRoutes = ['tugas','iku','fra','kegiatan'];
   const yearBadge = yearContextRoutes.includes(ROUTE)
     ? `<span class="tag tag-primary" title="Tahun aktif dipilih dari halaman Dashboard">Tahun ${FILTER_YEAR}</span>`
     : '';
@@ -1427,7 +1432,8 @@ function statusFor(pct){
    FRA — Monitoring Capaian Kinerja Tim
    ============================================================ */
 function renderFraPage(){
-  const items = applyPageFilters([...DB.fra].sort((a,b)=>(b.periode||'').localeCompare(a.periode||'')), 'fra');
+  const fraByYear = DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR);
+  const items = applyPageFilters([...fraByYear].sort((a,b)=>(b.periode||'').localeCompare(a.periode||'')), 'fra');
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>FRA</b> mencatat capaian kinerja setiap tim secara berkala. Setiap entri wajib disertai <b>bukti dukung</b> berupa laporan (PDF/Word).</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('fra')}${exportButtons('fra')}</div>`;
   if(!items.length){
@@ -1493,7 +1499,8 @@ function emptyState(kind, title, sub){
    ANALISIS KEGIATAN
    ============================================================ */
 function renderKegiatanPage(){
-  const items = applyPageFilters([...DB.kegiatan].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
+  const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
+  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
   const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Catat kendala, solusi, dan rencana tindak lanjut kegiatan.');
@@ -1533,7 +1540,8 @@ async function toggleStarKegiatan(id){
   const item = DB.kegiatan.find(x=>x.id===id);
   if(!item) return;
   const payload = {
-    timId:item.timId, tanggal:item.tanggal, nama:item.nama, kendala:item.kendala,
+    timId:item.timId, tanggal:item.tanggal, tahun: item.tahun || new Date().getFullYear(),
+    nama:item.nama, kendala:item.kendala,
     solusi:item.solusi, rtl:item.rtl, status:item.status, starred: !item.starred,
   };
   try{
@@ -2053,6 +2061,7 @@ function openKegiatanModal(id){
       <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(k?k.timId:null)}</select></div>
       <div class="field"><label>Tanggal</label><input type="date" id="f_tanggal" value="${k?k.tanggal:new Date().toISOString().slice(0,10)}"></div>
     </div>
+    <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${k?(k.tahun||FILTER_YEAR):FILTER_YEAR}"></div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_nama" value="${k?escapeHtml(k.nama):''}" placeholder="mis. Pengumpulan data Susenas"></div>
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
     <div class="field"><label>Solusi</label><textarea id="f_solusi" placeholder="Solusi yang diterapkan...">${k?escapeHtml(k.solusi):''}</textarea></div>
@@ -2069,6 +2078,7 @@ function openKegiatanModal(id){
 async function saveKegiatan(id){
   const timId = document.getElementById('f_tim').value;
   const tanggal = document.getElementById('f_tanggal').value;
+  const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const nama = document.getElementById('f_nama').value.trim();
   const kendala = document.getElementById('f_kendala').value.trim();
   const solusi = document.getElementById('f_solusi').value.trim();
@@ -2078,14 +2088,14 @@ async function saveKegiatan(id){
   if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
   if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
   if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
-  const payload = {timId,tanggal,nama,kendala,solusi,rtl,status};
+  const payload = {timId,tanggal,tahun,nama,kendala,solusi,rtl,status};
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
     if(id) await apiPut('kegiatan', id, payload);
     else await apiPost('kegiatan', payload);
     await loadAll();
-    closeModal(); toast('Analisis kegiatan disimpan','ok'); renderShell();
+    closeModal(); toast('Analisis kegiatan disimpan','ok'); FILTER_YEAR = tahun; renderShell();
   }catch(e){
     toast(e.message || 'Gagal menyimpan analisis kegiatan','err');
     if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }

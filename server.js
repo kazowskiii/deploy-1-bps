@@ -568,6 +568,7 @@ const kegiatanSchema = Joi.object({
   rtl: Joi.string().trim().min(3).max(1000).required(),
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
   starred: Joi.boolean().optional(),
+  tahun: Joi.number().integer().min(2020).max(2100).required(),
 });
 const tugasSchema = Joi.object({
   timId: Joi.string().required(),
