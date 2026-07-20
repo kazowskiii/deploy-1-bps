@@ -380,28 +380,35 @@ function buildPdfRow(collection, item) {
 
 function drawPdfCover(doc, title) {
   const pageWidth = doc.page.width;
-  const logoW = 90;
-  let cursorY = 90;
+  const logoW = 190;
+
+  // Judul laporan di paling atas.
+  let cursorY = 130;
+  doc.font('Helvetica-Bold').fontSize(23).fillColor('#0E2A44')
+    .text(title, 40, cursorY, { align: 'center', width: pageWidth - 80 });
+
+  // Logo besar, di tengah halaman, di bawah judul.
+  cursorY = doc.y + 50;
   if (fs.existsSync(LOGO_PATH)) {
     try {
       doc.image(LOGO_PATH, (pageWidth - logoW) / 2, cursorY, { width: logoW });
-      cursorY += logoW * 0.45 + 30;
+      cursorY += logoW * 0.42 + 40;
     } catch (e) {
-      cursorY += 20;
+      cursorY += 40;
     }
   } else {
-    cursorY += 20;
+    cursorY += 40;
   }
-  doc.font('Helvetica-Bold').fontSize(18).fillColor('#163B5C')
-    .text('BADAN PUSAT STATISTIK', 40, cursorY, { align: 'center' });
-  doc.fontSize(15).text('KABUPATEN KEPULAUAN ANAMBAS', 40, doc.y + 2, { align: 'center' });
-  const titleY = doc.y + 60;
-  doc.font('Helvetica-Bold').fontSize(21).fillColor('#0E2A44')
-    .text(title, 40, titleY, { align: 'center', width: pageWidth - 80 });
+
+  // Waktu cetak (jam:menit saja, tanpa detik), di bawah logo.
+  const printedAt = new Date().toLocaleString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
   doc.font('Helvetica').fontSize(10.5).fillColor('#5B6B78')
-    .text(`Dicetak melalui SIMONEV BPS pada ${new Date().toLocaleString('id-ID')}`, 40, doc.y + 18, {
+    .text(`Dicetak melalui SIMONEV BPS pada ${printedAt}`, 40, cursorY, {
       align: 'center', width: pageWidth - 80,
     });
+
   doc.addPage();
 }
 
