@@ -432,6 +432,56 @@ tbody tr:last-child td{border-bottom:none;}
 .items-center{align-items:center;}
 .mt-8{margin-top:8px;}
 .w-full{width:100%;}
+/* ===== AI Chat Widget ===== */
+#aiChatToggle{
+  position:fixed;bottom:24px;right:24px;z-index:150;
+  display:none;align-items:center;gap:8px;
+  background:linear-gradient(160deg,var(--primary),var(--primary-dark));
+  color:#fff;border:none;padding:12px 18px;border-radius:999px;
+  font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(14,42,68,.28);
+}
+#aiChatToggle.show{display:flex;}
+#aiChatToggle svg{width:17px;height:17px;flex:none;}
+
+#aiChatPanel{
+  position:fixed;bottom:82px;right:24px;z-index:150;
+  width:360px;max-width:calc(100vw - 32px);height:500px;max-height:70vh;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 20px 60px rgba(10,20,30,.28);
+  display:none;flex-direction:column;overflow:hidden;
+}
+#aiChatPanel.open{display:flex;}
+.ai-chat-head{
+  background:linear-gradient(160deg,var(--primary-dark),var(--primary) 80%);
+  color:#EAF0F4;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex:none;
+}
+.ai-chat-head .t1{font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;}
+.ai-chat-head .t2{font-size:10.5px;color:#B9CADA;margin-top:1px;}
+.ai-chat-head button{background:transparent;border:none;color:#EAF0F4;padding:4px;border-radius:6px;}
+.ai-chat-head button:hover{background:rgba(255,255,255,.12);}
+.ai-chat-messages{
+  flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;
+  background:var(--surface-2);
+}
+.ai-msg{max-width:85%;font-size:12.8px;line-height:1.5;padding:9px 12px;border-radius:10px;white-space:pre-wrap;}
+.ai-msg.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:3px;}
+.ai-msg.ai{align-self:flex-start;background:#fff;color:var(--ink);border:1px solid var(--line);border-bottom-left-radius:3px;}
+.ai-msg.ai.pending{color:var(--ink-faint);font-style:italic;}
+.ai-msg.ai.error{border-color:var(--danger);color:var(--danger);}
+.ai-chat-empty{padding:22px 14px;text-align:center;color:var(--ink-muted);font-size:12.5px;}
+.ai-chat-inputrow{
+  flex:none;display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;
+}
+.ai-chat-inputrow input{
+  flex:1;border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;
+  font-size:12.8px;font-family:'Inter',sans-serif;color:var(--ink);
+}
+.ai-chat-inputrow input:focus{outline:none;border-color:var(--primary);}
+.ai-chat-inputrow button{
+  background:var(--primary);color:#fff;border:none;border-radius:8px;padding:0 14px;font-size:12.5px;font-weight:600;
+}
+.ai-chat-inputrow button:hover{background:var(--primary-dark);}
+.ai-chat-inputrow button:disabled{opacity:.5;cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -443,6 +493,27 @@ tbody tr:last-child td{border-bottom:none;}
 
 <div id="app" style="display:none;"></div>
 <div class="toast-wrap" id="toastWrap"></div>
+
+<button id="aiChatToggle" onclick="toggleAiChat()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-8.9 8.4 8.6 8.6 0 0 1-3.7-.8L3 20l1-4.9A8.4 8.4 0 1 1 21 11.5Z"/></svg>
+  <span>Tanya AI</span>
+</button>
+<div id="aiChatPanel">
+  <div class="ai-chat-head">
+    <div>
+      <div class="t1">Tanya AI SIMONEV</div>
+      <div class="t2">Bertanya soal data kinerja tim</div>
+    </div>
+    <button onclick="toggleAiChat()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="ai-chat-messages" id="aiChatMessages">
+    <div class="ai-chat-empty">Tanya misalnya: <i>"Tim mana progresnya paling rendah?"</i> atau <i>"Ada berapa kendala yang belum ditindaklanjuti?"</i></div>
+  </div>
+  <div class="ai-chat-inputrow">
+    <input id="aiChatInput" type="text" placeholder="Tanya soal data SIMONEV..." onkeydown="if(event.key==='Enter')sendAiChatMessage()">
+    <button id="aiChatSendBtn" onclick="sendAiChatMessage()">Kirim</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -698,6 +769,7 @@ async function login(event){
     history.replaceState(null, '', '/');
     await loadAll();
     renderShell();
+    updateAiChatVisibility();
   } catch (err) {
     toast(err.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server. Pastikan server sedang berjalan.' : err.message, 'err');
   }
@@ -712,6 +784,7 @@ async function logout(){
   toast('Anda telah keluar', 'ok');
   history.replaceState(null, '', '/login');
   renderLoginPage();
+  updateAiChatVisibility();
 }
 function renderSetupPage(){
   const app = document.getElementById('app');
@@ -771,6 +844,7 @@ async function submitSetup(event){
     history.replaceState(null, '', '/');
     await loadAll();
     renderShell();
+    updateAiChatVisibility();
   }catch(e){
     toast(e.message || 'Gagal membuat akun admin', 'err');
   }
@@ -884,6 +958,7 @@ async function submitRegister(event){
     history.replaceState(null, '', '/');
     await loadAll();
     renderShell();
+    updateAiChatVisibility();
   }catch(e){
     toast(e.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server.' : e.message, 'err');
   }
@@ -2312,6 +2387,94 @@ async function deleteItem(kind, id){
 function wireDynamic(){ /* reserved for future dynamic listeners */ }
 
 /* ============================================================
+   AI CHAT WIDGET
+   ============================================================ */
+let AI_CHAT_OPEN = false;
+let AI_CHAT_HISTORY = [];
+let AI_CHAT_BUSY = false;
+
+function updateAiChatVisibility(){
+  const btn = document.getElementById('aiChatToggle');
+  if(!btn) return;
+  if(AUTH.loggedIn){
+    btn.classList.add('show');
+  } else {
+    btn.classList.remove('show');
+    const panel = document.getElementById('aiChatPanel');
+    if(panel) panel.classList.remove('open');
+    AI_CHAT_OPEN = false;
+  }
+}
+
+function toggleAiChat(){
+  AI_CHAT_OPEN = !AI_CHAT_OPEN;
+  const panel = document.getElementById('aiChatPanel');
+  if(panel) panel.classList.toggle('open', AI_CHAT_OPEN);
+  if(AI_CHAT_OPEN){
+    const input = document.getElementById('aiChatInput');
+    if(input) setTimeout(()=>input.focus(), 50);
+  }
+}
+
+function renderAiChatMessages(){
+  const wrap = document.getElementById('aiChatMessages');
+  if(!wrap) return;
+  if(!AI_CHAT_HISTORY.length){
+    wrap.innerHTML = `<div class="ai-chat-empty">Tanya misalnya: <i>"Tim mana progresnya paling rendah?"</i> atau <i>"Ada berapa kendala yang belum ditindaklanjuti?"</i></div>`;
+    return;
+  }
+  wrap.innerHTML = AI_CHAT_HISTORY.map(m=>{
+    const cls = m.role === 'user' ? 'ai-msg user' : `ai-msg ai${m.pending?' pending':''}${m.error?' error':''}`;
+    return `<div class="${cls}">${escapeHtml(m.content)}</div>`;
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+async function sendAiChatMessage(){
+  if(AI_CHAT_BUSY) return;
+  const input = document.getElementById('aiChatInput');
+  const message = input.value.trim();
+  if(!message) return;
+  input.value = '';
+
+  AI_CHAT_HISTORY.push({ role:'user', content: message });
+  AI_CHAT_HISTORY.push({ role:'assistant', content:'Mengetik…', pending:true });
+  renderAiChatMessages();
+
+  AI_CHAT_BUSY = true;
+  const sendBtn = document.getElementById('aiChatSendBtn');
+  if(sendBtn) sendBtn.disabled = true;
+
+  try{
+    const historyForApi = AI_CHAT_HISTORY
+      .filter(m=>!m.pending)
+      .slice(0,-1)
+      .map(m=>({ role: m.role, content: m.content }));
+
+    const res = await fetch('/api/ai-chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({ message, history: historyForApi }),
+    });
+    const data = await res.json().catch(()=>({}));
+    AI_CHAT_HISTORY.pop();
+    if(!res.ok){
+      AI_CHAT_HISTORY.push({ role:'assistant', content: data.error || 'Gagal mendapat jawaban dari AI', error:true });
+    } else {
+      AI_CHAT_HISTORY.push({ role:'assistant', content: data.reply || 'Maaf, tidak ada jawaban.' });
+    }
+  }catch(e){
+    AI_CHAT_HISTORY.pop();
+    AI_CHAT_HISTORY.push({ role:'assistant', content:'Tidak dapat terhubung ke server AI.', error:true });
+  }finally{
+    AI_CHAT_BUSY = false;
+    if(sendBtn) sendBtn.disabled = false;
+    renderAiChatMessages();
+  }
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 (async function init(){
@@ -2322,6 +2485,7 @@ function wireDynamic(){ /* reserved for future dynamic listeners */ }
     await loadAll();
   }
   await requireAuthOrLogin();
+  updateAiChatVisibility();
 })();
 </script>
 </body>

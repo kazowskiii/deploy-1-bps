@@ -1142,7 +1142,112 @@ app.delete('/api/files/:filename', requireLogin, async (req, res) => {
     res.status(502).json({ error: `Gagal menghapus berkas di OneDrive: ${err.message}` });
   }
 });
+/* ===================== AI Chat (Groq) ===================== */
 
+function computeTeamProgressSummary(user) {
+  const tugasScoped = filterItems(DB.tugas, user, 'tugas', {});
+  const fraScoped = filterItems(DB.fra, user, 'fra', {});
+  const kegiatanScoped = filterItems(DB.kegiatan, user, 'kegiatan', {});
+  const teamsScoped = filterItems(DB.teams, user, 'teams', {});
+
+  return teamsScoped.map((team) => {
+    const teamTugas = tugasScoped.filter((t) => t.timId === team.id);
+    const teamFra = fraScoped.filter((f) => f.timId === team.id);
+    const teamKegiatan = kegiatanScoped.filter((k) => k.timId === team.id);
+
+    let avgProgres = null;
+    if (teamTugas.length) {
+      const percents = teamTugas.map((t) => {
+        const target = Number(t.target) || 0;
+        const realisasi = Number(t.realisasi) || 0;
+        return target ? Math.min(999, (realisasi / target) * 100) : 0;
+      });
+      avgProgres = Math.round(percents.reduce((a, b) => a + b, 0) / percents.length);
+    }
+
+    return {
+      nama: team.name,
+      jumlahTugas: teamTugas.length,
+      rataRataProgresPersen: avgProgres,
+      jumlahFRA: teamFra.length,
+      jumlahKegiatan: teamKegiatan.length,
+      kendalaTercatat: teamKegiatan.filter((k) => (k.kendala || '').trim()).length,
+      kegiatanBelumDitindaklanjuti: teamKegiatan.filter((k) => k.status === 'Belum Ditindaklanjuti').length,
+    };
+  });
+}
+
+function buildDataContext(user) {
+  const teamSummary = computeTeamProgressSummary(user);
+  const reminders = computeReminders(user);
+
+  return JSON.stringify({
+    ringkasanProgresPerTim: teamSummary,
+    pengingatTugasBelumDiisi: reminders.items.map((r) => ({
+      nama: r.nama,
+      tim: r.timName,
+      triwulan: r.quarterLabel,
+    })),
+  }, null, 2);
+}
+
+app.post('/api/ai-chat', requireLogin, isJsonRequest, async (req, res) => {
+  try {
+    const { message, history = [] } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Pesan kosong' });
+    }
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ error: 'GROQ_API_KEY belum dikonfigurasi di server' });
+    }
+
+    const user = req.session.user;
+    const dataContext = buildDataContext(user);
+
+    const systemPrompt = `Kamu adalah asisten AI di aplikasi SIMONEV BPS (Sistem Monitoring & Evaluasi Kinerja).
+Jawab HANYA berdasarkan data JSON berikut, jangan mengarang angka atau nama tim yang tidak ada di data:
+
+${dataContext}
+
+Aturan:
+- Jawab singkat, jelas, dalam Bahasa Indonesia.
+- Kalau data tidak cukup untuk menjawab, katakan terus terang bahwa datanya tidak tersedia.
+- Pengguna ini login sebagai role "${user.role}"${user.teamId ? ' (data dibatasi hanya untuk timnya)' : ' (bisa melihat semua tim)'}.`;
+
+    const safeHistory = Array.isArray(history)
+      ? history.filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string').slice(-10)
+      : [];
+
+    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...safeHistory,
+          { role: 'user', content: sanitizeText(message) },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    const data = await groqRes.json();
+    if (!groqRes.ok) {
+      console.error('Groq API error:', data);
+      return res.status(502).json({ error: 'Gagal menghubungi layanan AI' });
+    }
+
+    const reply = data.choices?.[0]?.message?.content || 'Maaf, tidak ada jawaban.';
+    res.json({ reply });
+  } catch (err) {
+    console.error('AI chat error:', err.message);
+    res.status(500).json({ error: 'Terjadi kesalahan server' });
+  }
+});
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Endpoint tidak ditemukan' });
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
