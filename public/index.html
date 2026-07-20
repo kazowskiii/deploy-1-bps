@@ -662,7 +662,6 @@ function statusLabelFor(collection, item){
 function exportButtons(collection){
   const label = collection === 'fra' ? 'FRA' : collection.toUpperCase();
   return `<div class="page-actions">
-    <button class="btn btn-outline btn-sm" onclick="exportPage('json','${collection}')">Export ${label} JSON</button>
     <button class="btn btn-outline btn-sm" onclick="exportPage('excel','${collection}')">Export ${label} Excel</button>
     <button class="btn btn-outline btn-sm" onclick="exportPage('pdf','${collection}')">Export ${label} PDF</button>
   </div>`;
