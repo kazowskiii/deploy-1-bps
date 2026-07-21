@@ -1519,15 +1519,14 @@ function renderFraPage(){
 }
 function evidenceCell(item, kind, qKey){
   const src = qKey ? (item[qKey]||{}) : item;
-  const has = src.hasEvidence;
-  const name = src.evidenceOriginalName;
-  const serverFilename = src.evidenceFileName;
-  if(has && serverFilename){
-    return `<button type="button" class="evidence-view-btn" title="${escapeHtml(name || 'Lihat bukti dukung')}" onclick="viewEvidence('${serverFilename}')">
+  const files = src.evidenceFiles && src.evidenceFiles.length
+    ? src.evidenceFiles
+    : (src.hasEvidence && src.evidenceFileName ? [{fileName:src.evidenceFileName, originalName:src.evidenceOriginalName}] : []);
+  if(!files.length) return `<span class="tag tag-danger">Belum ada bukti</span>`;
+  return `<div class="flex gap-6" style="flex-wrap:wrap;">${files.map(f=>`
+    <button type="button" class="evidence-view-btn" title="${escapeHtml(f.originalName || 'Lihat bukti dukung')}" onclick="viewEvidence('${f.fileName}')">
       ${ICONS.eye}
-    </button>`;
-  }
-  return `<span class="tag tag-danger">Belum ada bukti</span>`;
+    </button>`).join('')}</div>`;
 }
 function rowActions(kind, id){
   const fnMap = {fra:'Fra', kegiatan:'Kegiatan', tugas:'Tugas', iku:'Iku', tim:'Tim'};
@@ -1980,112 +1979,128 @@ function updateFraCapaianPreview(){
   previewEl.value = pct + '%';
 }
 function evidenceField(kind, item){
-  const has = item && item.hasEvidence;
+  const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
+  EXISTING_EVIDENCE[kind] = existing.slice();
   return `<div class="field">
-    <label>Bukti Dukung Laporan (PDF / Word, maks ${MAX_FILE_MB}MB) — tersimpan di server</label>
+    <label>Bukti Dukung Laporan (PDF / Word, maks ${MAX_FILE_MB}MB per berkas) — bisa unggah lebih dari satu sekaligus</label>
+    <div id="existingEvidenceList_${kind}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${renderEvidenceChips(kind)}</div>
     <div class="dropzone" id="dz_${kind}" onclick="document.getElementById('fileInput_${kind}').click()">
       <div id="dzContent_${kind}">
-        ${has ? `<div class="dz-title">${escapeHtml(item.evidenceOriginalName)}</div><div class="dz-sub">${fmtBytes(item.evidenceSize)} — klik untuk mengganti berkas</div>`
-              : `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`}
+        <div class="dz-title">Klik untuk unggah berkas</div>
+        <div class="dz-sub">Bisa pilih beberapa berkas sekaligus — PDF atau Word</div>
       </div>
     </div>
-    <input type="file" class="file-input-hidden" id="fileInput_${kind}" accept=".pdf,.doc,.docx">
+    <div id="pendingEvidenceList_${kind}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+    <input type="file" class="file-input-hidden" id="fileInput_${kind}" accept=".pdf,.doc,.docx" multiple>
   </div>`;
 }
-let PENDING_EVIDENCE = {};
-let EVIDENCE_UPLOADING = {}; // true selama upload sebuah kind masih berjalan
-let AUTO_ATTACH_TARGET = {}; // {kind: {collection, id}} — record yang perlu dikaitkan otomatis begitu upload kind ini selesai
-let EVIDENCE_UPLOAD_TOKEN = {}; // penanda "upload ke berapa" per kind, dipakai untuk deteksi hasil basi
+function renderEvidenceChips(kind){
+  return (EXISTING_EVIDENCE[kind]||[]).map((f,idx)=>`
+    <span class="evidence-chip">
+      ${ICONS.file}<span>${escapeHtml(f.originalName)} (${fmtBytes(f.size)})</span>
+      <button type="button" onclick="removeExistingEvidence('${kind}',${idx})" style="border:none;background:none;color:var(--danger);cursor:pointer;padding:0;">${ICONS.x}</button>
+    </span>`).join('');
+}
+function removeExistingEvidence(kind, idx){
+  EXISTING_EVIDENCE[kind].splice(idx,1);
+  const el = document.getElementById(`existingEvidenceList_${kind}`);
+  if(el) el.innerHTML = renderEvidenceChips(kind);
+}
+let PENDING_EVIDENCE = {};   // kind -> array of {filename, originalName, size} yang baru diunggah, belum disimpan
+let EXISTING_EVIDENCE = {};  // kind -> array file lama (dari data tersimpan) yang masih dipertahankan
+let EVIDENCE_UPLOADING = {}; // kind -> jumlah upload yang sedang berjalan (0 = tidak ada yang berjalan)
+let AUTO_ATTACH_TARGET = {}; // {kind: {collection, id}}
+let EVIDENCE_UPLOAD_TOKEN = {};
+
+function renderPendingChips(kind){
+  const el = document.getElementById(`pendingEvidenceList_${kind}`);
+  if(!el) return;
+  el.innerHTML = (PENDING_EVIDENCE[kind]||[]).map((f,idx)=>`
+    <span class="evidence-chip" style="border-color:var(--success);">
+      ${ICONS.file}<span>${escapeHtml(f.originalName)} (${fmtBytes(f.size)}) — baru</span>
+      <button type="button" onclick="removePendingEvidence('${kind}',${idx})" style="border:none;background:none;color:var(--danger);cursor:pointer;padding:0;">${ICONS.x}</button>
+    </span>`).join('');
+}
+function removePendingEvidence(kind, idx){
+  const removed = PENDING_EVIDENCE[kind].splice(idx,1)[0];
+  if(removed) apiDeleteFile(removed.filename); // batal dipakai -> hapus dari OneDrive
+  renderPendingChips(kind);
+}
+
 function wireEvidenceField(kind, id){
-  PENDING_EVIDENCE[kind] = null;
-  EVIDENCE_UPLOADING[kind] = false;
+  PENDING_EVIDENCE[kind] = [];
+  EVIDENCE_UPLOADING[kind] = 0;
   EVIDENCE_UPLOAD_TOKEN[kind] = 0;
   const input = document.getElementById(`fileInput_${kind}`);
   if(!input) return;
   input.addEventListener('change', async ()=>{
-    const file = input.files[0];
-    if(!file) return;
-    if(!validateFileOrToast(file)){ input.value=''; return; }
+    const files = Array.from(input.files || []);
+    if(!files.length) return;
+    const validFiles = files.filter(f=>validateFileOrToast(f));
+    input.value = ''; // reset supaya bisa pilih file yang sama lagi kalau perlu
 
-    // User memilih file BARU — kalau ada file yang sudah kepencet/terunggah
-    // sebelumnya tapi belum sempat dikaitkan ke data manapun, itu langsung
-    // dianggap "salah pilih" dan dihapus dari OneDrive supaya tidak menumpuk.
-    const previouslyStaged = PENDING_EVIDENCE[kind];
-    if(previouslyStaged){
-      apiDeleteFile(previouslyStaged.filename);
-      PENDING_EVIDENCE[kind] = null;
+    let extra = {};
+    if(kind === 'fra'){
+      const periodeEl = document.getElementById('f_periode');
+      const ikuEl = document.getElementById('f_ikuNomor');
+      if(periodeEl) extra.periode = periodeEl.value;
+      if(ikuEl) extra.ikuNomor = ikuEl.value;
+    }
+    if(kind === 'tugas'){
+      const triwulanEl = document.getElementById('f_triwulan');
+      if(triwulanEl) extra.triwulan = triwulanEl.value;
     }
 
-    const myToken = ++EVIDENCE_UPLOAD_TOKEN[kind]; // tandai upload kali ini sebagai yang terbaru
-    EVIDENCE_UPLOADING[kind] = true;
+    const myToken = EVIDENCE_UPLOAD_TOKEN[kind]; // dipakai bersama untuk seluruh batch ini
     const dz = document.getElementById(`dzContent_${kind}`);
-    if(dz) dz.innerHTML = `<div class="dz-title">Mengunggah…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
-    try{
-      let extra = {};
-      if(kind === 'fra'){
-        const periodeEl = document.getElementById('f_periode');
-        const ikuEl = document.getElementById('f_ikuNomor');
-        if(periodeEl) extra.periode = periodeEl.value;
-        if(ikuEl) extra.ikuNomor = ikuEl.value;
-      }
-      if(kind === 'tugas'){
-        const triwulanEl = document.getElementById('f_triwulan');
-        if(triwulanEl) extra.triwulan = triwulanEl.value;
-      }
-      const meta = await uploadFileToServer(file, kind, extra);
 
-      // Kalau selama upload ini berjalan user sudah ganti pilihan file lagi
-      // (token sudah berubah), hasil upload ini sudah basi — hapus langsung
-      // dari OneDrive, jangan disimpan sebagai PENDING_EVIDENCE.
-      if(myToken !== EVIDENCE_UPLOAD_TOKEN[kind]){
-        apiDeleteFile(meta.filename);
-        return;
-      }
-
-      PENDING_EVIDENCE[kind] = meta;
-      const dz2 = document.getElementById(`dzContent_${kind}`);
-      if(dz2) dz2.innerHTML = `<div class="dz-title">${escapeHtml(meta.originalName)}</div><div class="dz-sub">${fmtBytes(meta.size)} — tersimpan di server, siap dikaitkan</div>`;
-      // Kalau user sudah terlanjur klik Simpan SEBELUM upload ini selesai, record-nya
-      // sudah tersimpan tanpa bukti. Begitu upload selesai (di sini), kaitkan otomatis
-      // ke record itu tanpa perlu user klik apa pun lagi.
-      const target = AUTO_ATTACH_TARGET[kind];
-      if(target){
-        AUTO_ATTACH_TARGET[kind] = null;
-        try{
-          const record = (DB[target.collection] || []).find(x=>x.id===target.id);
-          const base = record ? {...record} : {};
-          delete base.id;
-          await apiPut(target.collection, target.id, {
-            ...base,
-            hasEvidence:true, evidenceFileName:meta.filename,
-            evidenceOriginalName:meta.originalName, evidenceSize:meta.size
-          });
-          await loadAll();
-          renderContent();
-          toast('Berkas bukti berhasil dikaitkan ke data yang sudah disimpan','ok');
-        }catch(e){
-          toast('Berkas terunggah, tapi gagal mengaitkan otomatis ke data: ' + (e.message||''), 'err');
+    for(const file of validFiles){
+      EVIDENCE_UPLOADING[kind]++;
+      if(dz) dz.innerHTML = `<div class="dz-title">Mengunggah ${EVIDENCE_UPLOADING[kind]} berkas…</div><div class="dz-sub">${escapeHtml(file.name)}</div>`;
+      try{
+        const meta = await uploadFileToServer(file, kind, extra);
+        if(myToken !== EVIDENCE_UPLOAD_TOKEN[kind]){
+          apiDeleteFile(meta.filename); // batch ini sudah dibatalkan (modal ditutup/direset)
+          continue;
         }
+        PENDING_EVIDENCE[kind].push(meta);
+        renderPendingChips(kind);
+
+        const target = AUTO_ATTACH_TARGET[kind];
+        if(target){
+          try{
+            const record = (DB[target.collection] || []).find(x=>x.id===target.id);
+            const base = record ? {...record} : {};
+            delete base.id;
+            const combined = [...(base.evidenceFiles||[]), meta].map(f=>({fileName:f.fileName||f.filename, originalName:f.originalName, size:f.size}));
+            await apiPut(target.collection, target.id, { ...base, hasEvidence:true, evidenceFiles: combined });
+            await loadAll();
+            renderContent();
+            toast('Berkas bukti berhasil dikaitkan ke data yang sudah disimpan','ok');
+          }catch(e){
+            toast('Berkas terunggah, tapi gagal mengaitkan otomatis: ' + (e.message||''), 'err');
+          }
+        }
+      }catch(e){
+        toast(`Gagal mengunggah ${file.name}: ` + (e.message||''), 'err');
+      }finally{
+        EVIDENCE_UPLOADING[kind]--;
       }
-    }catch(e){
-      toast(e.message || 'Gagal mengunggah berkas','err');
-      const dz3 = document.getElementById(`dzContent_${kind}`);
-      if(dz3) dz3.innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Format PDF atau Word</div>`;
-    }finally{
-      if(myToken === EVIDENCE_UPLOAD_TOKEN[kind]) EVIDENCE_UPLOADING[kind] = false;
     }
+    if(dz) dz.innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Bisa pilih beberapa berkas sekaligus — PDF atau Word</div>`;
   });
 }
 function persistPendingEvidence(kind){
-  const pending = PENDING_EVIDENCE[kind];
-  if(!pending) return null;
-  return {hasEvidence:true, evidenceFileName:pending.filename, evidenceOriginalName:pending.originalName, evidenceSize:pending.size};
+  const existing = (EXISTING_EVIDENCE[kind]||[]).map(f=>({fileName:f.fileName, originalName:f.originalName, size:f.size}));
+  const pending = (PENDING_EVIDENCE[kind]||[]).map(f=>({fileName:f.filename, originalName:f.originalName, size:f.size}));
+  const combined = [...existing, ...pending];
+  return { hasEvidence: combined.length>0, evidenceFiles: combined };
 }
 // Panggil setelah record berhasil disimpan (create/update). Kalau upload untuk
 // kind ini masih berjalan, daftarkan record ini supaya di-auto-attach nanti,
 // dan beri tahu user lewat toast bahwa itu akan menyusul otomatis.
 function registerAutoAttachIfUploading(kind, collection, id){
-  if(EVIDENCE_UPLOADING[kind] && !PENDING_EVIDENCE[kind]){
+  if(EVIDENCE_UPLOADING[kind] > 0){
     AUTO_ATTACH_TARGET[kind] = { collection, id };
     toast('Data disimpan. Berkas masih diunggah dan akan dikaitkan otomatis begitu selesai.', 'ok');
     return true;

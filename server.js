@@ -561,9 +561,11 @@ const fraSchema = Joi.object({
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   catatan: Joi.string().trim().max(1000).allow('', null),
   hasEvidence: Joi.boolean().optional(),
-  evidenceFileName: Joi.string().trim().allow('', null),
-  evidenceOriginalName: Joi.string().trim().allow('', null),
-  evidenceSize: Joi.number().min(0).allow(null),
+  evidenceFiles: Joi.array().items(Joi.object({
+    fileName: Joi.string().required(),
+    originalName: Joi.string().required(),
+    size: Joi.number().min(0).required(),
+  })).default([]),
 });
 const kegiatanSchema = Joi.object({
   timId: Joi.string().required(),
@@ -587,9 +589,11 @@ const tugasSchema = Joi.object({
   realisasi: Joi.number().min(0).allow(null,''),
   tanggal: Joi.string().allow('', null),
   hasEvidence: Joi.boolean().optional(),
-  evidenceFileName: Joi.string().trim().allow('', null),
-  evidenceOriginalName: Joi.string().trim().allow('', null),
-  evidenceSize: Joi.number().min(0).allow(null),
+  evidenceFiles: Joi.array().items(Joi.object({
+    fileName: Joi.string().required(),
+    originalName: Joi.string().required(),
+    size: Joi.number().min(0).required(),
+  })).default([]),
 });
 const ikuSchema = Joi.object({
   kode: Joi.string().trim().max(50).allow('', null),
@@ -600,9 +604,11 @@ const ikuSchema = Joi.object({
   satuan: Joi.string().trim().min(1).max(50).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   hasEvidence: Joi.boolean().optional(),
-  evidenceFileName: Joi.string().trim().allow('', null),
-  evidenceOriginalName: Joi.string().trim().allow('', null),
-  evidenceSize: Joi.number().min(0).allow(null),
+  evidenceFiles: Joi.array().items(Joi.object({
+    fileName: Joi.string().required(),
+    originalName: Joi.string().required(),
+    size: Joi.number().min(0).required(),
+  })).default([]),
 });
 
 const userCreateSchema = Joi.object({
@@ -775,9 +781,11 @@ app.get('/api/me', (req, res) => {
 
 function collectEvidenceFileIds(name, item) {
   if (!item) return [];
-  const ids = [];
-  if (item.evidenceFileName) ids.push(item.evidenceFileName);
-  return ids;
+  if (Array.isArray(item.evidenceFiles)) {
+    return item.evidenceFiles.map((f) => f.fileName).filter(Boolean);
+  }
+  // Kompatibel mundur dengan data lama yang masih pakai field tunggal.
+  return item.evidenceFileName ? [item.evidenceFileName] : [];
 }
 
 async function deleteEvidenceFiles(fileIds) {
