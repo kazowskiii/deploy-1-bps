@@ -1142,53 +1142,142 @@ app.delete('/api/files/:filename', requireLogin, async (req, res) => {
     res.status(502).json({ error: `Gagal menghapus berkas di OneDrive: ${err.message}` });
   }
 });
-/* ===================== AI Chat (Groq) ===================== */
 
-function computeTeamProgressSummary(user) {
-  const tugasScoped = filterItems(DB.tugas, user, 'tugas', {});
-  const fraScoped = filterItems(DB.fra, user, 'fra', {});
-  const kegiatanScoped = filterItems(DB.kegiatan, user, 'kegiatan', {});
-  const teamsScoped = filterItems(DB.teams, user, 'teams', {});
+/* ===================== AI Chat (Groq) — Function Calling ===================== */
 
-  return teamsScoped.map((team) => {
-    const teamTugas = tugasScoped.filter((t) => t.timId === team.id);
-    const teamFra = fraScoped.filter((f) => f.timId === team.id);
-    const teamKegiatan = kegiatanScoped.filter((k) => k.timId === team.id);
+// Daftar "tools" yang boleh dipanggil AI. Setiap tool = 1 sumber data.
+const AI_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'get_teams',
+      description: 'Mengambil daftar tim yang bisa diakses oleh pengguna saat ini.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_kegiatan',
+      description: 'Mengambil data Analisis Kegiatan (kendala, solusi, RTL, status) sesuai filter opsional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          teamName: { type: 'string', description: 'Nama tim (opsional), pencocokan sebagian, tidak sensitif huruf besar/kecil' },
+          status: { type: 'string', enum: ['Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai'], description: 'Filter status (opsional)' },
+          tahun: { type: 'number', description: 'Filter tahun (opsional)' },
+          search: { type: 'string', description: 'Kata kunci pencarian bebas di semua field (opsional)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_tugas',
+      description: 'Mengambil data Tugas Tim & Target Tahunan (target, realisasi, triwulan) sesuai filter opsional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          teamName: { type: 'string' },
+          triwulan: { type: 'string', enum: ['q1', 'q2', 'q3', 'q4'] },
+          tahun: { type: 'number' },
+          search: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_fra',
+      description: 'Mengambil data FRA (Capaian Kinerja Tim per triwulan & IKU) sesuai filter opsional.',
+      parameters: {
+        type: 'object',
+        properties: {
+          teamName: { type: 'string' },
+          tahun: { type: 'number' },
+          ikuNomor: { type: 'number' },
+          search: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_iku',
+      description: 'Mengambil data Indikator Kinerja Utama (IKU): target, capaian, status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          teamName: { type: 'string' },
+          tahun: { type: 'number' },
+          search: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_reminders',
+      description: 'Mengambil daftar tugas triwulan berjalan yang belum diisi realisasinya (pengingat).',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+];
 
-    let avgProgres = null;
-    if (teamTugas.length) {
-      const percents = teamTugas.map((t) => {
-        const target = Number(t.target) || 0;
-        const realisasi = Number(t.realisasi) || 0;
-        return target ? Math.min(999, (realisasi / target) * 100) : 0;
-      });
-      avgProgres = Math.round(percents.reduce((a, b) => a + b, 0) / percents.length);
-    }
-
-    return {
-      nama: team.name,
-      jumlahTugas: teamTugas.length,
-      rataRataProgresPersen: avgProgres,
-      jumlahFRA: teamFra.length,
-      jumlahKegiatan: teamKegiatan.length,
-      kendalaTercatat: teamKegiatan.filter((k) => (k.kendala || '').trim()).length,
-      kegiatanBelumDitindaklanjuti: teamKegiatan.filter((k) => k.status === 'Belum Ditindaklanjuti').length,
-    };
-  });
+// Cari id tim dari nama (pencocokan sebagian, case-insensitive).
+// return: string id kalau ketemu, undefined kalau nama diberikan tapi tidak ketemu,
+// null/undefined juga valid kalau teamName memang tidak diisi (artinya: semua tim).
+function resolveTeamIdByPartialName(name) {
+  if (!name) return null;
+  const needle = String(name).toLowerCase();
+  const team = DB.teams.find((t) => t.name.toLowerCase().includes(needle));
+  return team ? team.id : undefined;
 }
 
-function buildDataContext(user) {
-  const teamSummary = computeTeamProgressSummary(user);
-  const reminders = computeReminders(user);
+// Rapikan item sebelum dikirim ke model: tambah nama tim (biar AI tak perlu
+// join manual), buang field teknis yang tak relevan (id file OneDrive dsb).
+function slimItem(item) {
+  const teamNm = teamNameServer(item.timId || item.id);
+  const clean = { ...item, tim: teamNm };
+  delete clean.evidenceFileName;
+  return clean;
+}
 
-  return JSON.stringify({
-    ringkasanProgresPerTim: teamSummary,
-    pengingatTugasBelumDiisi: reminders.items.map((r) => ({
-      nama: r.nama,
-      tim: r.timName,
-      triwulan: r.quarterLabel,
-    })),
-  }, null, 2);
+// Eksekutor tool: dipanggil backend saat model minta data.
+// "user" dipakai supaya filterItems() tetap menghormati scoping role.
+function runAiTool(name, args, user) {
+  const teamId = args.teamName ? resolveTeamIdByPartialName(args.teamName) : undefined;
+  if (args.teamName && teamId === undefined) {
+    return {
+      error: `Tim dengan nama mengandung "${args.teamName}" tidak ditemukan.`,
+      timTersedia: DB.teams.map((t) => t.name),
+    };
+  }
+
+  const query = { ...args };
+  delete query.teamName;
+  if (teamId) query.teamId = teamId;
+
+  switch (name) {
+    case 'get_teams':
+      return filterItems(DB.teams, user, 'teams', {}).map((t) => ({ nama: t.name }));
+    case 'get_kegiatan':
+      return filterItems(DB.kegiatan, user, 'kegiatan', query).map(slimItem);
+    case 'get_tugas':
+      return filterItems(DB.tugas, user, 'tugas', query).map(slimItem);
+    case 'get_fra':
+      return filterItems(DB.fra, user, 'fra', query).map(slimItem);
+    case 'get_iku':
+      return filterItems(DB.iku, user, 'iku', query).map(slimItem);
+    case 'get_reminders':
+      return computeReminders(user).items;
+    default:
+      return { error: `Fungsi ${name} tidak dikenal` };
+  }
 }
 
 app.post('/api/ai-chat', requireLogin, isJsonRequest, async (req, res) => {
@@ -1202,47 +1291,95 @@ app.post('/api/ai-chat', requireLogin, isJsonRequest, async (req, res) => {
     }
 
     const user = req.session.user;
-    const dataContext = buildDataContext(user);
 
     const systemPrompt = `Kamu adalah asisten AI di aplikasi SIMONEV BPS (Sistem Monitoring & Evaluasi Kinerja).
-Jawab HANYA berdasarkan data JSON berikut, jangan mengarang angka atau nama tim yang tidak ada di data:
-
-${dataContext}
+Kamu punya akses ke fungsi (tools) untuk mengambil data LANGSUNG dari database aplikasi: daftar tim, Analisis Kegiatan (kendala/solusi/RTL), Tugas Tim, FRA, IKU, dan pengingat tugas belum diisi.
 
 Aturan:
-- Jawab singkat, jelas, dalam Bahasa Indonesia.
-- Kalau data tidak cukup untuk menjawab, katakan terus terang bahwa datanya tidak tersedia.
-- Pengguna ini login sebagai role "${user.role}"${user.teamId ? ' (data dibatasi hanya untuk timnya)' : ' (bisa melihat semua tim)'}.`;
+- SELALU panggil fungsi yang relevan untuk mengambil data sebelum menjawab pertanyaan tentang data aplikasi. Jangan menjawab dari ingatan/asumsi.
+- Kalau butuh data dari beberapa modul sekaligus (misal kegiatan + tugas), panggil beberapa fungsi.
+- Jangan mengarang angka, nama tim, atau isi kendala/solusi/RTL yang tidak ada di hasil fungsi.
+- Jawab singkat, jelas, dalam Bahasa Indonesia setelah data terkumpul.
+- Kalau data tidak ditemukan / kosong, katakan terus terang.
+- Pengguna ini login sebagai role "${user.role}"${user.teamId ? ' (data dibatasi hanya untuk timnya sendiri)' : ' (bisa melihat semua tim)'}.`;
 
     const safeHistory = Array.isArray(history)
       ? history.filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string').slice(-10)
       : [];
 
-    const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...safeHistory,
-          { role: 'user', content: sanitizeText(message) },
-        ],
-        temperature: 0.3,
-      }),
-    });
+    let messages = [
+      { role: 'system', content: systemPrompt },
+      ...safeHistory,
+      { role: 'user', content: sanitizeText(message) },
+    ];
 
-    const data = await groqRes.json();
-    if (!groqRes.ok) {
-      console.error('Groq API error:', data);
-      return res.status(502).json({ error: 'Gagal menghubungi layanan AI' });
+    const MAX_TOOL_ROUNDS = 5; // batas supaya tidak looping tak berkesudahan
+    let finalReply = null;
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages,
+          tools: AI_TOOLS,
+          tool_choice: 'auto',
+          temperature: 0.3,
+        }),
+      });
+
+      const data = await groqRes.json();
+      if (!groqRes.ok) {
+        console.error('Groq API error:', data);
+        return res.status(502).json({ error: 'Gagal menghubungi layanan AI' });
+      }
+
+      const choice = data.choices?.[0]?.message;
+      if (!choice) {
+        return res.status(502).json({ error: 'Respons AI tidak valid' });
+      }
+
+      const toolCalls = choice.tool_calls;
+      if (!toolCalls || !toolCalls.length) {
+        // Model sudah punya jawaban akhir (tidak minta data lagi).
+        finalReply = choice.content || 'Maaf, tidak ada jawaban.';
+        break;
+      }
+
+      // Model minta panggil fungsi -> jalankan semua tool yang diminta,
+      // lalu kirim hasilnya balik supaya model bisa menyusun jawaban.
+      messages.push({ role: 'assistant', content: choice.content || null, tool_calls: toolCalls });
+      for (const call of toolCalls) {
+        let args = {};
+        try {
+          args = JSON.parse(call.function.arguments || '{}');
+        } catch (e) {
+          args = {};
+        }
+        let result;
+        try {
+          result = runAiTool(call.function.name, args, user);
+        } catch (err) {
+          result = { error: err.message };
+        }
+        messages.push({
+          role: 'tool',
+          tool_call_id: call.id,
+          content: JSON.stringify(result),
+        });
+      }
+      // lanjut ke round berikutnya: model akan menyusun jawaban dari hasil tool
     }
 
-    const reply = data.choices?.[0]?.message?.content || 'Maaf, tidak ada jawaban.';
-    res.json({ reply });
+    if (!finalReply) {
+      finalReply = 'Maaf, pertanyaan ini butuh terlalu banyak langkah untuk dijawab. Coba pertanyaan yang lebih spesifik (misal sebutkan nama tim atau periodenya).';
+    }
+
+    res.json({ reply: finalReply });
   } catch (err) {
     console.error('AI chat error:', err.message);
     res.status(500).json({ error: 'Terjadi kesalahan server' });
