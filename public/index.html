@@ -593,7 +593,7 @@ function updatePageFilter(key, value){
 function buildSearchRegex(rawNeedle){
   const escaped = rawNeedle.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   if(!escaped) return null;
-  return new RegExp('\\b' + escaped + '\\b', 'i');
+  return new RegExp(escaped, 'i'); // substring match: cocok di mana saja dalam teks, tidak harus kata utuh
 }
 const ROMAN_TO_ARABIC = { i: 1, ii: 2, iii: 3, iv: 4 };
 function periodeToArabic(periode){
