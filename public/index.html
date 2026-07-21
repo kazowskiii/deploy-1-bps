@@ -1590,7 +1590,7 @@ function renderKegiatanPage(){
       <td class="mono">${k.ikuNomor ? 'IKU '+k.ikuNomor : '—'}</td>
       <td style="min-width:160px;">
         <div class="cell-title">${escapeHtml(k.nama)}</div>
-        <div class="cell-sub mono">${fmtDate(k.tanggal)}${k.createdAt ? ' · '+fmtTime(k.createdAt) : ''}</div>
+        <div class="cell-sub mono">${fmtDate(k.tanggal)}</div>
       </td>
       <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
       <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
