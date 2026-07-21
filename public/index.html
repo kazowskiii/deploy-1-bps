@@ -1622,7 +1622,7 @@ async function toggleStarKegiatan(id){
   if(!item) return;
   const payload = {
     timId:item.timId, tanggal:item.tanggal, tahun: item.tahun || new Date().getFullYear(),
-    nama:item.nama, kendala:item.kendala,
+    ikuNomor: item.ikuNomor, nama:item.nama, kendala:item.kendala,
     solusi:item.solusi, rtl:item.rtl, status:item.status, starred: !item.starred,
   };
   try{
