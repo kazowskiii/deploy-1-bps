@@ -1240,6 +1240,7 @@ function routeAddButton(){
     if(!AUDIT_LOGS.length) return '';
     return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
   }
+  if(ROUTE === 'tim' && !isAdmin()) return ''; // operator tidak boleh menambah tim
   const map = {
     fra: ['openFraModal()','Tambah Capaian'],
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],

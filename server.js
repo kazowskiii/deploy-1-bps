@@ -883,7 +883,7 @@ function getCollectionRoute(name, schema, options = {}) {
   });
 }
 
-getCollectionRoute('teams', teamSchema, { adminOnly: false });
+getCollectionRoute('teams', teamSchema, { adminOnly: true });
 getCollectionRoute('fra', fraSchema);
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
