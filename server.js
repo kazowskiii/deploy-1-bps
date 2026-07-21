@@ -284,22 +284,25 @@ const PDF_TITLES = {
 const PDF_COLUMNS = {
   teams: [{ key: 'name', label: 'Nama Tim', width: 480 }],
   fra: [
-    { key: 'team', label: 'Tim', width: 75 },
-    { key: 'periode', label: 'Periode', width: 55 },
+    { key: 'team', label: 'Tim', width: 70 },
     { key: 'iku', label: 'IKU', width: 35 },
-    { key: 'nama', label: 'Nama Kegiatan', width: 110 },
+    { key: 'nama', label: 'Nama Kegiatan', width: 100 },
+    { key: 'tanggal', label: 'Tanggal', width: 55 },
+    { key: 'periode', label: 'Triwulan', width: 55 },
     { key: 'target', label: 'Target', width: 45 },
     { key: 'realisasi', label: 'Realisasi', width: 50 },
     { key: 'persen', label: 'Capaian', width: 45 },
-    { key: 'status', label: 'Status', width: 60 },
+    { key: 'status', label: 'Status', width: 55 },
   ],
   kegiatan: [
-    { key: 'team', label: 'Tim', width: 80 },
-    { key: 'nama', label: 'Kegiatan', width: 80 },
-    { key: 'kendala', label: 'Kendala', width: 100 },
-    { key: 'solusi', label: 'Solusi', width: 100 },
-    { key: 'rtl', label: 'RTL', width: 75 },
-    { key: 'status', label: 'Status', width: 65 },
+    { key: 'team', label: 'Tim', width: 70 },
+    { key: 'iku', label: 'IKU', width: 35 },
+    { key: 'nama', label: 'Kegiatan', width: 85 },
+    { key: 'tanggal', label: 'Tanggal', width: 55 },
+    { key: 'kendala', label: 'Kendala', width: 80 },
+    { key: 'solusi', label: 'Solusi', width: 80 },
+    { key: 'rtl', label: 'RTL', width: 55 },
+    { key: 'status', label: 'Status', width: 55 },
   ],
   tugas: [
     { key: 'team', label: 'Tim', width: 75 },
@@ -326,15 +329,23 @@ function teamNameServer(id) {
   return t ? t.name : '—';
 }
 
+function formatDateIndo(dateStr) {
+  if (!dateStr) return '-';
+  const d = /T/.test(dateStr) ? new Date(dateStr) : new Date(`${dateStr}T00:00:00`);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+}
+
 function buildPdfRow(collection, item) {
   if (collection === 'teams') return { name: item.name || '-' };
   const teamNm = teamNameServer(item.timId || item.id);
   if (collection === 'fra') {
     return {
       team: teamNm,
-      periode: item.periode || '-',
       iku: item.ikuNomor ? `IKU ${item.ikuNomor}` : '-',
       nama: item.namaKegiatan || item.uraian || '-',
+      tanggal: formatDateIndo(item.createdAt),
+      periode: item.periode || '-',
       target: String(Number(item.target) || 0),
       realisasi: String(Number(item.realisasi) || 0),
       persen: `${Number(item.persentase) || 0}%`,
@@ -344,7 +355,9 @@ function buildPdfRow(collection, item) {
   if (collection === 'kegiatan') {
     return {
       team: teamNm,
+      iku: item.ikuNomor ? `IKU ${item.ikuNomor}` : '-',
       nama: item.nama || '-',
+      tanggal: formatDateIndo(item.tanggal),
       kendala: item.kendala || '-',
       solusi: item.solusi || '-',
       rtl: item.rtl || '-',
@@ -959,9 +972,11 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
     if (!DB[name]) continue;
     const items = filterItems(DB[name], user, name, req.query);
     if (!items.length) continue;
+    const columns = PDF_COLUMNS[name] || PDF_COLUMNS.teams;
     const sheet = workbook.addWorksheet(name);
-    sheet.columns = Object.keys(items[0]).map((key) => ({ header: key, key, width: 20 }));
-    items.forEach((item) => sheet.addRow(item));
+    sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
+    sheet.getRow(1).font = { bold: true };
+    items.forEach((item) => sheet.addRow(buildPdfRow(name, item)));
   }
   const filename = collection ? `simonev-${collection}.xlsx` : 'simonev-all.xlsx';
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
