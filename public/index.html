@@ -1221,17 +1221,16 @@ function renderBellPanel(){
     </div>`).join('');
 
   const items = (REMINDERS && REMINDERS.items) || [];
-  const q = REMINDERS.quarterKey ? TRIWULAN_LABELS[REMINDERS.quarterKey] : '';
   const reminderBody = items.length
     ? items.map(it=>`<div class="bp-item" onclick="gotoReminder('${it.tugasId}')">
         <div class="nm">${escapeHtml(it.nama)}</div>
         <div class="meta">${escapeHtml(it.timName)} · ${it.quarterLabel} belum diisi ${it.daysLeft>=0?`· sisa ${it.daysLeft} hari`:''}</div>
       </div>`).join('')
-    : `<div class="bp-empty">Semua realisasi ${q||'triwulan berjalan'} sudah terisi. Mantap!</div>`;
+    : `<div class="bp-empty">Tidak ada pengingat lain untuk saat ini.</div>`;
 
   return `<div class="bell-panel" onclick="event.stopPropagation()">
     ${NOTIFICATIONS.length ? `<div class="bp-head" style="color:var(--danger);">Pengingat dari Admin</div>${notifBody}` : ''}
-    <div class="bp-head">Pengingat ${q}</div>
+    <div class="bp-head">Notifikasi Lainnya</div>
     ${reminderBody}
   </div>`;
 }
