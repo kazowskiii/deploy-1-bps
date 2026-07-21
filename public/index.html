@@ -1295,12 +1295,12 @@ function renderDashboard(){
     </div>`;
 
   const teamRows = DB.teams.map(t=>{
-    const tt = tugasYear.filter(x=>x.timId===t.id);
-    const avg = tt.length ? Math.round(tt.reduce((s,x)=>s+tugasPct(x),0)/tt.length) : null;
+    const tf = fraYear.filter(x=>x.timId===t.id);
+    const avg = tf.length ? Math.round(tf.reduce((s,x)=>s+(Number(x.persentase)||0),0)/tf.length) : null;
     const st = statusFor(avg);
     return `<tr>
       <td class="cell-title">${escapeHtml(t.name)}</td>
-      <td>${tt.length} tugas</td>
+      <td>${tf.length} kegiatan</td>
       <td style="min-width:160px;">
         <div class="pbar ${st.cls}"><div style="width:${avg===null?0:avg}%"></div></div>
       </td>
@@ -1322,9 +1322,9 @@ function renderDashboard(){
     ${renderReminderBanner()}
     ${kpis}
     <div class="panel" style="margin-top:14px;">
-      <div class="panel-head"><div><h3>Progres Realisasi per Tim</h3><p>Rata-rata realisasi tugas triwulanan, tahun ${FILTER_YEAR}</p></div></div>
+      <div class="panel-head"><div><h3>Progres Realisasi per Tim</h3><p>Rata-rata capaian FRA per tim, tahun ${FILTER_YEAR}</p></div></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Tim</th><th>Jml Tugas</th><th>Progres</th><th>Status</th></tr></thead>
+        <thead><tr><th>Tim</th><th>Jml Kegiatan</th><th>Progres</th><th>Status</th></tr></thead>
         <tbody>${teamRows}</tbody>
       </table></div>
     </div>
