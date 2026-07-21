@@ -76,6 +76,7 @@ function createInitialDB() {
     kegiatan: [],
     tugas: [],
     auditLogs: [],
+    notifications: [],
   };
 }
 
@@ -109,6 +110,7 @@ function loadDB() {
 
 let DB = loadDB();
 DB.users = DB.users || [];
+DB.notifications = DB.notifications || [];
 seedDefaultUsersIfEmpty();
 let writeQueue = Promise.resolve();
 function saveDB() {
@@ -835,7 +837,9 @@ function getCollectionRoute(name, schema, options = {}) {
     }
     // createdAt selalu diisi server dengan jam asli saat disimpan (bukan dari input user),
     // dipakai untuk menampilkan "jam upload" yang sebenarnya di frontend.
-    const item = { id: uuidv4(), ...req.body, createdAt: new Date().toISOString() };
+    // createdBy dicatat sekali saat pertama dibuat, dipakai untuk menargetkan
+    // pengingat admin ke user yang benar-benar mengunggah data ini.
+    const item = { id: uuidv4(), ...req.body, createdBy: user.id, createdByUsername: user.username, createdAt: new Date().toISOString() };
     DB[name].push(item);
     await auditLog(user, 'create', name, item.id, { item });
     await saveDB();
@@ -948,6 +952,54 @@ app.delete('/api/audit', requireLogin, requireAdmin, async (req, res) => {
 
 app.get('/api/reminders', requireLogin, (req, res) => {
   res.json(computeReminders(req.session.user));
+});
+
+const notificationSchema = Joi.object({
+  targetUserId: Joi.string().required(),
+  collection: Joi.string().valid('fra', 'kegiatan', 'tugas', 'iku').required(),
+  itemId: Joi.string().required(),
+  message: Joi.string().trim().min(3).max(500).required(),
+});
+
+// Daftar pengingat pribadi milik user yang sedang login saja (bukan seluruh tim).
+app.get('/api/notifications', requireLogin, (req, res) => {
+  const list = (DB.notifications || [])
+    .filter((n) => n.targetUserId === req.session.user.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  res.json(list);
+});
+
+// Admin mengirim pengingat bertarget ke satu user tertentu (mis. pengunggah data FRA).
+app.post('/api/notifications', requireLogin, requireAdmin, validateBody(notificationSchema), async (req, res) => {
+  const { targetUserId, collection, itemId, message } = req.body;
+  const targetUser = (DB.users || []).find((u) => u.id === targetUserId);
+  if (!targetUser) return res.status(404).json({ error: 'User tujuan tidak ditemukan' });
+  const notif = {
+    id: uuidv4(),
+    targetUserId,
+    targetUsername: targetUser.username,
+    fromUsername: req.session.user.username,
+    collection,
+    itemId,
+    message,
+    createdAt: new Date().toISOString(),
+  };
+  DB.notifications.push(notif);
+  await auditLog(req.session.user, 'create', 'notifications', notif.id, { targetUsername: targetUser.username, message });
+  await saveDB();
+  res.json(notif);
+});
+
+// User menutup/menyelesaikan pengingatnya sendiri.
+app.delete('/api/notifications/:id', requireLogin, async (req, res) => {
+  const idx = (DB.notifications || []).findIndex((n) => n.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Notifikasi tidak ditemukan' });
+  if (DB.notifications[idx].targetUserId !== req.session.user.id) {
+    return res.status(403).json({ error: 'Bukan notifikasi Anda' });
+  }
+  DB.notifications.splice(idx, 1);
+  await saveDB();
+  res.json({ deleted: true });
 });
 
 app.get('/api/export/json', requireLogin, (req, res) => {

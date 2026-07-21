@@ -469,6 +469,7 @@ const ICONS = {
   bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
+  warning:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',
 };
 
 const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
@@ -479,6 +480,7 @@ let AUTH = { loggedIn: false, user: null };
 let NEEDS_SETUP = false;
 let DB = { teams: [], users: [], iku: [], fra: [], kegiatan: [], tugas: [] };
 let AUDIT_LOGS = [];
+let NOTIFICATIONS = [];
 let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '', triwulan: '' };
@@ -957,6 +959,7 @@ async function loadAll(){
       AUDIT_LOGS = [];
     }
     try{ REMINDERS = await apiGet('reminders'); }catch(e){ REMINDERS = { items: [], daysLeft: 0 }; }
+    try{ NOTIFICATIONS = await apiGet('notifications'); }catch(e){ NOTIFICATIONS = []; }
   }catch(e){
     toast('Tidak dapat terhubung ke server. Pastikan server (npm start) sedang berjalan.', 'err');
   }
@@ -1197,9 +1200,9 @@ function renderTopbar(){
 
 function renderBellWrap(){
   const items = (REMINDERS && REMINDERS.items) || [];
-  const count = items.length;
+  const count = items.length + NOTIFICATIONS.length;
   return `<div class="bell-wrap">
-    <button class="bell-btn" onclick="toggleBellPanel(event)" title="Pengingat triwulan berjalan">
+    <button class="bell-btn" onclick="toggleBellPanel(event)" title="Pengingat">
       ${ICONS.bell}${count>0 ? `<span class="dot">${count>9?'9+':count}</span>` : ''}
     </button>
     ${bellOpen ? renderBellPanel() : ''}
@@ -1207,17 +1210,29 @@ function renderBellWrap(){
 }
 
 function renderBellPanel(){
+  const notifBody = NOTIFICATIONS.map(n=>`
+    <div class="bp-item" style="cursor:default;">
+      <div class="nm">${escapeHtml(n.message)}</div>
+      <div class="meta">dari ${escapeHtml(n.fromUsername)} · ${fmtDate(n.createdAt)} · ${fmtTime(n.createdAt)}</div>
+      <div class="flex gap-6" style="margin-top:6px;">
+        <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openNotificationTarget('${n.id}')">Lihat &amp; Perbaiki</button>
+        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dismissNotification('${n.id}')">Tutup</button>
+      </div>
+    </div>`).join('');
+
   const items = (REMINDERS && REMINDERS.items) || [];
   const q = REMINDERS.quarterKey ? TRIWULAN_LABELS[REMINDERS.quarterKey] : '';
-  const body = items.length
+  const reminderBody = items.length
     ? items.map(it=>`<div class="bp-item" onclick="gotoReminder('${it.tugasId}')">
         <div class="nm">${escapeHtml(it.nama)}</div>
         <div class="meta">${escapeHtml(it.timName)} · ${it.quarterLabel} belum diisi ${it.daysLeft>=0?`· sisa ${it.daysLeft} hari`:''}</div>
       </div>`).join('')
     : `<div class="bp-empty">Semua realisasi ${q||'triwulan berjalan'} sudah terisi. Mantap!</div>`;
+
   return `<div class="bell-panel" onclick="event.stopPropagation()">
+    ${NOTIFICATIONS.length ? `<div class="bp-head" style="color:var(--danger);">Pengingat dari Admin</div>${notifBody}` : ''}
     <div class="bp-head">Pengingat ${q}</div>
-    ${body}
+    ${reminderBody}
   </div>`;
 }
 
@@ -1233,6 +1248,51 @@ function gotoReminder(tugasId){
   ROUTE = 'tugas';
   FILTER_YEAR = REMINDERS.year || FILTER_YEAR;
   renderShell();
+}
+
+async function dismissNotification(id){
+  try{
+    await apiDelete('notifications', id);
+    NOTIFICATIONS = NOTIFICATIONS.filter(n=>n.id!==id);
+    renderTopbar();
+  }catch(e){
+    toast(e.message || 'Gagal menutup pengingat','err');
+  }
+}
+async function openNotificationTarget(id){
+  const n = NOTIFICATIONS.find(x=>x.id===id);
+  if(!n) return;
+  bellOpen = false;
+  if(n.collection==='fra'){
+    ROUTE = 'fra'; renderShell();
+    setTimeout(()=>openFraModal(n.itemId), 50);
+  } else if(n.collection==='kegiatan'){
+    ROUTE = 'kegiatan'; renderShell();
+    setTimeout(()=>openKegiatanModal(n.itemId), 50);
+  } else {
+    renderTopbar();
+  }
+}
+async function promptReminderForFra(id){
+  const item = DB.fra.find(x=>x.id===id);
+  if(!item) return;
+  if(!item.createdBy){
+    toast('Tidak diketahui siapa pengunggah data ini (data lama sebelum fitur ini aktif)','err');
+    return;
+  }
+  if(item.createdBy === AUTH.user.id){
+    toast('Ini data yang Anda unggah sendiri','err');
+    return;
+  }
+  const defaultMsg = `Mohon lengkapi/periksa kembali capaian "${item.namaKegiatan||''}" — data belum memenuhi standar.`;
+  const msg = prompt('Pesan pengingat untuk pengunggah data ini:', defaultMsg);
+  if(msg===null || !msg.trim()) return; // batal
+  try{
+    await apiPost('notifications', { targetUserId: item.createdBy, collection:'fra', itemId: item.id, message: msg.trim() });
+    toast(`Pengingat terkirim ke ${item.createdByUsername||'pengunggah'}`,'ok');
+  }catch(e){
+    toast(e.message || 'Gagal mengirim pengingat','err');
+  }
 }
 
 function routeAddButton(){
@@ -1533,7 +1593,7 @@ function renderFraPage(){
       </td>
       <td>${evidenceCell(f, 'fra')}</td>
       <td><span class="tag ${st.tag}">${st.label}</span></td>
-      <td>${rowActions('fra', f.id)}</td>
+      <td>${fraRowActions(f)}</td>
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
@@ -1565,6 +1625,17 @@ function rowActions(kind, id){
   return `<div class="flex gap-6">
     <button class="icon-btn" onclick="open${f}Modal('${id}')" title="Ubah">${ICONS.edit}</button>
     <button class="icon-btn" onclick="deleteItem('${kind}','${id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+  </div>`;
+}
+function fraRowActions(f){
+  const showWarn = isAdmin() && f.createdBy && f.createdBy !== AUTH.user.id;
+  const warnBtn = showWarn
+    ? `<button class="icon-btn" onclick="promptReminderForFra('${f.id}')" title="Ingatkan pengunggah data ini" style="color:var(--warning);">${ICONS.warning}</button>`
+    : '';
+  return `<div class="flex gap-6">
+    ${warnBtn}
+    <button class="icon-btn" onclick="openFraModal('${f.id}')" title="Ubah">${ICONS.edit}</button>
+    <button class="icon-btn" onclick="deleteItem('fra','${f.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
   </div>`;
 }
 function emptyState(kind, title, sub){
