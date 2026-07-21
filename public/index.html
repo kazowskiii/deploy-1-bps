@@ -1515,7 +1515,7 @@ function renderFraPage(){
     return `<tr>
       <td>
         <span class="team-pill">${escapeHtml(teamName(f.timId))}</span>
-        <div class="cell-sub mono" style="margin-top:4px;">${fmtDate(f.createdAt)}${f.createdAt ? ' · '+fmtTime(f.createdAt) : ''}</div>
+        <div class="cell-sub mono" style="margin-top:4px;">${fmtDate(f.tanggalKegiatan)}${f.tanggalKegiatan ? ' · '+fmtTime(f.tanggalKegiatan) : ''}</div>
       </td>
       <td class="mono">${f.ikuNomor ? 'IKU '+f.ikuNomor : '—'}</td>
       <td style="min-width:200px;">
@@ -1991,6 +1991,10 @@ function openFraModal(id){
     </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_namaKegiatan" value="${f?escapeHtml(f.namaKegiatan||''):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
     <div class="field-row">
+      <div class="field"><label>Tanggal Kegiatan</label><input type="date" id="f_tanggalKegiatan" value="${f && f.tanggalKegiatan ? f.tanggalKegiatan.slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Jam</label><input type="time" id="f_jamKegiatan" value="${f && f.tanggalKegiatan ? f.tanggalKegiatan.slice(11,16) : '08:00'}"></div>
+    </div>
+    <div class="field-row">
       <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:120}" min="0" placeholder="mis. 100" readonly style="background:var(--surface-2);color:var(--ink-muted);"></div>
       <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75" oninput="updateFraCapaianPreview()"></div>
     </div>
@@ -2160,6 +2164,9 @@ async function saveFra(id){
   const periode = document.getElementById('f_periode').value.trim();
   const ikuNomor = Number(document.getElementById('f_ikuNomor').value)||1;
   const namaKegiatan = document.getElementById('f_namaKegiatan').value.trim();
+  const tanggalInput = document.getElementById('f_tanggalKegiatan').value;
+  const jamInput = document.getElementById('f_jamKegiatan').value || '00:00';
+  const tanggalKegiatan = tanggalInput ? `${tanggalInput}T${jamInput}:00` : null;
   const target = Number(document.getElementById('f_target').value)||0;
   const realisasi = Number(document.getElementById('f_realisasi').value)||0;
   const persentase = target>0 ? Math.round(realisasi/target*100) : 0;
@@ -2167,8 +2174,9 @@ async function saveFra(id){
   const catatan = document.getElementById('f_catatan').value.trim();
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
   if(!namaKegiatan || namaKegiatan.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
+  if(!tanggalInput){ toast('Tanggal kegiatan wajib diisi','err'); return; }
   if(!target){ toast('Target wajib diisi','err'); return; }
-  let payload = {timId, periode, ikuNomor, namaKegiatan, target, realisasi, persentase, tahun, catatan};
+  let payload = {timId, periode, ikuNomor, namaKegiatan, tanggalKegiatan, target, realisasi, persentase, tahun, catatan};
   const evMeta = persistPendingEvidence('fra');
   if(evMeta) Object.assign(payload, evMeta);
   const btn = document.querySelector('#modalOverlay .btn-primary');
