@@ -1767,6 +1767,7 @@ function renderIkuPage(){
 function renderTimPage(){
   const items = DB.teams;
   if(!items.length) return emptyState('tim','Belum ada tim','Tambahkan tim kerja untuk digunakan pada seluruh modul.');
+  const canManage = isAdmin();
   const rows = items.map(t=>{
     const cIku = DB.iku.filter(i=>i.timId===t.id).length;
     const cTugas = DB.tugas.filter(i=>i.timId===t.id).length;
@@ -1774,7 +1775,7 @@ function renderTimPage(){
       <td class="cell-title">${escapeHtml(t.name)}</td>
       <td>${cIku} IKU</td>
       <td>${cTugas} tugas</td>
-      <td>${rowActions('tim', t.id)}</td>
+      <td>${canManage ? rowActions('tim', t.id) : ''}</td>
     </tr>`;
   }).join('');
   return `<div class="panel"><div class="table-wrap"><table>
