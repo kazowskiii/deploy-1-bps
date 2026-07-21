@@ -1165,7 +1165,7 @@ const AI_TOOLS = [
         properties: {
           teamName: { type: 'string', description: 'Nama tim (opsional), pencocokan sebagian, tidak sensitif huruf besar/kecil' },
           status: { type: 'string', enum: ['Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai'], description: 'Filter status (opsional)' },
-          tahun: { type: 'number', description: 'Filter tahun (opsional)' },
+          tahun: { type: 'number', description: 'HANYA isi kalau pengguna secara eksplisit menyebutkan tahun tertentu. Kalau tidak disebutkan, JANGAN isi field ini sama sekali.' },
           search: { type: 'string', description: 'Kata kunci pencarian bebas di semua field (opsional)' },
         },
       },
@@ -1251,6 +1251,15 @@ function slimItem(item) {
 // "user" dipakai supaya filterItems() tetap menghormati scoping role.
 function runAiTool(name, args, user) {
   const teamId = args.teamName ? resolveTeamIdByPartialName(args.teamName) : undefined;
+
+  // Jangan andalkan model untuk isi tahun — kalau tidak disebutkan eksplisit,
+  // JANGAN filter berdasarkan tahun sama sekali (ambil semua tahun), supaya
+  // tidak salah kosongkan data hanya karena model asal tebak tahunnya.
+  if (args.tahun !== undefined && args.tahun !== null) {
+    args.tahun = Number(args.tahun);
+  } else {
+    delete args.tahun;
+  }
   if (args.teamName && teamId === undefined) {
     return {
       error: `Tim dengan nama mengandung "${args.teamName}" tidak ditemukan.`,
@@ -1292,31 +1301,15 @@ app.post('/api/ai-chat', requireLogin, isJsonRequest, async (req, res) => {
 
     const user = req.session.user;
 
-    const systemPrompt = `Kamu adalah asisten AI di aplikasi SIMONEV BPS (Sistem Monitoring & Evaluasi Kinerja). Tugasmu menjawab pertanyaan pengguna HANYA berdasarkan data nyata dari database aplikasi, yang kamu ambil lewat fungsi (tools) yang tersedia.
+    const systemPrompt = `Kamu asisten AI SIMONEV BPS. Kamu TIDAK punya data di memori — WAJIB panggil fungsi (tools) untuk ambil data sebelum menjawab apa pun soal aplikasi. Jangan pernah bilang "tidak ada data" sebelum benar-benar memanggil fungsi terkait.
 
-## ATURAN UTAMA (wajib diikuti tanpa kecuali)
-1. Kamu TIDAK memiliki data apa pun di memori. Setiap pertanyaan tentang data aplikasi WAJIB dijawab dengan memanggil fungsi yang sesuai terlebih dahulu — tidak ada pengecualian, walau kamu "merasa yakin" jawabannya.
-2. DILARANG menjawab "tidak ada data", "data tidak ditemukan", atau semacamnya SEBELUM benar-benar memanggil fungsi terkait dan melihat hasilnya. Menyimpulkan tanpa memanggil fungsi adalah kesalahan fatal.
-3. Kalau pertanyaan tidak jelas modul mana yang dimaksud, panggil BEBERAPA fungsi relevan sekaligus, lalu simpulkan dari semuanya.
-4. Setelah memanggil fungsi dan hasilnya kosong (array kosong / tidak ada item cocok), BARU kamu boleh bilang datanya tidak ditemukan — dan sebutkan secara spesifik apa yang kamu cari (misal nama tim/filter yang dipakai).
-5. Jangan pernah mengarang angka, nama tim, tanggal, atau isi kendala/solusi/RTL yang tidak ada di hasil fungsi.
+Pemetaan kata kunci -> fungsi:
+FRA/capaian -> get_fra | kendala/solusi/RTL/kegiatan -> get_kegiatan | tugas/target tahunan -> get_tugas | IKU -> get_iku | daftar tim -> get_teams | belum diisi/reminder -> get_reminders
+Untuk pertanyaan ranking ("paling bagus/tertinggi") -> panggil fungsi tanpa filter tim DAN tanpa filter tahun (kecuali user sebut eksplisit), lalu bandingkan sendiri dari hasilnya.
 
-## PEMETAAN KATA KUNCI KE FUNGSI (pakai ini untuk memutuskan fungsi apa yang dipanggil)
-- Kata "FRA", "capaian", "realisasi target IKU per triwulan" → panggil get_fra
-- Kata "kendala", "solusi", "RTL", "tindak lanjut", "analisis kegiatan" → panggil get_kegiatan
-- Kata "tugas", "target tahunan", "triwulan" (tanpa kata FRA/IKU) → panggil get_tugas
-- Kata "IKU", "indikator kinerja utama" → panggil get_iku
-- Kata "tim mana saja", "daftar tim" → panggil get_teams
-- Kata "belum diisi", "pengingat", "reminder", "belum lapor" → panggil get_reminders
-- Pertanyaan perbandingan/ranking ("paling bagus", "tertinggi", "terendah", "paling banyak") → panggil fungsi yang sesuai TANPA filter tim (ambil semua tim), lalu kamu sendiri yang membandingkan angkanya di jawaban.
+ATURAN KETAT: Nama tim yang boleh kamu sebut HANYA yang persis muncul di hasil fungsi (field "tim" atau dari get_teams). DILARANG KERAS mengarang atau menebak nama tim yang tidak ada di hasil fungsi.
 
-## FORMAT JAWABAN
-- Bahasa Indonesia, singkat dan langsung ke inti.
-- Untuk pertanyaan ranking/perbandingan, sebutkan angka konkret (contoh: "Tim Statistik Sosial memiliki capaian tertinggi yaitu 98%, diikuti Tim IPDS 76%").
-- Kalau data yang diminta memang kosong setelah dicek, katakan dengan jelas apa yang sudah kamu cek (contoh: "Setelah saya cek data FRA, belum ada entri capaian yang tercatat untuk tim manapun di tahun ini.").
-
-## KONTEKS PENGGUNA
-Pengguna ini login sebagai role "${user.role}"${user.teamId ? ' — data yang bisa diakses dibatasi hanya untuk timnya sendiri' : ' — bisa melihat data semua tim'}.`;
+Jawab singkat, Bahasa Indonesia, sebutkan angka konkret. Role pengguna: "${user.role}"${user.teamId ? ' (dibatasi ke timnya sendiri)' : ' (bisa lihat semua tim)'}.`;
 
     const safeHistory = Array.isArray(history)
       ? history.filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string').slice(-10)
