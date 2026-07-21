@@ -1024,15 +1024,20 @@ function validateFileOrToast(file){
   }
   return true;
 }
-async function viewEvidence(serverFilename){
+async function viewEvidenceGroup(groupId, index){
+  const files = EVIDENCE_GROUPS[groupId] || [];
+  if(!files.length) return;
+  const i = Math.max(0, Math.min(index, files.length-1));
+  const file = files[i];
+  const serverFilename = file.fileName || file.filename;
   openFileViewerModal(); // tampilkan modal dengan status loading dulu
   try{
     const r = await fetch(`/api/files/${serverFilename}/info`, { credentials:'include' });
     const info = await r.json().catch(()=>({}));
     if(!r.ok || !info.downloadUrl) throw new Error(info.error || 'Berkas tidak ditemukan');
-    renderFileViewer(info, serverFilename);
+    renderFileViewer(info, serverFilename, groupId, i, files.length);
   }catch(e){
-    renderFileViewerError(e.message || 'Gagal memuat berkas', serverFilename);
+    renderFileViewerError(e.message || 'Gagal memuat berkas', serverFilename, groupId, i, files.length);
   }
 }
 function openFileViewerModal(){
@@ -1046,7 +1051,7 @@ function openFileViewerModal(){
           <div class="spinner" style="width:26px;height:26px;"></div>
         </div>
       </div>
-      <div class="modal-foot" id="fileViewerFoot"></div>
+      <div class="modal-foot" id="fileViewerFoot" style="justify-content:space-between;"></div>
     </div>
   </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
@@ -1057,29 +1062,47 @@ function closeFileViewerModal(){
   const old = document.getElementById('fileViewerOverlay');
   if(old) old.remove();
 }
-function renderFileViewer(info, serverFilename){
+function renderFileViewer(info, serverFilename, groupId, index, total){
   const titleEl = document.getElementById('fileViewerTitle');
   const bodyEl = document.getElementById('fileViewerBody');
   const footEl = document.getElementById('fileViewerFoot');
   if(!titleEl || !bodyEl) return;
-  titleEl.textContent = info.name || 'Pratinjau Berkas';
+  const hasMultiple = total > 1;
+  titleEl.textContent = (info.name || 'Pratinjau Berkas') + (hasMultiple ? ` (${index+1}/${total})` : '');
   const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(info.downloadUrl)}&embedded=true`;
   bodyEl.innerHTML = `<iframe src="${viewerUrl}" style="width:100%;height:75vh;border:none;display:block;" title="Pratinjau berkas"></iframe>`;
   footEl.innerHTML = `
-    <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Buka di Tab Baru</button>
-    <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+    <div class="flex gap-6">
+      ${hasMultiple ? `
+        <button class="btn btn-outline btn-sm" ${index<=0?'disabled':''} onclick="viewEvidenceGroup('${groupId}',${index-1})">‹ Sebelumnya</button>
+        <button class="btn btn-outline btn-sm" ${index>=total-1?'disabled':''} onclick="viewEvidenceGroup('${groupId}',${index+1})">Berikutnya ›</button>
+      ` : ''}
+    </div>
+    <div class="flex gap-6">
+      <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Buka di Tab Baru</button>
+      <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+    </div>
   `;
 }
-function renderFileViewerError(message, serverFilename){
+function renderFileViewerError(message, serverFilename, groupId, index, total){
   const titleEl = document.getElementById('fileViewerTitle');
   const bodyEl = document.getElementById('fileViewerBody');
   const footEl = document.getElementById('fileViewerFoot');
   if(!titleEl || !bodyEl) return;
-  titleEl.textContent = 'Gagal memuat berkas';
+  const hasMultiple = total > 1;
+  titleEl.textContent = 'Gagal memuat berkas' + (hasMultiple ? ` (${index+1}/${total})` : '');
   bodyEl.innerHTML = `<div style="padding:30px;text-align:center;color:var(--danger);font-size:13px;">${escapeHtml(message)}</div>`;
   footEl.innerHTML = `
-    <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Coba Buka di Tab Baru</button>
-    <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+    <div class="flex gap-6">
+      ${hasMultiple ? `
+        <button class="btn btn-outline btn-sm" ${index<=0?'disabled':''} onclick="viewEvidenceGroup('${groupId}',${index-1})">‹ Sebelumnya</button>
+        <button class="btn btn-outline btn-sm" ${index>=total-1?'disabled':''} onclick="viewEvidenceGroup('${groupId}',${index+1})">Berikutnya ›</button>
+      ` : ''}
+    </div>
+    <div class="flex gap-6">
+      <button class="btn btn-outline" onclick="window.open('/api/files/${serverFilename}','_blank')">Coba Buka di Tab Baru</button>
+      <button class="btn btn-primary" onclick="closeFileViewerModal()">Tutup</button>
+    </div>
   `;
 }
 
@@ -1517,16 +1540,20 @@ function renderFraPage(){
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
+let EVIDENCE_GROUPS = {};   // groupId -> array file untuk baris tsb
+let EVIDENCE_GROUP_SEQ = 0; // penomor unik tiap kali evidenceCell dirender
 function evidenceCell(item, kind, qKey){
   const src = qKey ? (item[qKey]||{}) : item;
   const files = src.evidenceFiles && src.evidenceFiles.length
     ? src.evidenceFiles
     : (src.hasEvidence && src.evidenceFileName ? [{fileName:src.evidenceFileName, originalName:src.evidenceOriginalName}] : []);
   if(!files.length) return `<span class="tag tag-danger">Belum ada bukti</span>`;
-  return `<div class="flex gap-6" style="flex-wrap:wrap;">${files.map(f=>`
-    <button type="button" class="evidence-view-btn" title="${escapeHtml(f.originalName || 'Lihat bukti dukung')}" onclick="viewEvidence('${f.fileName}')">
-      ${ICONS.eye}
-    </button>`).join('')}</div>`;
+  const groupId = 'evg_' + (++EVIDENCE_GROUP_SEQ);
+  EVIDENCE_GROUPS[groupId] = files;
+  const label = files.length>1 ? `Lihat ${files.length} berkas bukti dukung` : (files[0].originalName || 'Lihat bukti dukung');
+  return `<button type="button" class="evidence-view-btn" title="${escapeHtml(label)}" onclick="viewEvidenceGroup('${groupId}',0)">
+    ${ICONS.eye}${files.length>1?`<span style="font-size:9px;font-weight:700;margin-left:2px;">${files.length}</span>`:''}
+  </button>`;
 }
 function rowActions(kind, id){
   const fnMap = {fra:'Fra', kegiatan:'Kegiatan', tugas:'Tugas', iku:'Iku', tim:'Tim'};
