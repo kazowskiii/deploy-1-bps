@@ -1970,13 +1970,13 @@ function openFraModal(id){
     </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_namaKegiatan" value="${f?escapeHtml(f.namaKegiatan||''):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
     <div class="field-row">
-      <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:''}" min="0" placeholder="mis. 100" oninput="updateFraCapaianPreview()"></div>
+      <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:120}" min="0" placeholder="mis. 100" readonly style="background:var(--surface-2);color:var(--ink-muted);"></div>
       <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75" oninput="updateFraCapaianPreview()"></div>
     </div>
     <div class="field-row">
       <div class="field">
         <label>Capaian (%) — dihitung otomatis</label>
-        <input type="text" id="f_persenPreview" value="${f && f.target ? Math.round((Number(f.realisasi)||0)/Number(f.target)*100) : 0}%" disabled style="background:var(--surface-2);font-weight:600;color:var(--primary-dark);">
+        <input type="text" id="f_persenPreview" value="${Math.round((Number(f?f.realisasi:0)||0)/Number(f?f.target:120)*100)}%" disabled style="background:var(--surface-2);font-weight:600;color:var(--primary-dark);">
       </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}"></div>
     </div>
