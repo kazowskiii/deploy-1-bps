@@ -1345,7 +1345,7 @@ Aturan:
 
       const toolCalls = choice.tool_calls;
       if (!toolCalls || !toolCalls.length) {
-        // Model sudah punya jawaban akhir (tidak minta data lagi).
+        console.log('[AI] Model TIDAK memanggil tool apa pun. Jawaban langsung:', choice.content);
         finalReply = choice.content || 'Maaf, tidak ada jawaban.';
         break;
       }
@@ -1360,12 +1360,18 @@ Aturan:
         } catch (e) {
           args = {};
         }
+
+        console.log(`[AI Tool Call] ${call.function.name}`, args);
+
         let result;
         try {
           result = runAiTool(call.function.name, args, user);
         } catch (err) {
           result = { error: err.message };
         }
+
+        console.log(`[AI Tool Result] ${call.function.name} ->`, JSON.stringify(result).slice(0, 300));
+
         messages.push({
           role: 'tool',
           tool_call_id: call.id,
