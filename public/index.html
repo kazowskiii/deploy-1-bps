@@ -1334,7 +1334,7 @@ function renderDashboard(){
     </div>
     <div class="panel" style="margin-top:14px;">
       <div class="panel-head">
-        <div><h3>Tren Realisasi Triwulan</h3><p>Persentase kumulatif per tim setiap triwulan</p></div>
+        <div><h3>Tren Realisasi Triwulan</h3><p>Rata-rata capaian FRA per tim setiap triwulan</p></div>
         <select class="select-mini" id="chartTeamFilter">
           <option value="">Semua Tim</option>
           ${DB.teams.map(t=>`<option value="${t.id}" ${t.id===CHART_TEAM_FILTER?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
@@ -1373,19 +1373,18 @@ function renderTeamProgressChart(){
   const labels = quarters.map(q=>TRIWULAN_LABELS[q]);
   const visibleTeams = CHART_TEAM_FILTER ? DB.teams.filter(tm=>tm.id===CHART_TEAM_FILTER) : DB.teams;
   const teamsData = visibleTeams.map(team=>{
-    const teamTasks = DB.tugas.filter(t=>t.tahun===FILTER_YEAR && t.timId===team.id);
-    const target = teamTasks.reduce((sum,t)=> sum + (Number(t.target)||0), 0);
-    if(!target) return null;
-    let cumulative = 0;
-    // Titik hanya dihitung untuk triwulan yang SUDAH punya entri tugas.
-    // Triwulan yang belum diisi sama sekali diberi nilai null (bukan flat mengikuti
-    // triwulan sebelumnya), supaya garis berhenti di titik data terakhir yang nyata.
-    const points = quarters.map(q=>{
-      const qtasks = teamTasks.filter(t=>t.triwulan===q);
-      if(!qtasks.length) return null;
-      const qsum = qtasks.reduce((sum,t)=> sum + (Number(t.realisasi)||0), 0);
-      cumulative += qsum;
-      return Math.min(100, target ? Math.round(cumulative/target*100) : 0);
+    const teamFra = DB.fra.filter(f=>(Number(f.tahun)===FILTER_YEAR || !f.tahun) && f.timId===team.id);
+    if(!teamFra.length) return null;
+    // Titik hanya dihitung untuk triwulan yang SUDAH punya entri FRA.
+    // Triwulan yang belum diisi sama sekali diberi nilai null, supaya garis
+    // berhenti di titik data terakhir yang nyata (bukan cumulative — nilainya
+    // rata-rata persentase capaian FRA pada triwulan tersebut).
+    const points = quarters.map((q,i)=>{
+      const qNum = i+1; // 1..4, cocok dengan Triwulan I..IV
+      const qentries = teamFra.filter(f=>periodeToArabic(f.periode)===qNum);
+      if(!qentries.length) return null;
+      const avg = Math.round(qentries.reduce((sum,f)=> sum + (Number(f.persentase)||0), 0)/qentries.length);
+      return Math.min(100, avg);
     });
     return { name: team.name, points };
   }).filter(x=>x && x.points.some(v=>v!==null && v>0));
@@ -1397,8 +1396,8 @@ function renderTeamProgressChart(){
       emptyEl.style.display = 'flex';
       emptyEl.innerHTML = `
         ${ICONS.empty}
-        <div class="es-title">Belum ada data tugas${teamLabel ? ' untuk ' + escapeHtml(teamLabel) : ''}</div>
-        <div class="text-xs">Belum ada tugas tercatat untuk tahun ${FILTER_YEAR}${teamLabel ? ' pada tim ini' : ' pada tim manapun'}.</div>
+        <div class="es-title">Belum ada data FRA${teamLabel ? ' untuk ' + escapeHtml(teamLabel) : ''}</div>
+        <div class="text-xs">Belum ada capaian FRA tercatat untuk tahun ${FILTER_YEAR}${teamLabel ? ' pada tim ini' : ' pada tim manapun'}.</div>
       `;
     }
     if(legend) legend.innerHTML = '';
