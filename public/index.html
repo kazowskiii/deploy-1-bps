@@ -1839,17 +1839,17 @@ function renderTimPage(){
   if(!items.length) return emptyState('tim','Belum ada tim','Tambahkan tim kerja untuk digunakan pada seluruh modul.');
   const canManage = isAdmin();
   const rows = items.map(t=>{
-    const cIku = DB.iku.filter(i=>i.timId===t.id).length;
-    const cTugas = DB.tugas.filter(i=>i.timId===t.id).length;
+    const cFra = DB.fra.filter(f=>f.timId===t.id).length;
+    const cKegiatan = DB.kegiatan.filter(k=>k.timId===t.id).length;
     return `<tr>
       <td class="cell-title">${escapeHtml(t.name)}</td>
-      <td>${cIku} IKU</td>
-      <td>${cTugas} tugas</td>
+      <td>${cFra} capaian FRA</td>
+      <td>${cKegiatan} analisis kegiatan</td>
       <td>${canManage ? rowActions('tim', t.id) : ''}</td>
     </tr>`;
   }).join('');
   return `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>Nama Tim</th><th>IKU Terkait</th><th>Tugas Terkait</th><th></th></tr></thead>
+    <thead><tr><th>Nama Tim</th><th>Capaian FRA</th><th>Analisis Kegiatan</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
