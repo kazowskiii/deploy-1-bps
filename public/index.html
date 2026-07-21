@@ -1024,12 +1024,14 @@ function validateFileOrToast(file){
   }
   return true;
 }
+let CURRENT_EVIDENCE_VIEW = null; // {groupId, index, total} — dipakai navigasi tombol panah keyboard
 async function viewEvidenceGroup(groupId, index){
   const files = EVIDENCE_GROUPS[groupId] || [];
   if(!files.length) return;
   const i = Math.max(0, Math.min(index, files.length-1));
   const file = files[i];
   const serverFilename = file.fileName || file.filename;
+  CURRENT_EVIDENCE_VIEW = { groupId, index: i, total: files.length };
   openFileViewerModal(); // tampilkan modal dengan status loading dulu
   try{
     const r = await fetch(`/api/files/${serverFilename}/info`, { credentials:'include' });
@@ -1061,6 +1063,7 @@ function openFileViewerModal(){
 function closeFileViewerModal(){
   const old = document.getElementById('fileViewerOverlay');
   if(old) old.remove();
+  CURRENT_EVIDENCE_VIEW = null;
 }
 function renderFileViewer(info, serverFilename, groupId, index, total){
   const titleEl = document.getElementById('fileViewerTitle');
@@ -1915,6 +1918,22 @@ document.addEventListener('keydown', function(e){
   if(e.key === 'Escape'){
     const viewerOverlay = document.getElementById('fileViewerOverlay');
     if(viewerOverlay) closeFileViewerModal();
+  }
+  // Navigasi antar berkas bukti dukung pakai tombol panah kiri/kanan,
+  // hanya aktif kalau modal file viewer sedang terbuka dan ada >1 berkas.
+  if((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && CURRENT_EVIDENCE_VIEW){
+    const viewerOverlay = document.getElementById('fileViewerOverlay');
+    if(viewerOverlay){
+      const { groupId, index, total } = CURRENT_EVIDENCE_VIEW;
+      if(e.key === 'ArrowLeft' && index > 0){
+        e.preventDefault();
+        viewEvidenceGroup(groupId, index - 1);
+      } else if(e.key === 'ArrowRight' && index < total - 1){
+        e.preventDefault();
+        viewEvidenceGroup(groupId, index + 1);
+      }
+      return;
+    }
   }
   if(e.key !== 'Enter') return;
   const overlay = document.getElementById('modalOverlay');
