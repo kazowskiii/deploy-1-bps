@@ -653,12 +653,7 @@ function applyPageFilters(items, collection){
 function statusLabelFor(collection, item){
   if(collection==='iku' || collection==='tugas') return statusFor(collection==='iku'?ikuPct(item):tugasPct(item)).label;
   if(collection==='kegiatan') return item.status || '—';
-  if(collection==='fra'){
-    const pct = Number(item.persentase)||0;
-    if(pct>=100) return 'Tercapai';
-    if(pct>=60) return 'Perlu Perhatian';
-    return 'Tertinggal';
-  }
+  if(collection==='fra') return fraStatusFor(Number(item.persentase)||0).label;
   return '—';
 }
 function exportButtons(collection){
@@ -1556,6 +1551,11 @@ function statusFor(pct){
   if(pct>=30) return {cls:'warning',tag:'tag-warning',label:'Perlu Perhatian'};
   return {cls:'danger',tag:'tag-danger',label:'Tertinggal'};
 }
+function fraStatusFor(pct){
+  if(pct>=100) return {cls:'success',tag:'tag-success',label:'Tercapai'};
+  if(pct>=60)  return {cls:'',tag:'tag-primary',label:'Perlu Perhatian'};
+  return {cls:'danger',tag:'tag-danger',label:'Tertinggal'};
+}
 
 /* ============================================================
    FRA — Monitoring Capaian Kinerja Tim
@@ -1570,7 +1570,7 @@ function renderFraPage(){
   }
   const rows = items.map(f=>{
     const pct = Number(f.persentase)||0;
-    const st = statusFor(pct);
+    const st = fraStatusFor(pct);
     return `<tr>
       <td>
         <span class="team-pill">${escapeHtml(teamName(f.timId))}</span>
