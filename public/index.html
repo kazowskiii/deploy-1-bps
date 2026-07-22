@@ -589,10 +589,8 @@ function filterOptions(collection){
   const searchField = `<div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>`;
   const triwulanField = `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
   let firstFields;
-  if(collection === 'fra'){
+  if(collection === 'fra' || collection === 'kegiatan'){
     firstFields = triwulanField;
-  } else if(collection === 'kegiatan'){
-    firstFields = searchField + triwulanField;
   } else {
     firstFields = searchField;
   }
