@@ -2091,13 +2091,13 @@ function openFraModal(id){
       <div class="field"><label>Jam</label><input type="time" id="f_jamKegiatan" value="${f && f.tanggalKegiatan ? f.tanggalKegiatan.slice(11,16) : '08:00'}"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:120}" min="0" placeholder="mis. 100" readonly style="background:var(--surface-2);color:var(--ink-muted);"></div>
-      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75" oninput="updateFraCapaianPreview()"></div>
+      <div class="field"><label>Target</label><input type="number" id="f_target" value="${f?f.target:''}" min="0" placeholder="mis. 100"></div>
+      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75"></div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Capaian (%) — dihitung otomatis</label>
-        <input type="text" id="f_persenPreview" value="${Math.round((Number(f?f.realisasi:0)||0)/Number(f?f.target:120)*100)}%" disabled style="background:var(--surface-2);font-weight:600;color:var(--primary-dark);">
+        <label>Capaian (%)</label>
+        <input type="number" id="f_persenPreview" value="${f?(f.persentase??''):''}" min="0" placeholder="mis. 85">
       </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}"></div>
     </div>
@@ -2121,16 +2121,6 @@ function updateFraIkuNamaPreview(){
   const nameEl = document.getElementById('f_ikuNama');
   if(!selectEl || !nameEl) return;
   nameEl.value = fraIkuNamaByNo(selectEl.value);
-}
-function updateFraCapaianPreview(){
-  const targetEl = document.getElementById('f_target');
-  const realisasiEl = document.getElementById('f_realisasi');
-  const previewEl = document.getElementById('f_persenPreview');
-  if(!targetEl || !realisasiEl || !previewEl) return;
-  const target = Number(targetEl.value)||0;
-  const realisasi = Number(realisasiEl.value)||0;
-  const pct = target>0 ? Math.round(realisasi/target*100) : 0;
-  previewEl.value = pct + '%';
 }
 function evidenceField(kind, item){
   const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
@@ -2271,7 +2261,7 @@ async function saveFra(id){
   const tanggalKegiatan = tanggalInput ? `${tanggalInput}T${jamInput}:00` : null;
   const target = Number(document.getElementById('f_target').value)||0;
   const realisasi = Number(document.getElementById('f_realisasi').value)||0;
-  const persentase = target>0 ? Math.round(realisasi/target*100) : 0;
+  const persentase = Number(document.getElementById('f_persenPreview').value)||0;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const catatan = document.getElementById('f_catatan').value.trim();
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
