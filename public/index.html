@@ -508,6 +508,8 @@ let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '', triwulan: '' };
 let ROUTE = 'dashboard';
+let KEGIATAN_SUBTAB = 'kegiatan'; // 'kegiatan' | 'pencapaian'
+let PENCAPAIAN_MATCH_ID = null;
 let FILTER_YEAR = new Date().getFullYear();
 let CHART_TEAM_FILTER = '';
 let AUTH_VIEW = 'login';
@@ -1323,6 +1325,9 @@ function routeAddButton(){
     return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
   }
   if(ROUTE === 'tim' && !isAdmin()) return ''; // operator tidak boleh menambah tim
+  if(ROUTE === 'kegiatan' && KEGIATAN_SUBTAB === 'pencapaian'){
+    return `<button class="btn btn-primary" onclick="openPencapaianModal()">${ICONS.plus} Tambah Bukti Tindak Lanjut</button>`;
+  }
   const map = {
     fra: ['openFraModal()','Tambah Capaian'],
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],
@@ -1675,6 +1680,19 @@ function emptyState(kind, title, sub){
    ANALISIS KEGIATAN
    ============================================================ */
 function renderKegiatanPage(){
+  const tabsHtml = `<div class="tabs-mini" style="margin-bottom:16px;display:inline-flex;">
+    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='kegiatan'?'active':''}" onclick="switchKegiatanSubtab('kegiatan')">Analisis Kegiatan</button>
+    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='pencapaian'?'active':''}" onclick="switchKegiatanSubtab('pencapaian')">Analisis Pencapaian</button>
+  </div><br>`;
+  if(KEGIATAN_SUBTAB === 'pencapaian') return tabsHtml + renderPencapaianPage();
+  return tabsHtml + renderKegiatanListPage();
+}
+function switchKegiatanSubtab(tab){
+  KEGIATAN_SUBTAB = tab;
+  renderShell();
+}
+
+function renderKegiatanListPage(){
   const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
   const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
   const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
@@ -1696,10 +1714,44 @@ function renderKegiatanPage(){
       <td>${statusPill(k.status)}</td>
       <td>${kegiatanActions(k)}</td>
     </tr>`).join('');
-  return header + `<div class="panel"><div class="table-wrap"><table>
+  return header + note + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
+}
+
+function renderPencapaianPage(){
+  const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
+  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
+  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>Analisis Pencapaian</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
+  if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Tambahkan datanya dulu di tab Analisis Kegiatan.');
+  const rows = items.map(k=>`
+    <tr>
+      <td class="mono">${k.ikuNomor || '—'}</td>
+      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(k.ikuNomor) || '—')}</td>
+      <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
+      <td style="min-width:160px;">
+        <div class="cell-title">${escapeHtml(k.nama)}</div>
+        <div class="cell-sub mono">${fmtDate(k.tanggal)}</div>
+      </td>
+      <td class="mono">${escapeHtml(k.periode||'—')}</td>
+      <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
+      <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
+      <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
+      <td>${statusPill(k.status)}</td>
+      <td>${evidenceCell(k,'kegiatan')}</td>
+      <td>${pencapaianActions(k)}</td>
+    </tr>`).join('');
+  return header + note + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th>Bukti Dukung TL</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+function pencapaianActions(k){
+  return `<div class="flex gap-6">
+    <button class="icon-btn" onclick="openPencapaianModal('${k.id}')" title="Kelola Bukti Tindak Lanjut">${ICONS.upload}</button>
+  </div>`;
 }
 function statusPill(s){
   const map = {'Belum Ditindaklanjuti':'tag-danger','Dalam Proses':'tag-warning','Selesai':'tag-success'};
@@ -2370,7 +2422,91 @@ async function saveKegiatan(id){
     if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
   }
 }
-
+/* ---- PENCAPAIAN modal (upload bukti dukung tindak lanjut, semua input dropdown) ---- */
+function openPencapaianModal(id){
+  const k = id ? DB.kegiatan.find(x=>x.id===id) : null;
+  const years = yearsAvailable();
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Tim</label><select id="pc_tim" onchange="updatePencapaianMatch()">${teamOptions(k?k.timId:null)}</select></div>
+      <div class="field"><label>Periode</label>
+        <select id="pc_periode" onchange="updatePencapaianMatch()">
+        ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>
+        `<option value="${p}" ${k && k.periode===p ? 'selected' : ''}>${p}</option>`
+        ).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Tahun</label>
+        <select id="pc_tahun" onchange="updatePencapaianMatch()">
+        ${years.map(y=>`<option value="${y}" ${(k && Number(k.tahun)===y) || (!k && y===FILTER_YEAR) ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>No IKU</label>
+        <select id="pc_ikuNomor" onchange="updatePencapaianMatch()">
+        ${FRA_IKU_LIST.map(item=>
+        `<option value="${item.no}" ${k && k.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
+        ).join('')}
+        </select>
+      </div>
+    </div>
+    <div id="pc_matchResult"></div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="pc_saveBtn" onclick="savePencapaian()" disabled>Simpan</button>`;
+  openModal(modalShell('Analisis Pencapaian — Bukti Tindak Lanjut', body, foot));
+  updatePencapaianMatch();
+}
+function findMatchingKegiatan(){
+  const timId = document.getElementById('pc_tim').value;
+  const periode = document.getElementById('pc_periode').value;
+  const tahun = Number(document.getElementById('pc_tahun').value);
+  const ikuNomor = document.getElementById('pc_ikuNomor').value;
+  return DB.kegiatan.find(k=>k.timId===timId && k.periode===periode && Number(k.tahun)===tahun && k.ikuNomor===ikuNomor);
+}
+function updatePencapaianMatch(){
+  const match = findMatchingKegiatan();
+  const container = document.getElementById('pc_matchResult');
+  const saveBtn = document.getElementById('pc_saveBtn');
+  PENCAPAIAN_MATCH_ID = match ? match.id : null;
+  if(!match){
+    container.innerHTML = `<div class="section-note" style="background:var(--danger-soft);border-color:#E3AFAA;color:var(--danger);">${ICONS.warning}<div>Tidak ditemukan data Analisis Kegiatan yang cocok dengan kombinasi Tim/Periode/Tahun/No IKU ini. Tambahkan dulu datanya di tab Analisis Kegiatan.</div></div>`;
+    if(saveBtn) saveBtn.disabled = true;
+    return;
+  }
+  container.innerHTML = `
+    <div class="field"><label>Nama Kegiatan</label><input type="text" value="${escapeHtml(match.nama)}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+    <div class="field"><label>Kendala</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.kendala)}</textarea></div>
+    <div class="field"><label>Solusi</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.solusi)}</textarea></div>
+    <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.rtl)}</textarea></div>
+    ${evidenceField('kegiatan', match)}
+  `;
+  wireEvidenceField('kegiatan', match.id);
+  if(saveBtn) saveBtn.disabled = false;
+}
+async function savePencapaian(){
+  if(!PENCAPAIAN_MATCH_ID){ toast('Tidak ada data Analisis Kegiatan yang cocok untuk disimpan','err'); return; }
+  const match = DB.kegiatan.find(x=>x.id===PENCAPAIAN_MATCH_ID);
+  if(!match){ toast('Data tidak ditemukan','err'); return; }
+  const payload = {
+    timId: match.timId, periode: match.periode, tanggal: match.tanggal, tahun: match.tahun,
+    ikuNomor: match.ikuNomor, nama: match.nama, kendala: match.kendala,
+    solusi: match.solusi, rtl: match.rtl, status: match.status, starred: !!match.starred,
+  };
+  const evMeta = persistPendingEvidence('kegiatan');
+  if(evMeta) Object.assign(payload, evMeta);
+  const btn = document.getElementById('pc_saveBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    const saved = await apiPut('kegiatan', PENCAPAIAN_MATCH_ID, payload);
+    registerAutoAttachIfUploading('kegiatan', 'kegiatan', saved.id);
+    await loadAll();
+    closeModal(); toast('Bukti dukung tindak lanjut disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan bukti dukung','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
 /* ---- TUGAS modal (create/edit basic info; quarters edited inline in page) ---- */
 function openTugasModal(id){
   const t = id ? DB.tugas.find(x=>x.id===id) : null;

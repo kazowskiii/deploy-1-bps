@@ -595,6 +595,12 @@ const kegiatanSchema = Joi.object({
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
   starred: Joi.boolean().optional(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
+  hasEvidence: Joi.boolean().optional(),
+  evidenceFiles: Joi.array().items(Joi.object({
+    fileName: Joi.string().required(),
+    originalName: Joi.string().required(),
+    size: Joi.number().min(0).required(),
+  })).default([]),
 });
 const tugasSchema = Joi.object({
   timId: Joi.string().required(),
