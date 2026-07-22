@@ -2263,6 +2263,12 @@ function wireEvidenceField(kind, id){
       const triwulanEl = document.getElementById('f_triwulan');
       if(triwulanEl) extra.triwulan = triwulanEl.value;
     }
+    if(kind === 'kegiatan'){
+      const periodeEl = document.getElementById('pc_periode');
+      const ikuEl = document.getElementById('pc_ikuNomor');
+      if(periodeEl) extra.periode = periodeEl.value;
+      if(ikuEl) extra.ikuNomor = ikuEl.value;
+    }
 
     const myToken = EVIDENCE_UPLOAD_TOKEN[kind]; // dipakai bersama untuk seluruh batch ini
     const dz = document.getElementById(`dzContent_${kind}`);

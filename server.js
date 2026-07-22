@@ -1131,7 +1131,7 @@ const TUGAS_QKEY_TO_ARABIC = { q1: 1, q2: 2, q3: 3, q4: 4 };
 function buildUploadFolder(kind, meta) {
   const baseFolder = UPLOAD_FOLDER_BY_KIND[kind];
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
-  if (kind === 'fra') {
+  if (kind === 'fra' || kind === 'kegiatan') {
     const triwulanNum = periodeToTriwulanNumber(meta.periode);
     const ikuKode = String(meta.ikuNomor || '').trim();
     if (triwulanNum && ikuKode) {
