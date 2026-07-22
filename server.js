@@ -568,7 +568,7 @@ const teamSchema = Joi.object({
 const fraSchema = Joi.object({
   timId: Joi.string().required(),
   periode: Joi.string().trim().min(3).max(120).required(),
-  ikuNomor: Joi.number().integer().min(1).max(16).required(),
+  ikuNomor: Joi.string().trim().min(1).max(20).required(),
   namaKegiatan: Joi.string().trim().min(3).max(250).required(),
   tanggalKegiatan: Joi.string().isoDate().required(),
   target: Joi.number().min(0.0001).required(),
@@ -1122,9 +1122,9 @@ function buildUploadFolder(kind, meta) {
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
   if (kind === 'fra') {
     const triwulanNum = periodeToTriwulanNumber(meta.periode);
-    const ikuNum = Number(meta.ikuNomor);
-    if (triwulanNum && ikuNum >= 1 && ikuNum <= 16) {
-      return `${baseFolder}/Triwulan ${triwulanNum}/IKU ${ikuNum}`;
+    const ikuKode = String(meta.ikuNomor || '').trim();
+    if (triwulanNum && ikuKode) {
+      return `${baseFolder}/Triwulan ${triwulanNum}/IKU ${ikuKode}`;
     }
   }
   if (kind === 'tugas') {

@@ -473,6 +473,29 @@ const ICONS = {
 };
 
 const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
+const FRA_IKU_LIST = [
+  { no: '1.1.1.1', nama: 'Persentase Publikasi/Laporan Statistik Kependudukan dan Ketenagakerjaan yang Berkualitas' },
+  { no: '1.1.3.1', nama: 'Persentase Publikasi/Laporan Statistik Kesejahteraan Rakyat yang Berkualitas' },
+  { no: '1.1.5.1', nama: 'Persentase Publikasi/Laporan Statistik Ketahanan Sosial yang Berkualitas' },
+  { no: '1.2.1.1', nama: 'Persentase Publikasi/Laporan Statistik Tanaman Pangan, Hortikultura, dan Perkebunan yang Berkualitas' },
+  { no: '1.2.2.1', nama: 'Persentase Publikasi/Laporan Statistik Peternakan, Perikanan, dan Kehutanan yang Berkualitas' },
+  { no: '1.2.3.1', nama: 'Persentase Publikasi/Laporan Statistik Industri yang Berkualitas' },
+  { no: '1.3.1.1', nama: 'Persentase Publikasi/Laporan Statistik Distribusi yang Berkualitas' },
+  { no: '1.3.3.1', nama: 'Persentase Publikasi/Laporan Statistik Harga yang Berkualitas' },
+  { no: '1.3.5.1', nama: 'Persentase Publikasi/Laporan Statistik Keuangan, Teknologi Informasi, dan Pariwisata yang Berkualitas' },
+  { no: '1.4.1.1', nama: 'Persentase Publikasi/Laporan Neraca Produksi yang Berkualitas' },
+  { no: '1.4.1.2', nama: 'Persentase Publikasi/Laporan Neraca Pengeluaran yang Berkualitas' },
+  { no: '1.4.1.3', nama: 'Persentase Publikasi/Laporan Analisis Statistik dan Neraca Satelit yang Berkualitas' },
+  { no: '2.1.4.1', nama: 'Persentase Kumulatif Desa Yang Berpredikat Desa Cinta Statistik' },
+  { no: '2.5.1.1', nama: 'Tingkat Penyelenggaraan Pembinaan Statistik Sektoral sesuai standar' },
+  { no: '2.7.1.1', nama: 'Indeks Pelayanan Publik - Penilaian mandiri' },
+  { no: '3.2.4.1', nama: 'Nilai SAKIP oleh Inspektorat' },
+  { no: '3.2.4.2', nama: 'Indeks Implementasi BerAKHLAK' },
+];
+function fraIkuNamaByNo(no){
+  const item = FRA_IKU_LIST.find(x=>x.no===no);
+  return item ? item.nama : '';
+}
 const MAX_FILE_MB = 10;
 
 const CREDENTIALS = { username: 'admin', password: 'admin123' };
@@ -2050,12 +2073,17 @@ function openFraModal(id){
       </select>
 </div>
     </div>
-    <div class="field"><label>IKU</label>
-      <select id="f_ikuNomor">
-      ${Array.from({length:16},(_,i)=>i+1).map(n=>
-      `<option value="${n}" ${f && Number(f.ikuNomor)===n ? 'selected' : ''}>IKU ${n}</option>`
+    <div class="field">
+      <label>No IKU</label>
+      <select id="f_ikuNomor" onchange="updateFraIkuNamaPreview()">
+      ${FRA_IKU_LIST.map(item=>
+      `<option value="${item.no}" ${f && f.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
       ).join('')}
       </select>
+    </div>
+    <div class="field">
+      <label>IKU</label>
+      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(f && f.ikuNomor ? f.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
     </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_namaKegiatan" value="${f?escapeHtml(f.namaKegiatan||''):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
     <div class="field-row">
@@ -2087,6 +2115,12 @@ function openFraModal(id){
       }
     });
   });
+}
+function updateFraIkuNamaPreview(){
+  const selectEl = document.getElementById('f_ikuNomor');
+  const nameEl = document.getElementById('f_ikuNama');
+  if(!selectEl || !nameEl) return;
+  nameEl.value = fraIkuNamaByNo(selectEl.value);
 }
 function updateFraCapaianPreview(){
   const targetEl = document.getElementById('f_target');
@@ -2230,7 +2264,7 @@ function registerAutoAttachIfUploading(kind, collection, id){
 async function saveFra(id){
   const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value.trim();
-  const ikuNomor = Number(document.getElementById('f_ikuNomor').value)||1;
+  const ikuNomor = document.getElementById('f_ikuNomor').value;
   const namaKegiatan = document.getElementById('f_namaKegiatan').value.trim();
   const tanggalInput = document.getElementById('f_tanggalKegiatan').value;
   const jamInput = document.getElementById('f_jamKegiatan').value || '00:00';
