@@ -1591,12 +1591,12 @@ function renderFraPage(){
   if(!items.length){
     return header + note + emptyState('fra','Belum ada capaian tim tercatat','Tambahkan capaian kinerja tim pertama untuk mulai memantau.');
   }
-  const rows = items.map((f, idx)=>{
+  const rows = items.map((f)=>{
     const pct = Number(f.persentase)||0;
     const st = fraStatusFor(pct);
     return `<tr>
-      <td class="mono">${idx+1}</td>
-      <td class="mono">${f.ikuNomor ? 'IKU '+f.ikuNomor : '—'}</td>
+      <td class="mono">${f.ikuNomor || '—'}</td>
+      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(f.ikuNomor) || '—')}</td>
       <td>
         <span class="team-pill">${escapeHtml(teamName(f.timId))}</span>
         <div class="cell-sub mono" style="margin-top:4px;">${fmtDate(f.tanggalKegiatan)}${f.tanggalKegiatan ? ' · '+fmtTime(f.tanggalKegiatan) : ''}</div>
@@ -1620,7 +1620,7 @@ function renderFraPage(){
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>No</th><th>IKU</th><th>Tim</th><th>Nama Kegiatan</th><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Nama Kegiatan</th><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
