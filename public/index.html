@@ -1754,8 +1754,13 @@ function renderPencapaianPage(){
   </table></div></div>`;
 }
 function pencapaianActions(k){
+  const hasFiles = (k.evidenceFiles && k.evidenceFiles.length) || k.hasEvidence;
+  const delBtn = hasFiles
+    ? `<button class="icon-btn" onclick="deletePencapaianEvidence('${k.id}')" title="Hapus Bukti Tindak Lanjut" style="color:var(--danger);">${ICONS.trash}</button>`
+    : '';
   return `<div class="flex gap-6">
     <button class="icon-btn" onclick="openPencapaianModal('${k.id}')" title="Kelola Bukti Tindak Lanjut">${ICONS.upload}</button>
+    ${delBtn}
   </div>`;
 }
 function statusPill(s){
@@ -2510,6 +2515,25 @@ async function savePencapaian(){
   }catch(e){
     toast(e.message || 'Gagal menyimpan bukti dukung','err');
     if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+async function deletePencapaianEvidence(id){
+  const item = DB.kegiatan.find(x=>x.id===id);
+  if(!item) return;
+  if(!confirm('Hapus semua bukti dukung tindak lanjut untuk kegiatan ini? Data kegiatan (kendala/solusi/RTL) tidak akan terhapus.')) return;
+  const payload = {
+    timId: item.timId, periode: item.periode, tanggal: item.tanggal, tahun: item.tahun,
+    ikuNomor: item.ikuNomor, nama: item.nama, kendala: item.kendala,
+    solusi: item.solusi, rtl: item.rtl, status: item.status, starred: !!item.starred,
+    hasEvidence: false, evidenceFiles: [],
+  };
+  try{
+    await apiPut('kegiatan', id, payload);
+    await loadAll();
+    renderContent();
+    toast('Bukti dukung tindak lanjut dihapus','ok');
+  }catch(e){
+    toast(e.message || 'Gagal menghapus bukti dukung','err');
   }
 }
 /* ---- TUGAS modal (create/edit basic info; quarters edited inline in page) ---- */
