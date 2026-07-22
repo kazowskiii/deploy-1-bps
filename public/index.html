@@ -1166,6 +1166,9 @@ function renderShell(){
         <div class="nav-group-label">Modul Kinerja</div>
         ${navItem('fra','fra','FRA — Capaian Tim', DB.fra.length)}
         ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
+        <a href="#" class="nav-item ${ROUTE==='pencapaian'?'active':''}" data-route="pencapaian" style="padding-left:30px;font-size:12.5px;">
+          ${ICONS.iku}<span>Analisis Pencapaian</span>
+        </a>
         <div class="nav-group-label">Admin</div>
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
         ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
@@ -1196,6 +1199,7 @@ function renderTopbar(){
     dashboard:['Dashboard','Ringkasan capaian kinerja seluruh tim & indikator utama'],
     fra:['FRA — Monitoring Capaian Kinerja Tim','Pantau capaian tiap tim beserta bukti dukung laporan'],
     kegiatan:['Analisis Kegiatan','Kendala, solusi, dan rencana tindak lanjut (RTL) tiap kegiatan'],
+    pencapaian:['Analisis Pencapaian','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
@@ -1203,7 +1207,7 @@ function renderTopbar(){
   const [t, sub] = titles[ROUTE];
   // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
   // tampilkan badge kecil supaya tahun aktif tetap terlihat jelas.
-  const yearContextRoutes = ['fra','kegiatan'];
+  const yearContextRoutes = ['fra','kegiatan','pencapaian'];
   const yearBadge = yearContextRoutes.includes(ROUTE)
     ? `<span class="tag tag-primary" title="Tahun aktif dipilih dari halaman Dashboard">Tahun ${FILTER_YEAR}</span>`
     : '';
@@ -1325,7 +1329,7 @@ function routeAddButton(){
     return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
   }
   if(ROUTE === 'tim' && !isAdmin()) return ''; // operator tidak boleh menambah tim
-  if(ROUTE === 'kegiatan' && KEGIATAN_SUBTAB === 'pencapaian'){
+  if(ROUTE === 'pencapaian'){
     return `<button class="btn btn-primary" onclick="openPencapaianModal()">${ICONS.plus} Tambah Bukti Tindak Lanjut</button>`;
   }
   const map = {
@@ -1347,7 +1351,8 @@ function renderContent(){
     renderTeamProgressChart();
     wireChartTeamFilter();
   } else if(ROUTE==='fra') c.innerHTML = renderFraPage();
-  else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanPage();
+  else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanListPage();
+  else if(ROUTE==='pencapaian') c.innerHTML = renderPencapaianPage();
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
   else if(ROUTE==='users') c.innerHTML = renderUserPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
