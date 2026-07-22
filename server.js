@@ -212,6 +212,10 @@ function findUserByLogin(loginInput) {
   );
 }
 
+function hasAnyUser() {
+  return Array.isArray(DB.users) && DB.users.length > 0;
+}
+
 function sanitizeUserForClient(u) {
   const { passwordHash, ...rest } = u;
   return rest;
