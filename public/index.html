@@ -2246,12 +2246,12 @@ function openFraModal(id){
         <label>Target (diatur Admin)</label>
         <input type="number" id="f_target" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Pilih No IKU & Tahun">
       </div>
-      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75"></div>
+      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" placeholder="mis. 75" oninput="updateFraCapaianPreview()"></div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Capaian (%)</label>
-        <input type="number" id="f_persenPreview" value="${f?(f.persentase??120):120}" min="0" placeholder="mis. 85">
+        <label>Capaian (%) — otomatis</label>
+        <input type="number" id="f_persenPreview" value="${f?(f.persentase??0):0}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
       </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}" oninput="updateFraTargetPreview()"></div>
     </div>
@@ -2262,6 +2262,7 @@ function openFraModal(id){
   openModal(modalShell(f?'Ubah Capaian Tim':'Tambah Capaian Tim (FRA)', body, foot));
   wireEvidenceField('fra', id);
   updateFraTargetPreview();
+  updateFraCapaianPreview();
   ['f_periode','f_ikuNomor'].forEach(fieldId=>{
     const el = document.getElementById(fieldId);
     if(el) el.addEventListener('change', ()=>{
@@ -2290,20 +2291,21 @@ function updateFraTargetPreview(){
     targetEl.value = '';
     targetEl.placeholder = 'Admin belum atur target IKU ini';
   }
+  updateFraCapaianPreview();
 }
-function updateFraTargetPreview(){
-  const ikuEl = document.getElementById('f_ikuNomor');
-  const tahunEl = document.getElementById('f_tahun');
+function updateFraCapaianPreview(){
   const targetEl = document.getElementById('f_target');
-  if(!ikuEl || !tahunEl || !targetEl) return;
-  const found = findIkuTarget(ikuEl.value, tahunEl.value);
-  if(found){
-    targetEl.value = found.target;
-    targetEl.placeholder = '';
-  } else {
-    targetEl.value = '';
-    targetEl.placeholder = 'Admin belum atur target IKU ini';
+  const realisasiEl = document.getElementById('f_realisasi');
+  const persenEl = document.getElementById('f_persenPreview');
+  if(!targetEl || !realisasiEl || !persenEl) return;
+  const target = Number(targetEl.value)||0;
+  const realisasi = Number(realisasiEl.value)||0;
+  if(!target){
+    persenEl.value = 0;
+    return;
   }
+  const pct = Math.round((realisasi/target)*100);
+  persenEl.value = pct;
 }
 function evidenceField(kind, item){
   const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
