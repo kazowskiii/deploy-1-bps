@@ -24,6 +24,7 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const onedrive = require('./onedrive');
 const bcrypt = require('bcryptjs');
+const { tanyaAI } = require('./groqService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1228,6 +1229,41 @@ app.delete('/api/files/:filename', requireLogin, async (req, res) => {
     console.error('Gagal menghapus berkas di OneDrive:', err.message);
     res.status(502).json({ error: `Gagal menghapus berkas di OneDrive: ${err.message}` });
   }
+});
+
+app.post('/api/tanya-ai', requireLogin, isJsonRequest, async (req, res) => {
+  try {
+    const pertanyaan = sanitizeText(req.body.pertanyaan);
+    if (!pertanyaan) {
+      return res.status(400).json({ error: 'Pertanyaan tidak boleh kosong' });
+    }
+
+    const user = req.session.user;
+    const fraScope = filterItems(DB.fra, user, 'fra', {});
+    const kegiatanScope = filterItems(DB.kegiatan, user, 'kegiatan', {});
+
+    const contextData = {
+      totalFra: fraScope.length,
+      totalKegiatan: kegiatanScope.length,
+      rataRataCapaianFra: fraScope.length
+        ? Math.round(fraScope.reduce((s, f) => s + (Number(f.persentase) || 0), 0) / fraScope.length)
+        : 0,
+      kegiatanTerbaru: kegiatanScope.slice(0, 5).map(k => ({
+        nama: k.nama, kendala: k.kendala, solusi: k.solusi, rtl: k.rtl, status: k.status,
+      })),
+    };
+
+    const jawaban = await tanyaAI(pertanyaan, contextData);
+    res.json({ jawaban });
+  } catch (err) {
+    console.error('Error /api/tanya-ai:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Endpoint tidak ditemukan' });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('*', (req, res) => {
