@@ -738,6 +738,10 @@ async function logout(){
   setAuth(null);
   toast('Anda telah keluar', 'ok');
   history.replaceState(null, '', '/login');
+  const fab = document.getElementById('tanya-ai-fab');
+  const panel = document.getElementById('tanya-ai-panel');
+  if(fab) fab.remove();
+  if(panel) panel.remove();
   renderLoginPage();
 }
 function renderSetupPage(){
@@ -1192,6 +1196,7 @@ function renderShell(){
   });
   renderTopbar();
   renderContent();
+  renderTanyaAIWidget();
 }
 
 function renderTopbar(){
@@ -2708,24 +2713,28 @@ function wireDynamic(){ /* reserved for future dynamic listeners */ }
   #tanya-ai-send:disabled{opacity:.6;cursor:not-allowed;}
 </style>
 
-<button id="tanya-ai-fab" onclick="toggleTanyaAI()">💬 Tanya AI</button>
-
-<div id="tanya-ai-panel">
-  <div id="tanya-ai-header">
-    <div>
-      <h3>Tanya AI SIMONEV</h3>
-      <p>Bertanya soal data kinerja tim</p>
-    </div>
-    <button id="tanya-ai-close" onclick="toggleTanyaAI()">✕</button>
-  </div>
-  <div id="tanya-ai-messages"></div>
-  <div id="tanya-ai-inputbar">
-    <input id="tanya-ai-input" type="text" placeholder="Tanya soal data SIMONEV..." onkeydown="if(event.key==='Enter') kirimTanyaAI()">
-    <button id="tanya-ai-send" onclick="kirimTanyaAI()">Kirim</button>
-  </div>
-</div>
-
 <script>
+  function renderTanyaAIWidget(){
+  if(document.getElementById('tanya-ai-fab')) return;
+  const html = `
+    <button id="tanya-ai-fab" onclick="toggleTanyaAI()">💬 Tanya AI</button>
+    <div id="tanya-ai-panel">
+      <div id="tanya-ai-header">
+        <div>
+          <h3>Tanya AI SIMONEV</h3>
+          <p>Bertanya soal data kinerja tim</p>
+        </div>
+        <button id="tanya-ai-close" onclick="toggleTanyaAI()">✕</button>
+      </div>
+      <div id="tanya-ai-messages"></div>
+      <div id="tanya-ai-inputbar">
+        <input id="tanya-ai-input" type="text" placeholder="Tanya soal data SIMONEV..." onkeydown="if(event.key==='Enter') kirimTanyaAI()">
+        <button id="tanya-ai-send" onclick="kirimTanyaAI()">Kirim</button>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
   function toggleTanyaAI(){
     document.getElementById('tanya-ai-panel').classList.toggle('open');
   }
