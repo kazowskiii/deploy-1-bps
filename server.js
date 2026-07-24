@@ -78,6 +78,7 @@ function createInitialDB() {
     tugas: [],
     auditLogs: [],
     notifications: [],
+    ikuTargets: [],
   };
 }
 
@@ -112,6 +113,7 @@ function loadDB() {
 let DB = loadDB();
 DB.users = DB.users || [];
 DB.notifications = DB.notifications || [];
+DB.ikuTargets = DB.ikuTargets || [];
 seedDefaultUsersIfEmpty();
 let writeQueue = Promise.resolve();
 function saveDB() {
@@ -639,6 +641,12 @@ const ikuSchema = Joi.object({
   })).default([]),
 });
 
+const ikuTargetSchema = Joi.object({
+  ikuNomor: Joi.string().trim().min(1).max(20).required(),
+  tahun: Joi.number().integer().min(2020).max(2100).required(),
+  target: Joi.number().min(0.0001).required(),
+});
+
 const userCreateSchema = Joi.object({
   username: Joi.string().trim().min(3).max(50).required(),
   email: Joi.string().trim().email().required(),
@@ -905,6 +913,44 @@ getCollectionRoute('fra', fraSchema);
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
+
+// Target per No IKU + Tahun — hanya admin yang boleh mengatur, semua user yang
+// login boleh membaca (dipakai operator untuk mengunci field Target di form FRA).
+app.get('/api/iku-targets', requireLogin, (req, res) => {
+  res.json(DB.ikuTargets || []);
+});
+
+app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
+  const { ikuNomor, tahun } = req.body;
+  const dup = (DB.ikuTargets || []).find(t => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada. Silakan ubah data yang sudah ada.' });
+  const item = { id: uuidv4(), ...req.body };
+  DB.ikuTargets.push(item);
+  await auditLog(req.session.user, 'create', 'ikuTargets', item.id, { item });
+  await saveDB();
+  res.json(item);
+});
+
+app.put('/api/iku-targets/:id', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
+  const idx = (DB.ikuTargets || []).findIndex(x => x.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Data tidak ditemukan' });
+  const { ikuNomor, tahun } = req.body;
+  const dup = DB.ikuTargets.find(t => t.id !== req.params.id && t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada pada data lain.' });
+  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...req.body, id: req.params.id };
+  await auditLog(req.session.user, 'update', 'ikuTargets', req.params.id, { newValue: DB.ikuTargets[idx] });
+  await saveDB();
+  res.json(DB.ikuTargets[idx]);
+});
+
+app.delete('/api/iku-targets/:id', requireLogin, requireAdmin, async (req, res) => {
+  const idx = (DB.ikuTargets || []).findIndex(x => x.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Data tidak ditemukan' });
+  const deleted = DB.ikuTargets.splice(idx, 1)[0];
+  await auditLog(req.session.user, 'delete', 'ikuTargets', req.params.id, { deleted });
+  await saveDB();
+  res.json({ deleted: true });
+});
 
 app.get('/api/users', requireLogin, requireAdmin, (req, res) => {
   res.json((DB.users || []).map(sanitizeUserForClient));
