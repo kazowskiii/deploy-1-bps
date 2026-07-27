@@ -501,7 +501,7 @@ const MAX_FILE_MB = 10;
 const CREDENTIALS = { username: 'admin', password: 'admin123' };
 let AUTH = { loggedIn: false, user: null };
 let NEEDS_SETUP = false;
-let DB = { teams: [], users: [], iku: [], fra: [], kegiatan: [], tugas: [], settings: { targetGlobal: null, capaianGlobal: null } };
+let DB = { teams: [], users: [], iku: [], fra: [], kegiatan: [], tugas: [], ikuTargets: [], settings: { capaianGlobal: 120 } };
 let AUDIT_LOGS = [];
 let NOTIFICATIONS = [];
 let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
@@ -976,10 +976,10 @@ function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.rando
 
 async function loadAll(){
   try{
-    const [teams, iku, fra, kegiatan, tugas, settings] = await Promise.all([
-      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas'), apiGet('settings/target')
+    const [teams, iku, fra, kegiatan, tugas, ikuTargets, settings] = await Promise.all([
+      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas'), apiGet('iku-targets'), apiGet('settings/capaian')
     ]);
-    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas; DB.settings = settings;
+    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas; DB.ikuTargets = ikuTargets; DB.settings = settings;
     if(isAdmin()){
       DB.users = await apiGet('users');
       AUDIT_LOGS = await apiGet('audit');
@@ -1027,6 +1027,9 @@ function fmtBytes(n){
   return (n/1024/1024).toFixed(1) + ' MB';
 }
 function teamName(id){ const t = DB.teams.find(t=>t.id===id); return t ? t.name : '—'; }
+function findIkuTarget(ikuNomor, tahun){
+  return (DB.ikuTargets||[]).find(t=>t.ikuNomor===ikuNomor && Number(t.tahun)===Number(tahun));
+}
 function yearsAvailable(){
   const ys = new Set([FILTER_YEAR]);
   const thisYear = new Date().getFullYear();
@@ -1176,7 +1179,8 @@ function renderShell(){
         <div class="nav-group-label">Admin</div>
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
         ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
-        ${isAdmin() ? navItem('target','iku','Kelola Target') : ''}
+        ${isAdmin() ? navItem('ikutarget','iku','Kelola Target IKU', (DB.ikuTargets||[]).length) : ''}
+        ${isAdmin() ? navItem('capaian','iku','Kelola Capaian') : ''}
         ${isAdmin() ? navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length) : ''}
       </div>
       <div class="sidebar-foot">
@@ -1208,7 +1212,8 @@ function renderTopbar(){
     pencapaian:['Analisis Pencapaian','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
-    target:['Kelola Target','Atur nilai Target dan Capaian yang berlaku untuk semua data FRA — terkunci untuk operator'],
+    ikutarget:['Kelola Target IKU','Atur target capaian setiap No IKU per tahun — terkunci untuk operator'],
+    capaian:['Kelola Capaian','Atur satu nilai Capaian (%) tetap yang berlaku untuk semua data FRA — terkunci untuk operator'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
   };
   const [t, sub] = titles[ROUTE];
@@ -1336,7 +1341,8 @@ function routeAddButton(){
     return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
   }
   if(ROUTE === 'tim' && !isAdmin()) return ''; // operator tidak boleh menambah tim
-  if(ROUTE === 'target') return ''; // halaman target pakai tombol simpan sendiri
+  if(ROUTE === 'ikutarget' && !isAdmin()) return '';
+  if(ROUTE === 'capaian') return ''; // halaman capaian pakai tombol simpan sendiri
   if(ROUTE === 'pencapaian'){
     return `<button class="btn btn-primary" onclick="openPencapaianModal()">${ICONS.plus} Tambah Bukti Tindak Lanjut</button>`;
   }
@@ -1345,6 +1351,7 @@ function routeAddButton(){
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],
     tim: ['openTimModal()','Tambah Tim'],
     users: ['openUserModal()','Tambah User'],
+    ikutarget: ['openIkuTargetModal()','Tambah Target IKU'],
   };
   if(!map[ROUTE]) return '';
   const [fn, label] = map[ROUTE];
@@ -1363,7 +1370,8 @@ function renderContent(){
   else if(ROUTE==='pencapaian') c.innerHTML = renderPencapaianPage();
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
   else if(ROUTE==='users') c.innerHTML = renderUserPage();
-  else if(ROUTE==='target') c.innerHTML = renderTargetSettingsPage();
+  else if(ROUTE==='ikutarget') c.innerHTML = renderIkuTargetPage();
+  else if(ROUTE==='capaian') c.innerHTML = renderCapaianSettingsPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
   wireDynamic();
 }
@@ -1953,16 +1961,37 @@ function renderTimPage(){
   </table></div></div>`;
 }
 
-function renderTargetSettingsPage(){
-  const currentTarget = (DB.settings && DB.settings.targetGlobal) || '';
-  const currentCapaian = (DB.settings && DB.settings.capaianGlobal !== null && DB.settings.capaianGlobal !== undefined) ? DB.settings.capaianGlobal : 120;
+function renderIkuTargetPage(){
+  const items = [...(DB.ikuTargets||[])].sort((a,b)=> a.ikuNomor.localeCompare(b.ikuNomor) || b.tahun-a.tahun);
+  const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> untuk No IKU dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
+  if(!items.length) return note + emptyState('ikutarget','Belum ada target IKU diatur','Tambahkan target untuk setiap No IKU per tahun agar operator bisa mulai mengisi FRA.');
+  const rows = items.map(t=>`
+    <tr>
+      <td class="mono">${escapeHtml(t.ikuNomor)}</td>
+      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(t.ikuNomor) || '—')}</td>
+      <td class="mono">${t.tahun}</td>
+      <td class="mono">${fmtNum(t.target)}</td>
+      <td>
+        <div class="flex gap-6">
+          <button class="icon-btn" onclick="openIkuTargetModal('${t.id}')" title="Ubah">${ICONS.edit}</button>
+          <button class="icon-btn" onclick="deleteIkuTarget('${t.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+        </div>
+      </td>
+    </tr>`).join('');
+  return note + `<div class="panel"><div class="table-wrap"><table>
+    <thead><tr><th>No IKU</th><th>Nama IKU</th><th>Tahun</th><th>Target</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div></div>`;
+}
+
+function renderCapaianSettingsPage(){
+  const current = (DB.settings && DB.settings.capaianGlobal !== null && DB.settings.capaianGlobal !== undefined) ? DB.settings.capaianGlobal : 120;
   return `
-    <div class="section-note">${ICONS.info}<div>Nilai Target dan Capaian di sini berlaku untuk <b>semua</b> data FRA, di semua No IKU dan semua tim. Kedua field ini akan otomatis terkunci pada form FRA mengikuti angka di sini.</div></div>
+    <div class="section-note">${ICONS.info}<div>Nilai Capaian (%) ini tetap dan berlaku untuk <b>semua</b> data FRA, terlepas dari No IKU, tim, atau Realisasi yang diisi. Field Capaian pada form FRA akan otomatis terkunci mengikuti angka ini.</div></div>
     <div class="panel">
       <div class="panel-body" style="max-width:360px;">
-        <div class="field"><label>Target Berlaku Untuk Semua</label><input type="number" id="f_targetGlobal" value="${currentTarget}" min="0" step="0.00001" placeholder="mis. 100"></div>
-        <div class="field"><label>Capaian (%) Berlaku Untuk Semua</label><input type="number" id="f_capaianGlobal" value="${currentCapaian}" min="0" step="0.00001" placeholder="mis. 120"></div>
-        <button class="btn btn-primary w-full" onclick="saveTargetGlobal()">Simpan</button>
+        <div class="field"><label>Capaian (%) Berlaku Untuk Semua</label><input type="number" id="f_capaianGlobal" value="${current}" min="0" step="0.00001" placeholder="mis. 120"></div>
+        <button class="btn btn-primary w-full" onclick="saveCapaianGlobal()">Simpan Capaian</button>
       </div>
     </div>
   `;
@@ -2152,29 +2181,73 @@ async function saveTim(id){
   }catch(e){ toast(e.message || 'Gagal menyimpan tim','err'); }
 }
 
-/* ---- TARGET & CAPAIAN GLOBAL (khusus admin) ---- */
-async function saveTargetGlobal(){
-  const target = Number(document.getElementById('f_targetGlobal').value)||0;
-  const capaian = Number(document.getElementById('f_capaianGlobal').value)||0;
+/* ---- TARGET IKU modal (khusus admin) ---- */
+function openIkuTargetModal(id){
+  const t = id ? (DB.ikuTargets||[]).find(x=>x.id===id) : null;
+  const body = `
+    <div class="field"><label>No IKU</label>
+      <select id="f_ikuNomorTarget">
+      ${FRA_IKU_LIST.map(item=>
+      `<option value="${item.no}" ${t && t.ikuNomor===item.no ? 'selected' : ''}>${item.no} — ${escapeHtml(item.nama)}</option>`
+      ).join('')}
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
+      <div class="field"><label>Target</label><input type="number" id="f_targetValue" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100"></div>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveIkuTarget('${id||''}')">Simpan</button>`;
+  openModal(modalShell(t?'Ubah Target IKU':'Tambah Target IKU', body, foot));
+}
+async function saveIkuTarget(id){
+  const ikuNomor = document.getElementById('f_ikuNomorTarget').value;
+  const tahun = Number(document.getElementById('f_tahunTarget').value)||FILTER_YEAR;
+  const target = Number(document.getElementById('f_targetValue').value)||0;
   if(!target){ toast('Target wajib diisi','err'); return; }
-  if(capaian === null || capaian === undefined || isNaN(capaian)){ toast('Capaian wajib diisi','err'); return; }
+  const payload = { ikuNomor, tahun, target };
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    if(id) await apiPut('iku-targets', id, payload);
+    else await apiPost('iku-targets', payload);
+    await loadAll();
+    closeModal(); toast('Target IKU disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan target IKU','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
+async function deleteIkuTarget(id){
+  if(!confirm('Hapus target IKU ini? Operator tidak akan bisa mengisi FRA pada No IKU/tahun ini sampai Admin mengatur ulang.')) return;
+  try{
+    await apiDelete('iku-targets', id);
+    await loadAll();
+    toast('Target IKU dihapus','ok'); renderShell();
+  }catch(e){ toast(e.message || 'Gagal menghapus target IKU','err'); }
+}
+
+/* ---- CAPAIAN GLOBAL (khusus admin) ---- */
+async function saveCapaianGlobal(){
+  const capaian = Number(document.getElementById('f_capaianGlobal').value);
+  if(capaian === null || capaian === undefined || isNaN(capaian) || capaian < 0){ toast('Capaian wajib diisi dengan angka valid','err'); return; }
   const btn = document.querySelector('#content .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    const r = await fetch('/api/settings/target', {
+    const r = await fetch('/api/settings/capaian', {
       method: 'PUT',
       headers: {'Content-Type':'application/json'},
       credentials: 'include',
-      body: JSON.stringify({ target, capaian }),
+      body: JSON.stringify({ capaian }),
     });
     const data = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.error || 'Gagal menyimpan pengaturan');
+    if(!r.ok) throw new Error(data.error || 'Gagal menyimpan capaian');
     DB.settings = data;
-    toast('Target & Capaian berhasil disimpan, berlaku untuk semua FRA','ok');
+    toast('Capaian berhasil disimpan, berlaku untuk semua FRA','ok');
   }catch(e){
-    toast(e.message || 'Gagal menyimpan pengaturan','err');
+    toast(e.message || 'Gagal menyimpan capaian','err');
   }finally{
-    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan Capaian'; }
   }
 }
 
@@ -2194,7 +2267,7 @@ function openFraModal(id){
     </div>
     <div class="field">
       <label>No IKU</label>
-      <select id="f_ikuNomor" onchange="updateFraIkuNamaPreview();">
+      <select id="f_ikuNomor" onchange="updateFraIkuNamaPreview(); updateFraTargetPreview();">
       ${FRA_IKU_LIST.map(item=>
       `<option value="${item.no}" ${f && f.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
       ).join('')}
@@ -2212,7 +2285,7 @@ function openFraModal(id){
     <div class="field-row">
       <div class="field">
         <label>Target (diatur Admin)</label>
-        <input type="number" id="f_target" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Admin belum atur target">
+        <input type="number" id="f_target" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Pilih No IKU & Tahun">
       </div>
       <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" step="0.00001" placeholder="mis. 0.12345"></div>
     </div>
@@ -2221,7 +2294,7 @@ function openFraModal(id){
         <label>Capaian (%) — diatur Admin</label>
         <input type="number" id="f_persenPreview" value="${f?(f.persentase??''):''}" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Diatur Admin">
       </div>
-      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}"></div>
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}" oninput="updateFraTargetPreview()"></div>
     </div>
     <div class="field"><label>Catatan (opsional)</label><input type="text" id="f_catatan" value="${f?escapeHtml(f.catatan||''):''}"></div>
     ${evidenceField('fra', f)}
@@ -2246,23 +2319,22 @@ function updateFraIkuNamaPreview(){
   nameEl.value = fraIkuNamaByNo(selectEl.value);
 }
 function updateFraTargetPreview(){
+  const ikuEl = document.getElementById('f_ikuNomor');
+  const tahunEl = document.getElementById('f_tahun');
   const targetEl = document.getElementById('f_target');
   const persenEl = document.getElementById('f_persenPreview');
-  if(!targetEl || !persenEl) return;
-  const globalTarget = DB.settings && DB.settings.targetGlobal;
-  const globalCapaian = DB.settings && DB.settings.capaianGlobal;
-  if(globalTarget){
-    targetEl.value = globalTarget;
+  if(!ikuEl || !tahunEl || !targetEl) return;
+  const found = findIkuTarget(ikuEl.value, tahunEl.value);
+  if(found){
+    targetEl.value = found.target;
     targetEl.placeholder = '';
   } else {
     targetEl.value = '';
-    targetEl.placeholder = 'Admin belum atur target';
+    targetEl.placeholder = 'Admin belum atur target IKU ini';
   }
-  if(globalCapaian !== null && globalCapaian !== undefined){
-    persenEl.value = globalCapaian;
-  } else {
-    persenEl.value = '';
-    persenEl.placeholder = 'Admin belum atur capaian';
+  if(persenEl){
+    const globalCapaian = DB.settings && DB.settings.capaianGlobal;
+    persenEl.value = (globalCapaian !== null && globalCapaian !== undefined) ? globalCapaian : 120;
   }
 }
 function evidenceField(kind, item){
@@ -2416,7 +2488,7 @@ async function saveFra(id){
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
   if(!namaKegiatan || namaKegiatan.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
   if(!tanggalInput){ toast('Tanggal kegiatan wajib diisi','err'); return; }
-  if(!target){ toast('Target belum diatur Admin. Hubungi Admin di menu Kelola Target.','err'); return; }
+  if(!target){ toast('Target belum diatur Admin untuk No IKU & tahun ini. Hubungi Admin di menu Kelola Target IKU.','err'); return; }
   let payload = {timId, periode, ikuNomor, namaKegiatan, tanggalKegiatan, target, realisasi, persentase, tahun, catatan};
   const evMeta = persistPendingEvidence('fra');
   if(evMeta) Object.assign(payload, evMeta);

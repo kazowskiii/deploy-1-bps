@@ -78,7 +78,8 @@ function createInitialDB() {
     tugas: [],
     auditLogs: [],
     notifications: [],
-    settings: { targetGlobal: null, capaianGlobal: null },
+    ikuTargets: [],
+    settings: { capaianGlobal: 120 },
   };
 }
 
@@ -113,7 +114,9 @@ function loadDB() {
 let DB = loadDB();
 DB.users = DB.users || [];
 DB.notifications = DB.notifications || [];
-DB.settings = DB.settings || { targetGlobal: null, capaianGlobal: null };
+DB.ikuTargets = DB.ikuTargets || [];
+DB.settings = DB.settings || { capaianGlobal: 120 };
+if (DB.settings.capaianGlobal === undefined || DB.settings.capaianGlobal === null) DB.settings.capaianGlobal = 120;
 seedDefaultUsersIfEmpty();
 let writeQueue = Promise.resolve();
 function saveDB() {
@@ -641,8 +644,13 @@ const ikuSchema = Joi.object({
   })).default([]),
 });
 
-const globalSettingsSchema = Joi.object({
+const ikuTargetSchema = Joi.object({
+  ikuNomor: Joi.string().trim().min(1).max(20).required(),
+  tahun: Joi.number().integer().min(2020).max(2100).required(),
   target: Joi.number().min(0.0001).required(),
+});
+
+const capaianGlobalSchema = Joi.object({
   capaian: Joi.number().min(0).required(),
 });
 
@@ -913,18 +921,56 @@ getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
 
-// Target & Capaian global — dua nilai yang berlaku untuk SEMUA data FRA (semua
-// No IKU, semua tim). Hanya admin yang boleh mengubahnya; semua user yang login
-// boleh membaca (dipakai operator untuk mengunci field Target & Capaian di form FRA).
-app.get('/api/settings/target', requireLogin, (req, res) => {
-  res.json(DB.settings || { targetGlobal: null, capaianGlobal: null });
+// Target per No IKU + Tahun — hanya admin yang boleh mengatur, semua user yang
+// login boleh membaca (dipakai operator untuk mengunci field Target di form FRA).
+app.get('/api/iku-targets', requireLogin, (req, res) => {
+  res.json(DB.ikuTargets || []);
 });
 
-app.put('/api/settings/target', requireLogin, requireAdmin, validateBody(globalSettingsSchema), async (req, res) => {
+app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
+  const { ikuNomor, tahun } = req.body;
+  const dup = (DB.ikuTargets || []).find(t => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada. Silakan ubah data yang sudah ada.' });
+  const item = { id: uuidv4(), ...req.body };
+  DB.ikuTargets.push(item);
+  await auditLog(req.session.user, 'create', 'ikuTargets', item.id, { item });
+  await saveDB();
+  res.json(item);
+});
+
+app.put('/api/iku-targets/:id', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
+  const idx = (DB.ikuTargets || []).findIndex(x => x.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Data tidak ditemukan' });
+  const { ikuNomor, tahun } = req.body;
+  const dup = DB.ikuTargets.find(t => t.id !== req.params.id && t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada pada data lain.' });
+  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...req.body, id: req.params.id };
+  await auditLog(req.session.user, 'update', 'ikuTargets', req.params.id, { newValue: DB.ikuTargets[idx] });
+  await saveDB();
+  res.json(DB.ikuTargets[idx]);
+});
+
+app.delete('/api/iku-targets/:id', requireLogin, requireAdmin, async (req, res) => {
+  const idx = (DB.ikuTargets || []).findIndex(x => x.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Data tidak ditemukan' });
+  const deleted = DB.ikuTargets.splice(idx, 1)[0];
+  await auditLog(req.session.user, 'delete', 'ikuTargets', req.params.id, { deleted });
+  await saveDB();
+  res.json({ deleted: true });
+});
+
+// Capaian global — satu nilai tetap (default 120) yang berlaku untuk SEMUA
+// data FRA, terlepas dari No IKU/tahun. Hanya admin yang boleh mengubahnya;
+// semua user yang login boleh membaca (dipakai operator untuk mengunci field
+// Capaian di form FRA — tidak dihitung dari Realisasi).
+app.get('/api/settings/capaian', requireLogin, (req, res) => {
+  res.json(DB.settings || { capaianGlobal: 120 });
+});
+
+app.put('/api/settings/capaian', requireLogin, requireAdmin, validateBody(capaianGlobalSchema), async (req, res) => {
   DB.settings = DB.settings || {};
-  DB.settings.targetGlobal = req.body.target;
   DB.settings.capaianGlobal = req.body.capaian;
-  await auditLog(req.session.user, 'update', 'settings', 'targetGlobal', { target: req.body.target, capaian: req.body.capaian });
+  await auditLog(req.session.user, 'update', 'settings', 'capaianGlobal', { capaian: req.body.capaian });
   await saveDB();
   res.json(DB.settings);
 });
