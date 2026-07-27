@@ -2287,12 +2287,12 @@ function openFraModal(id){
         <label>Target (diatur Admin)</label>
         <input type="number" id="f_target" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Pilih No IKU & Tahun">
       </div>
-      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" step="0.00001" placeholder="mis. 0.12345"></div>
+      <div class="field"><label>Realisasi</label><input type="number" id="f_realisasi" value="${f?(f.realisasi??''):''}" min="0" step="0.00001" placeholder="mis. 0.12345" oninput="updateFraPersenPreview()"></div>
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Capaian (%) — diatur Admin</label>
-        <input type="number" id="f_persenPreview" value="${f?(f.persentase??''):''}" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Diatur Admin">
+        <label>Capaian (%) — otomatis</label>
+        <input type="number" id="f_persenPreview" value="${f?(f.persentase??''):''}" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Otomatis dari Realisasi/Target">
       </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}" oninput="updateFraTargetPreview()"></div>
     </div>
@@ -2322,7 +2322,6 @@ function updateFraTargetPreview(){
   const ikuEl = document.getElementById('f_ikuNomor');
   const tahunEl = document.getElementById('f_tahun');
   const targetEl = document.getElementById('f_target');
-  const persenEl = document.getElementById('f_persenPreview');
   if(!ikuEl || !tahunEl || !targetEl) return;
   const found = findIkuTarget(ikuEl.value, tahunEl.value);
   if(found){
@@ -2332,10 +2331,16 @@ function updateFraTargetPreview(){
     targetEl.value = '';
     targetEl.placeholder = 'Admin belum atur target IKU ini';
   }
-  if(persenEl){
-    const globalCapaian = DB.settings && DB.settings.capaianGlobal;
-    persenEl.value = (globalCapaian !== null && globalCapaian !== undefined) ? globalCapaian : 120;
-  }
+  updateFraPersenPreview();
+}
+function updateFraPersenPreview(){
+  const targetEl = document.getElementById('f_target');
+  const realisasiEl = document.getElementById('f_realisasi');
+  const persenEl = document.getElementById('f_persenPreview');
+  if(!targetEl || !realisasiEl || !persenEl) return;
+  const target = Number(targetEl.value) || 0;
+  const realisasi = Number(realisasiEl.value) || 0;
+  persenEl.value = target ? Math.min(999, Math.round((realisasi/target)*10000)/100) : 0;
 }
 function evidenceField(kind, item){
   const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);

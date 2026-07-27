@@ -851,6 +851,7 @@ async function deleteEvidenceFiles(fileIds) {
 
 function getCollectionRoute(name, schema, options = {}) {
   const isAdminOnly = options.adminOnly || false;
+  const beforeSave = options.beforeSave || null;
 
   app.get(`/api/${name}`, requireLogin, (req, res) => {
     const user = req.session.user;
@@ -866,7 +867,8 @@ function getCollectionRoute(name, schema, options = {}) {
     // dipakai untuk menampilkan "jam upload" yang sebenarnya di frontend.
     // createdBy dicatat sekali saat pertama dibuat, dipakai untuk menargetkan
     // pengingat admin ke user yang benar-benar mengunggah data ini.
-    const item = { id: uuidv4(), ...req.body, createdBy: user.id, createdByUsername: user.username, createdAt: new Date().toISOString() };
+    const body = beforeSave ? beforeSave(req.body) : req.body;
+    const item = { id: uuidv4(), ...body, createdBy: user.id, createdByUsername: user.username, createdAt: new Date().toISOString() };
     DB[name].push(item);
     await auditLog(user, 'create', name, item.id, { item });
     await saveDB();
@@ -884,7 +886,8 @@ function getCollectionRoute(name, schema, options = {}) {
       return res.status(403).json({ error: 'Tidak dapat mengubah data untuk tim lain' });
     }
     const before = DB[name][idx];
-    DB[name][idx] = { ...before, ...req.body, id: req.params.id };
+    const body = beforeSave ? beforeSave(req.body) : req.body;
+    DB[name][idx] = { ...before, ...body, id: req.params.id };
     await auditLog(user, 'update', name, req.params.id, { newValue: DB[name][idx] });
     await saveDB();
     res.json(DB[name][idx]);
@@ -914,9 +917,14 @@ function getCollectionRoute(name, schema, options = {}) {
     deleteEvidenceFiles(collectEvidenceFileIds(name, deleted));
   });
 }
-
+function computeFraPersentase(body) {
+  const target = Number(body.target) || 0;
+  const realisasi = Number(body.realisasi) || 0;
+  const persentase = target ? Math.min(999, Math.round((realisasi / target) * 10000) / 100) : 0;
+  return { ...body, persentase };
+}
 getCollectionRoute('teams', teamSchema, { adminOnly: true });
-getCollectionRoute('fra', fraSchema);
+getCollectionRoute('fra', fraSchema, { beforeSave: computeFraPersentase });
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
