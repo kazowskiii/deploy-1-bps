@@ -976,10 +976,10 @@ function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.rando
 
 async function loadAll(){
   try{
-    const [teams, iku, fra, kegiatan, tugas, ikuTargets, settings] = await Promise.all([
-      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas'), apiGet('iku-targets'), apiGet('settings/capaian')
+    const [teams, iku, fra, kegiatan, tugas, ikuTargets] = await Promise.all([
+      apiGet('teams'), apiGet('iku'), apiGet('fra'), apiGet('kegiatan'), apiGet('tugas'), apiGet('iku-targets')
     ]);
-    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas; DB.ikuTargets = ikuTargets; DB.settings = settings;
+    DB.teams = teams; DB.iku = iku; DB.fra = fra; DB.kegiatan = kegiatan; DB.tugas = tugas; DB.ikuTargets = ikuTargets;
     if(isAdmin()){
       DB.users = await apiGet('users');
       AUDIT_LOGS = await apiGet('audit');
@@ -1180,7 +1180,6 @@ function renderShell(){
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
         ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
         ${isAdmin() ? navItem('ikutarget','iku','Kelola Target IKU', (DB.ikuTargets||[]).length) : ''}
-        ${isAdmin() ? navItem('capaian','iku','Kelola Capaian') : ''}
         ${isAdmin() ? navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length) : ''}
       </div>
       <div class="sidebar-foot">
@@ -1213,7 +1212,6 @@ function renderTopbar(){
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     ikutarget:['Kelola Target IKU','Atur target capaian setiap No IKU per tahun — terkunci untuk operator'],
-    capaian:['Kelola Capaian','Atur satu nilai Capaian (%) tetap yang berlaku untuk semua data FRA — terkunci untuk operator'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
   };
   const [t, sub] = titles[ROUTE];
@@ -1342,7 +1340,6 @@ function routeAddButton(){
   }
   if(ROUTE === 'tim' && !isAdmin()) return ''; // operator tidak boleh menambah tim
   if(ROUTE === 'ikutarget' && !isAdmin()) return '';
-  if(ROUTE === 'capaian') return ''; // halaman capaian pakai tombol simpan sendiri
   if(ROUTE === 'pencapaian'){
     return `<button class="btn btn-primary" onclick="openPencapaianModal()">${ICONS.plus} Tambah Bukti Tindak Lanjut</button>`;
   }
@@ -1371,7 +1368,6 @@ function renderContent(){
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
   else if(ROUTE==='users') c.innerHTML = renderUserPage();
   else if(ROUTE==='ikutarget') c.innerHTML = renderIkuTargetPage();
-  else if(ROUTE==='capaian') c.innerHTML = renderCapaianSettingsPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
   wireDynamic();
 }
@@ -1984,19 +1980,6 @@ function renderIkuTargetPage(){
   </table></div></div>`;
 }
 
-function renderCapaianSettingsPage(){
-  const current = (DB.settings && DB.settings.capaianGlobal !== null && DB.settings.capaianGlobal !== undefined) ? DB.settings.capaianGlobal : 120;
-  return `
-    <div class="section-note">${ICONS.info}<div>Nilai Capaian (%) ini tetap dan berlaku untuk <b>semua</b> data FRA, terlepas dari No IKU, tim, atau Realisasi yang diisi. Field Capaian pada form FRA akan otomatis terkunci mengikuti angka ini.</div></div>
-    <div class="panel">
-      <div class="panel-body" style="max-width:360px;">
-        <div class="field"><label>Capaian (%) Berlaku Untuk Semua</label><input type="number" id="f_capaianGlobal" value="${current}" min="0" step="0.00001" placeholder="mis. 120"></div>
-        <button class="btn btn-primary w-full" onclick="saveCapaianGlobal()">Simpan Capaian</button>
-      </div>
-    </div>
-  `;
-}
-
 function renderUserPage(){
   const items = DB.users || [];
   if(!items.length) return emptyState('users','Belum ada user','Tambahkan user admin/operator.');
@@ -2225,30 +2208,6 @@ async function deleteIkuTarget(id){
     await loadAll();
     toast('Target IKU dihapus','ok'); renderShell();
   }catch(e){ toast(e.message || 'Gagal menghapus target IKU','err'); }
-}
-
-/* ---- CAPAIAN GLOBAL (khusus admin) ---- */
-async function saveCapaianGlobal(){
-  const capaian = Number(document.getElementById('f_capaianGlobal').value);
-  if(capaian === null || capaian === undefined || isNaN(capaian) || capaian < 0){ toast('Capaian wajib diisi dengan angka valid','err'); return; }
-  const btn = document.querySelector('#content .btn-primary');
-  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
-  try{
-    const r = await fetch('/api/settings/capaian', {
-      method: 'PUT',
-      headers: {'Content-Type':'application/json'},
-      credentials: 'include',
-      body: JSON.stringify({ capaian }),
-    });
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok) throw new Error(data.error || 'Gagal menyimpan capaian');
-    DB.settings = data;
-    toast('Capaian berhasil disimpan, berlaku untuk semua FRA','ok');
-  }catch(e){
-    toast(e.message || 'Gagal menyimpan capaian','err');
-  }finally{
-    if(btn){ btn.disabled = false; btn.textContent = 'Simpan Capaian'; }
-  }
 }
 
 /* ---- FRA modal ---- */

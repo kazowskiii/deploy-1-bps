@@ -650,10 +650,6 @@ const ikuTargetSchema = Joi.object({
   target: Joi.number().min(0.0001).required(),
 });
 
-const capaianGlobalSchema = Joi.object({
-  capaian: Joi.number().min(0).required(),
-});
-
 const userCreateSchema = Joi.object({
   username: Joi.string().trim().min(3).max(50).required(),
   email: Joi.string().trim().email().required(),
@@ -965,22 +961,6 @@ app.delete('/api/iku-targets/:id', requireLogin, requireAdmin, async (req, res) 
   await auditLog(req.session.user, 'delete', 'ikuTargets', req.params.id, { deleted });
   await saveDB();
   res.json({ deleted: true });
-});
-
-// Capaian global — satu nilai tetap (default 120) yang berlaku untuk SEMUA
-// data FRA, terlepas dari No IKU/tahun. Hanya admin yang boleh mengubahnya;
-// semua user yang login boleh membaca (dipakai operator untuk mengunci field
-// Capaian di form FRA — tidak dihitung dari Realisasi).
-app.get('/api/settings/capaian', requireLogin, (req, res) => {
-  res.json(DB.settings || { capaianGlobal: 120 });
-});
-
-app.put('/api/settings/capaian', requireLogin, requireAdmin, validateBody(capaianGlobalSchema), async (req, res) => {
-  DB.settings = DB.settings || {};
-  DB.settings.capaianGlobal = req.body.capaian;
-  await auditLog(req.session.user, 'update', 'settings', 'capaianGlobal', { capaian: req.body.capaian });
-  await saveDB();
-  res.json(DB.settings);
 });
 
 app.get('/api/users', requireLogin, requireAdmin, (req, res) => {
