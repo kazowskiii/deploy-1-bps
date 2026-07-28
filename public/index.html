@@ -1333,6 +1333,28 @@ async function promptReminderForFra(id){
   }
 }
 
+async function promptReminderForKegiatan(id){
+  const item = DB.kegiatan.find(x=>x.id===id);
+  if(!item) return;
+  if(!item.createdBy){
+    toast('Tidak diketahui siapa pengunggah data ini (data lama sebelum fitur ini aktif)','err');
+    return;
+  }
+  if(item.createdBy === AUTH.user.id){
+    toast('Ini data yang Anda unggah sendiri','err');
+    return;
+  }
+  const defaultMsg = `Mohon lengkapi/periksa kembali analisis kegiatan "${item.nama||''}" — data belum memenuhi standar.`;
+  const msg = prompt('Pesan pengingat untuk pengunggah data ini:', defaultMsg);
+  if(msg===null || !msg.trim()) return; // batal
+  try{
+    await apiPost('notifications', { targetUserId: item.createdBy, collection:'kegiatan', itemId: item.id, message: msg.trim() });
+    toast(`Pengingat terkirim ke ${item.createdByUsername||'pengunggah'}`,'ok');
+  }catch(e){
+    toast(e.message || 'Gagal mengirim pengingat','err');
+  }
+}
+
 function routeAddButton(){
   if(ROUTE === 'audit'){
     if(!AUDIT_LOGS.length) return '';
@@ -1784,7 +1806,12 @@ const ICON_STAR_OUTLINE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentC
 const ICON_STAR_FILLED = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 3l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 18l-5.9 3.2 1.2-6.6L2.5 10l6.6-.9L12 3Z"/></svg>';
 function kegiatanActions(k){
   const starred = !!k.starred;
+  const showWarn = isAdmin() && k.createdBy && k.createdBy !== AUTH.user.id;
+  const warnBtn = showWarn
+    ? `<button class="icon-btn" onclick="promptReminderForKegiatan('${k.id}')" title="Ingatkan pengunggah data ini" style="color:var(--warning);">${ICONS.warning}</button>`
+    : '';
   return `<div class="flex gap-6">
+    ${warnBtn}
     <button class="icon-btn" onclick="toggleStarKegiatan('${k.id}')" title="${starred?'Hapus dari Dashboard':'Tampilkan di Dashboard'}" style="color:${starred?'#B4872A':'var(--ink-muted)'};">${starred?ICON_STAR_FILLED:ICON_STAR_OUTLINE}</button>
     <button class="icon-btn" onclick="openKegiatanModal('${k.id}')" title="Ubah">${ICONS.edit}</button>
     <button class="icon-btn" onclick="deleteItem('kegiatan','${k.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
