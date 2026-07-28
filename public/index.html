@@ -575,12 +575,21 @@ function isAdmin(){
   return AUTH.user && AUTH.user.role === 'admin';
 }
 function filterOptions(collection){
-  const statusOptions = [
-    {value:'',label:'Semua Status'},
-    {value:'Tercapai',label:'Tercapai'},
-    {value:'Perlu Perhatian',label:'Perlu Perhatian'},
-    {value:'Tertinggal',label:'Tertinggal'},
-  ];
+  const statusOptionsMap = {
+    kegiatan: [
+      {value:'',label:'Semua Status'},
+      {value:'Belum Ditindaklanjuti',label:'Belum Ditindaklanjuti'},
+      {value:'Dalam Proses',label:'Dalam Proses'},
+      {value:'Selesai',label:'Selesai'},
+    ],
+    default: [
+      {value:'',label:'Semua Status'},
+      {value:'Tercapai',label:'Tercapai'},
+      {value:'Perlu Perhatian',label:'Perlu Perhatian'},
+      {value:'Tertinggal',label:'Tertinggal'},
+    ],
+  };
+  const statusOptions = statusOptionsMap[collection] || statusOptionsMap.default;
   const triwulanOptions = [
     {value:'',label:'Semua Triwulan'},
     {value:'1',label:'Triwulan I'},
