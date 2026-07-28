@@ -1299,19 +1299,29 @@ app.post('/api/tanya-ai', requireLogin, isJsonRequest, async (req, res) => {
     const fraScope = filterItems(DB.fra, user, 'fra', {});
     const kegiatanScope = filterItems(DB.kegiatan, user, 'kegiatan', {});
     const ikuScope = filterItems(DB.iku, user, 'iku', {});
+    const tugasScope = filterItems(DB.tugas, user, 'tugas', {});
 
     const contextData = {
+      teams: DB.teams.map((team) => ({ id: team.id, name: team.name })),
+      fra: fraScope,
+      kegiatan: kegiatanScope,
+      iku: ikuScope,
+      tugas: tugasScope,
       totalFra: fraScope.length,
       totalKegiatan: kegiatanScope.length,
       totalIku: ikuScope.length,
+      totalTugas: tugasScope.length,
       rataRataCapaianFra: fraScope.length
         ? Math.round(fraScope.reduce((s, f) => s + (Number(f.persentase) || 0), 0) / fraScope.length)
         : 0,
       rataRataCapaianIku: ikuScope.length
         ? Math.round(ikuScope.reduce((s, i) => s + (Number(i.capaian) || 0), 0) / ikuScope.length)
         : 0,
+      tugasTerbaru: tugasScope.slice(0, 5).map(t => ({
+        nama: t.nama, target: t.target, realisasi: t.realisasi, status: t.status, tim: teamNameServer(t.timId),
+      })),
       kegiatanTerbaru: kegiatanScope.slice(0, 5).map(k => ({
-        nama: k.nama, kendala: k.kendala, solusi: k.solusi, rtl: k.rtl, status: k.status,
+        nama: k.nama, kendala: k.kendala, solusi: k.solusi, rtl: k.rtl, status: k.status, tim: teamNameServer(k.timId),
       })),
       ikuTerbaru: ikuScope.slice(0, 5).map(i => ({
         kode: i.kode || '-', nama: i.nama || '-', target: Number(i.target) || 0, capaian: Number(i.capaian) || 0, satuan: i.satuan || '-', team: teamNameServer(i.timId),
