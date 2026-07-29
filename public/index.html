@@ -1660,7 +1660,7 @@ function renderTeamProgressChart(){
       ctx.stroke();
 
       // titik data + label persentase
-      pts.forEach((p,pi)=>{
+      pts.forEach(p=>{
         ctx.beginPath();
         ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
         ctx.fillStyle = '#fff';
@@ -1672,19 +1672,16 @@ function renderTeamProgressChart(){
         // label persentase: default di atas titik, tapi kalau titik terlalu
         // dekat ke tepi atas chart (nilai tinggi), pindah ke bawah titik
         // supaya teksnya tidak terpotong.
-        const originalIndex = team.points.findIndex((v,vi)=> v!==null && quarters.map((q,qi)=>({qi,v:team.points[qi]})).filter(x=>x.v!==null)[pts.indexOf(p)]?.qi===vi);
-        const value = team._rawValues ? team._rawValues[pi] : null;
-        const labelText = (value!==null && value!==undefined) ? value+'%' : '';
-        const isNearTop = p.y - padding.top < 20;
+        const isNearTop = (p.y - padding.top) < 20;
         ctx.font = 'bold 11px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillStyle = color;
         if(isNearTop){
           ctx.textBaseline = 'top';
-          ctx.fillText(labelText, p.x, p.y + 8);
+          ctx.fillText(p.v + '%', p.x, p.y + 8);
         } else {
           ctx.textBaseline = 'bottom';
-          ctx.fillText(labelText, p.x, p.y - 8);
+          ctx.fillText(p.v + '%', p.x, p.y - 8);
         }
       });
     });
