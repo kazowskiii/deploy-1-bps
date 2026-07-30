@@ -2403,7 +2403,7 @@ function updateFraPersenPreview(){
   if(!targetEl || !realisasiEl || !persenEl) return;
   const target = Number(targetEl.value) || 0;
   const realisasi = Number(realisasiEl.value) || 0;
-  persenEl.value = target ? Math.min(999, Math.round((realisasi/target)*10000)/100) : 0;
+  persenEl.value = target ? Math.min(120, Math.round((realisasi/target)*10000)/100) : 0;
 }
 function evidenceField(kind, item){
   const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);

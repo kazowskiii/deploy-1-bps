@@ -583,7 +583,7 @@ const fraSchema = Joi.object({
   tanggalKegiatan: Joi.string().isoDate().required(),
   target: Joi.number().min(0.0001).required(),
   realisasi: Joi.number().min(0).required(),
-  persentase: Joi.number().min(0).max(999).required(),
+  persentase: Joi.number().min(0).max(120).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   catatan: Joi.string().trim().max(1000).allow('', null),
   hasEvidence: Joi.boolean().optional(),
@@ -916,7 +916,7 @@ function getCollectionRoute(name, schema, options = {}) {
 function computeFraPersentase(body) {
   const target = Number(body.target) || 0;
   const realisasi = Number(body.realisasi) || 0;
-  const persentase = target ? Math.min(999, Math.round((realisasi / target) * 10000) / 100) : 0;
+  const persentase = target ? Math.min(120, Math.round((realisasi / target) * 10000) / 100) : 0;
   return { ...body, persentase };
 }
 getCollectionRoute('teams', teamSchema, { adminOnly: true });
