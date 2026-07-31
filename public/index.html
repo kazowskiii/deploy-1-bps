@@ -1183,7 +1183,7 @@ function renderShell(){
         ${navItem('fra','fra','FRA — Capaian Tim', DB.fra.length)}
         ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
         <a href="#" class="nav-item ${ROUTE==='pencapaian'?'active':''}" data-route="pencapaian" style="padding-left:30px;font-size:12.5px;">
-          ${ICONS.iku}<span>Analisis Pencapaian</span>
+          ${ICONS.iku}<span>RTL TW Sebelumnya</span>
         </a>
         <div class="nav-group-label">Admin</div>
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
@@ -1217,7 +1217,7 @@ function renderTopbar(){
     dashboard:['Dashboard','Ringkasan capaian kinerja seluruh tim & indikator utama'],
     fra:['FRA — Monitoring Capaian Kinerja Tim','Pantau capaian tiap tim beserta bukti dukung laporan'],
     kegiatan:['Analisis Kegiatan','Kendala, solusi, dan rencana tindak lanjut (RTL) tiap kegiatan'],
-    pencapaian:['Analisis Pencapaian','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
+    pencapaian:['RTL TW Sebelumnya','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     ikutarget:['Kelola Target IKU','Atur target capaian setiap No IKU per tahun — terkunci untuk operator'],
@@ -1799,7 +1799,7 @@ function emptyState(kind, title, sub){
 function renderKegiatanPage(){
   const tabsHtml = `<div class="tabs-mini" style="margin-bottom:16px;display:inline-flex;">
     <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='kegiatan'?'active':''}" onclick="switchKegiatanSubtab('kegiatan')">Analisis Kegiatan</button>
-    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='pencapaian'?'active':''}" onclick="switchKegiatanSubtab('pencapaian')">Analisis Pencapaian</button>
+    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='pencapaian'?'active':''}" onclick="switchKegiatanSubtab('pencapaian')">RTL TW Sebelumnya</button>
   </div><br>`;
   if(KEGIATAN_SUBTAB === 'pencapaian') return tabsHtml + renderPencapaianPage();
   return tabsHtml + renderKegiatanListPage();
@@ -1840,7 +1840,7 @@ function renderKegiatanListPage(){
 function renderPencapaianPage(){
   const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
   const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
-  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>Analisis Pencapaian</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
+  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>RTL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Tambahkan datanya dulu di tab Analisis Kegiatan.');
   const rows = items.map(k=>`
@@ -1848,20 +1848,13 @@ function renderPencapaianPage(){
       <td class="mono">${k.ikuNomor || '—'}</td>
       <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
-      <td style="min-width:160px;">
-        <div class="cell-title">${escapeHtml(k.nama)}</div>
-        <div class="cell-sub mono">${fmtDate(k.tanggal)}</div>
-      </td>
-      <td class="mono">${escapeHtml(k.periode||'—')}</td>
-      <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
-      <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
       <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
       <td>${statusPill(k.status)}</td>
       <td>${evidenceCell(k,'kegiatan')}</td>
       <td>${pencapaianActions(k)}</td>
     </tr>`).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th>Bukti Dukung TL</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2684,7 +2677,7 @@ function openPencapaianModal(id){
     <div id="pc_matchResult"></div>
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="pc_saveBtn" onclick="savePencapaian()" disabled>Simpan</button>`;
-  openModal(modalShell('Analisis Pencapaian — Bukti Tindak Lanjut', body, foot));
+  openModal(modalShell('RTL TW Sebelumnya — Bukti Tindak Lanjut', body, foot));
   updatePencapaianMatch();
 }
 function findMatchingKegiatan(){
