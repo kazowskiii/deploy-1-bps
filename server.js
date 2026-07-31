@@ -572,6 +572,27 @@ function filterItems(items, user, collection, query) {
   return result;
 }
 
+/* ---------------- Realtime updates (Server-Sent Events) ---------------- */
+let sseClients = [];
+
+function broadcastChange(collection, action) {
+  const payload = JSON.stringify({ collection, action, ts: Date.now() });
+  sseClients.forEach((client) => {
+    try {
+      client.res.write(`data: ${payload}\n\n`);
+    } catch (err) {
+      // koneksi sudah putus, nanti dibersihkan otomatis lewat event 'close'
+    }
+  });
+}
+
+// Ping berkala supaya koneksi SSE tidak ditutup paksa oleh proxy/hosting saat idle (mis. Railway).
+setInterval(() => {
+  sseClients.forEach((client) => {
+    try { client.res.write(': ping\n\n'); } catch (err) {}
+  });
+}, 25000);
+
 const teamSchema = Joi.object({
   name: Joi.string().trim().min(3).max(120).required(),
 });
@@ -818,6 +839,21 @@ app.get('/api/me', (req, res) => {
   res.status(401).json({ error: 'Belum login' });
 });
 
+app.get('/api/events', requireLogin, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+
+  const client = { id: uuidv4(), res };
+  sseClients.push(client);
+
+  req.on('close', () => {
+    sseClients = sseClients.filter((c) => c.id !== client.id);
+  });
+});
+
 function collectEvidenceFileIds(name, item) {
   if (!item) return [];
   if (Array.isArray(item.evidenceFiles)) {
@@ -869,6 +905,7 @@ function getCollectionRoute(name, schema, options = {}) {
     await auditLog(user, 'create', name, item.id, { item });
     await saveDB();
     res.json(item);
+    broadcastChange(name, 'create');
   });
 
   app.put(`/api/${name}/:id`, requireLogin, isAdminOnly ? requireAdmin : authorizePayload, validateBody(schema), async (req, res) => {
@@ -887,6 +924,7 @@ function getCollectionRoute(name, schema, options = {}) {
     await auditLog(user, 'update', name, req.params.id, { newValue: DB[name][idx] });
     await saveDB();
     res.json(DB[name][idx]);
+    broadcastChange(name, 'update');
     // Kalau berkas bukti diganti dengan yang baru, hapus berkas LAMA di
     // OneDrive yang sudah tidak terpakai lagi (dijalankan setelah respons
     // dikirim supaya tidak menghambat UI). Berkas yang masih dipakai (id-nya
@@ -908,6 +946,7 @@ function getCollectionRoute(name, schema, options = {}) {
     await auditLog(user, 'delete', name, req.params.id, { deleted });
     await saveDB();
     res.json({ deleted: true });
+    broadcastChange(name, 'delete');
     // Hapus berkas bukti terkait di OneDrive setelah respons dikirim,
     // supaya user tidak menunggu proses ini (tidak menghambat UI).
     deleteEvidenceFiles(collectEvidenceFileIds(name, deleted));

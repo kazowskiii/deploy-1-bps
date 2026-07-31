@@ -734,11 +734,13 @@ async function login(event){
     history.replaceState(null, '', '/');
     await loadAll();
     renderShell();
+    initSSE();
   } catch (err) {
     toast(err.message === 'Failed to fetch' ? 'Tidak dapat terhubung ke server. Pastikan server sedang berjalan.' : err.message, 'err');
   }
 }
 async function logout(){
+  stopSSE();
   try {
     await fetch('/api/logout', { method: 'POST', credentials: 'include' });
   } catch (err) {
@@ -1000,6 +1002,65 @@ async function loadAll(){
     try{ NOTIFICATIONS = await apiGet('notifications'); }catch(e){ NOTIFICATIONS = []; }
   }catch(e){
     toast('Tidak dapat terhubung ke server. Pastikan server (npm start) sedang berjalan.', 'err');
+  }
+}
+
+/* ---------------- Realtime updates (Server-Sent Events) ---------------- */
+let sseSource = null;
+let sseRefreshTimer = null;
+
+function initSSE(){
+  stopSSE();
+  try{
+    sseSource = new EventSource('/api/events');
+    sseSource.onmessage = () => { scheduleSseRefresh(); };
+    sseSource.onerror = () => { /* browser akan mencoba reconnect otomatis */ };
+  }catch(e){
+    console.error('Gagal membuka koneksi realtime:', e.message);
+  }
+}
+function stopSSE(){
+  if(sseSource){ sseSource.close(); sseSource = null; }
+  if(sseRefreshTimer){ clearTimeout(sseRefreshTimer); sseRefreshTimer = null; }
+}
+function scheduleSseRefresh(){
+  if(sseRefreshTimer) clearTimeout(sseRefreshTimer);
+  sseRefreshTimer = setTimeout(async ()=>{
+    await loadAll();
+    safeRerender();
+  }, 400);
+}
+function updateSidebarBadges(){
+  const counts = {
+    fra: DB.fra.length,
+    kegiatan: DB.kegiatan.length,
+    tim: DB.teams.length,
+    users: (DB.users||[]).length,
+    ikutarget: (DB.ikuTargets||[]).length,
+    audit: AUDIT_LOGS.length,
+  };
+  Object.keys(counts).forEach(route=>{
+    const el = document.querySelector(`.nav-item[data-route="${route}"] .badge-count`);
+    if(el) el.textContent = counts[route];
+  });
+}
+function safeRerender(){
+  const contentEl = document.getElementById('content');
+  const active = document.activeElement;
+  const isContentInput = contentEl && active && contentEl.contains(active) && active.id;
+  const activeId = isContentInput ? active.id : null;
+  const cursorPos = (activeId && active.selectionStart !== undefined) ? active.selectionStart : null;
+
+  if(document.getElementById('topbar')) renderTopbar();
+  updateSidebarBadges();
+  if(contentEl) renderContent();
+
+  if(activeId){
+    const el = document.getElementById(activeId);
+    if(el){
+      el.focus();
+      if(cursorPos !== null && el.setSelectionRange) el.setSelectionRange(cursorPos, cursorPos);
+    }
   }
 }
 
@@ -2888,6 +2949,7 @@ function wireDynamic(){ /* reserved for future dynamic listeners */ }
   document.getElementById('app').style.display = 'flex';
   if(AUTH.loggedIn){
     await loadAll();
+    initSSE();
   }
   await requireAuthOrLogin();
 })();
