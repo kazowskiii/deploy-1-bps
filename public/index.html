@@ -2548,8 +2548,10 @@ function wireEvidenceField(kind, id){
     if(kind === 'fra'){
       const periodeEl = document.getElementById('f_periode');
       const ikuEl = document.getElementById('f_ikuNomor');
+      const tahunEl = document.getElementById('f_tahun');
       if(periodeEl) extra.periode = periodeEl.value;
       if(ikuEl) extra.ikuNomor = ikuEl.value;
+      if(tahunEl) extra.tahun = tahunEl.value;
     }
     if(kind === 'tugas'){
       const triwulanEl = document.getElementById('f_triwulan');
@@ -2558,8 +2560,10 @@ function wireEvidenceField(kind, id){
     if(kind === 'kegiatan'){
       const periodeEl = document.getElementById('pc_periode');
       const ikuEl = document.getElementById('pc_ikuNomor');
+      const tahunEl = document.getElementById('pc_tahun');
       if(periodeEl) extra.periode = periodeEl.value;
       if(ikuEl) extra.ikuNomor = ikuEl.value;
+      if(tahunEl) extra.tahun = tahunEl.value;
     }
 
     const myToken = EVIDENCE_UPLOAD_TOKEN[kind]; // dipakai bersama untuk seluruh batch ini
