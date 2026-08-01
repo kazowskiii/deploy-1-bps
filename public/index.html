@@ -1137,13 +1137,13 @@ function yearsAvailable(){
 
 /* ---------------- evidence handling (berkas fisik tersimpan di server, folder /uploads) ---------------- */
 function validFileType(file){
-  const okExt = ['.pdf','.doc','.docx'];
+  const okExt = ['.pdf','.doc','.docx','.jpg','.jpeg','.png','.gif','.webp','.bmp','.svg','.tif','.tiff','.heic','.heif'];
   const name = file.name.toLowerCase();
   return okExt.some(ext=>name.endsWith(ext));
 }
 function validateFileOrToast(file){
   if(!validFileType(file)){
-    toast('Format harus PDF atau Word (.pdf, .doc, .docx)', 'err');
+    toast('Format harus PDF, Word, atau Gambar (.pdf, .doc, .docx, .jpg, .png, dll)', 'err');
     return false;
   }
   if(file.size > MAX_FILE_MB*1024*1024){
@@ -2489,16 +2489,16 @@ function evidenceField(kind, item){
   const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
   EXISTING_EVIDENCE[kind] = existing.slice();
   return `<div class="field">
-    <label>Bukti Dukung Laporan (PDF / Word, maks ${MAX_FILE_MB}MB per berkas) — bisa unggah lebih dari satu sekaligus</label>
+    <label>Bukti Dukung Laporan (PDF / Word / Gambar, maks ${MAX_FILE_MB}MB per berkas) — bisa unggah lebih dari satu sekaligus</label>
     <div id="existingEvidenceList_${kind}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${renderEvidenceChips(kind)}</div>
     <div class="dropzone" id="dz_${kind}" onclick="document.getElementById('fileInput_${kind}').click()">
       <div id="dzContent_${kind}">
         <div class="dz-title">Klik untuk unggah berkas</div>
-        <div class="dz-sub">Bisa pilih beberapa berkas sekaligus — PDF atau Word</div>
+        <div class="dz-sub">Bisa pilih beberapa berkas sekaligus — PDF, Word, atau Gambar</div>
       </div>
     </div>
     <div id="pendingEvidenceList_${kind}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
-    <input type="file" class="file-input-hidden" id="fileInput_${kind}" accept=".pdf,.doc,.docx" multiple>
+    <input type="file" class="file-input-hidden" id="fileInput_${kind}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.tif,.tiff,.heic,.heif" multiple>
   </div>`;
 }
 function renderEvidenceChips(kind){

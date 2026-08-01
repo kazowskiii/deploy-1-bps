@@ -745,10 +745,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
-  const okExt = ['.pdf', '.doc', '.docx'];
+  const okExt = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg', '.tif', '.tiff', '.heic', '.heif'];
   const ext = path.extname(file.originalname).toLowerCase();
   if (okExt.includes(ext)) cb(null, true);
-  else cb(new Error('Format berkas harus PDF atau Word (.pdf, .doc, .docx)'));
+  else cb(new Error('Format berkas harus PDF, Word, atau Gambar (.pdf, .doc, .docx, .jpg, .png, dll)'));
 }
 
 const upload = multer({
