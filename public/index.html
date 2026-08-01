@@ -1310,7 +1310,7 @@ function renderTopbar(){
   const [t, sub] = titles[ROUTE];
   // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
   // tampilkan badge kecil supaya tahun aktif tetap terlihat jelas.
-  const yearContextRoutes = ['fra','kegiatan','pencapaian'];
+  const yearContextRoutes = ['fra','kegiatan','pencapaian','ikutarget'];
   const yearBadge = yearContextRoutes.includes(ROUTE)
     ? `<span class="tag tag-primary" title="Tahun aktif dipilih dari halaman Dashboard">Tahun ${FILTER_YEAR}</span>`
     : '';
@@ -2140,9 +2140,11 @@ function renderTimPage(){
 }
 
 function renderIkuTargetPage(){
-  const items = [...(DB.ikuTargets||[])].sort((a,b)=> a.ikuNomor.localeCompare(b.ikuNomor) || b.tahun-a.tahun);
+  const items = [...(DB.ikuTargets||[])]
+    .filter(t=>Number(t.tahun)===FILTER_YEAR)
+    .sort((a,b)=> a.ikuNomor.localeCompare(b.ikuNomor));
   const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> untuk No IKU dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
-  if(!items.length) return note + emptyState('ikutarget','Belum ada target IKU diatur','Tambahkan target untuk setiap No IKU per tahun agar operator bisa mulai mengisi FRA.');
+  if(!items.length) return note + emptyState('ikutarget',`Belum ada target IKU untuk tahun ${FILTER_YEAR}`,'Tambahkan target untuk setiap No IKU pada tahun ini agar operator bisa mulai mengisi FRA.');
   const rows = items.map(t=>`
     <tr>
       <td class="mono">${escapeHtml(t.ikuNomor)}</td>
