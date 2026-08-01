@@ -884,10 +884,13 @@ async function deleteEvidenceFiles(fileIds) {
 function getCollectionRoute(name, schema, options = {}) {
   const isAdminOnly = options.adminOnly || false;
   const beforeSave = options.beforeSave || null;
+  const enrichForRead = options.enrichForRead || null;
 
   app.get(`/api/${name}`, requireLogin, (req, res) => {
     const user = req.session.user;
-    res.json(filterItems(DB[name], user, name, req.query));
+    let items = filterItems(DB[name], user, name, req.query);
+    if (enrichForRead) items = items.map(enrichForRead);
+    res.json(items);
   });
 
   app.post(`/api/${name}`, requireLogin, isAdminOnly ? requireAdmin : authorizePayload, validateBody(schema), async (req, res) => {
@@ -958,8 +961,23 @@ function computeFraPersentase(body) {
   const persentase = target ? Math.min(120, Math.round((realisasi / target) * 10000) / 100) : 0;
   return { ...body, persentase };
 }
+
+function getLiveIkuTarget(ikuNomor, tahun) {
+  const found = (DB.ikuTargets || []).find(
+    (t) => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun)
+  );
+  return found ? Number(found.target) : null;
+}
+function enrichFraWithLiveTarget(item) {
+  const liveTarget = getLiveIkuTarget(item.ikuNomor, item.tahun);
+  if (liveTarget === null) return item;
+  const realisasi = Number(item.realisasi) || 0;
+  const persentase = liveTarget ? Math.min(120, Math.round((realisasi / liveTarget) * 10000) / 100) : 0;
+  return { ...item, target: liveTarget, persentase };
+}
+
 getCollectionRoute('teams', teamSchema, { adminOnly: true });
-getCollectionRoute('fra', fraSchema, { beforeSave: computeFraPersentase });
+getCollectionRoute('fra', fraSchema, { beforeSave: computeFraPersentase, enrichForRead: enrichFraWithLiveTarget });
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
@@ -978,6 +996,7 @@ app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetS
   DB.ikuTargets.push(item);
   await auditLog(req.session.user, 'create', 'ikuTargets', item.id, { item });
   await saveDB();
+  broadcastChange('fra', 'update');
   res.json(item);
 });
 
@@ -990,6 +1009,7 @@ app.put('/api/iku-targets/:id', requireLogin, requireAdmin, validateBody(ikuTarg
   DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...req.body, id: req.params.id };
   await auditLog(req.session.user, 'update', 'ikuTargets', req.params.id, { newValue: DB.ikuTargets[idx] });
   await saveDB();
+  broadcastChange('fra', 'update');
   res.json(DB.ikuTargets[idx]);
 });
 
@@ -999,6 +1019,7 @@ app.delete('/api/iku-targets/:id', requireLogin, requireAdmin, async (req, res) 
   const deleted = DB.ikuTargets.splice(idx, 1)[0];
   await auditLog(req.session.user, 'delete', 'ikuTargets', req.params.id, { deleted });
   await saveDB();
+  broadcastChange('fra', 'update');
   res.json({ deleted: true });
 });
 
@@ -1116,8 +1137,11 @@ app.get('/api/export/json', requireLogin, (req, res) => {
   const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
   const payload = {};
   targetCollections.forEach((name) => {
-    if (DB[name]) payload[name] = filterItems(DB[name], user, name, req.query);
-  });
+  if (!DB[name]) return;
+  let items = filterItems(DB[name], user, name, req.query);
+  if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
+  payload[name] = items;
+});
   const filename = collection ? `simonev-${collection}.json` : 'simonev-all.json';
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
   res.setHeader('Content-Type', 'application/json');
@@ -1130,9 +1154,10 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
   const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
   const workbook = new ExcelJS.Workbook();
   for (const name of targetCollections) {
-    if (!DB[name]) continue;
-    const items = filterItems(DB[name], user, name, req.query);
-    if (!items.length) continue;
+  if (!DB[name]) continue;
+  let items = filterItems(DB[name], user, name, req.query);
+  if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
+  if (!items.length) continue;
     const columns = PDF_COLUMNS[name] || PDF_COLUMNS.teams;
     const sheet = workbook.addWorksheet(name);
     sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
@@ -1149,7 +1174,8 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
 app.get('/api/export/pdf', requireLogin, (req, res) => {
   const user = req.session.user;
   const collection = req.query.collection || 'tugas';
-  const items = filterItems(DB[collection] || [], user, collection, req.query);
+  let items = filterItems(DB[collection] || [], user, collection, req.query);
+  if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   res.setHeader('Content-Disposition', `attachment; filename=simonev-${collection}.pdf`);
@@ -1335,7 +1361,7 @@ app.post('/api/tanya-ai', requireLogin, isJsonRequest, async (req, res) => {
     }
 
     const user = req.session.user;
-    const fraScope = filterItems(DB.fra, user, 'fra', {});
+    const fraScope = filterItems(DB.fra, user, 'fra', {}).map(enrichFraWithLiveTarget);
     const kegiatanScope = filterItems(DB.kegiatan, user, 'kegiatan', {});
     const ikuScope = filterItems(DB.iku, user, 'iku', {});
     const tugasScope = filterItems(DB.tugas, user, 'tugas', {});
