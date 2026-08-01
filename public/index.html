@@ -1031,13 +1031,21 @@ function scheduleSseRefresh(){
     safeRerender();
   }, 400);
 }
+function countByYear(collection){
+  // FRA & Kegiatan: item lama tanpa field tahun tetap ikut dihitung (anggap "semua tahun").
+  // Kelola Target IKU: field tahun selalu ada, jadi filter ketat sesuai FILTER_YEAR.
+  if(collection === 'ikuTargets'){
+    return (DB.ikuTargets||[]).filter(t=>Number(t.tahun)===FILTER_YEAR).length;
+  }
+  return (DB[collection]||[]).filter(item=>!item.tahun || Number(item.tahun)===FILTER_YEAR).length;
+}
 function updateSidebarBadges(){
   const counts = {
-    fra: DB.fra.length,
-    kegiatan: DB.kegiatan.length,
+    fra: countByYear('fra'),
+    kegiatan: countByYear('kegiatan'),
     tim: DB.teams.length,
     users: (DB.users||[]).length,
-    ikutarget: (DB.ikuTargets||[]).length,
+    ikutarget: countByYear('ikuTargets'),
     audit: AUDIT_LOGS.length,
   };
   Object.keys(counts).forEach(route=>{
@@ -1264,15 +1272,15 @@ function renderShell(){
         <div class="nav-group-label">Ringkasan</div>
         ${navItem('dashboard','dashboard','Dashboard')}
         <div class="nav-group-label">Modul Kinerja</div>
-        ${navItem('fra','fra','FRA — Capaian Tim', DB.fra.length)}
-        ${navItem('kegiatan','kegiatan','Analisis Kegiatan', DB.kegiatan.length)}
+        ${navItem('fra','fra','FRA — Capaian Tim', countByYear('fra'))}
+        ${navItem('kegiatan','kegiatan','Analisis Kegiatan', countByYear('kegiatan'))}
         <a href="#" class="nav-item ${ROUTE==='pencapaian'?'active':''}" data-route="pencapaian" style="padding-left:30px;font-size:12.5px;">
           ${ICONS.iku}<span>RTL TW Sebelumnya</span>
         </a>
         <div class="nav-group-label">Admin</div>
         ${navItem('tim','tim','Kelola Tim', DB.teams.length)}
         ${isAdmin() ? navItem('users','tim','Kelola User', (DB.users||[]).length) : ''}
-        ${isAdmin() ? navItem('ikutarget','iku','Kelola Target IKU', (DB.ikuTargets||[]).length) : ''}
+        ${isAdmin() ? navItem('ikutarget','iku','Kelola Target IKU', countByYear('ikuTargets')) : ''}
         ${isAdmin() ? navItem('audit','info','Riwayat Aktivitas', AUDIT_LOGS.length) : ''}
       </div>
       <div class="sidebar-foot">
@@ -1328,7 +1336,7 @@ function renderTopbar(){
     </div>
   `;
   const yf = document.getElementById('yearFilter');
-  if(yf) yf.addEventListener('change', e=>{ FILTER_YEAR = Number(e.target.value); renderContent(); });
+  if(yf) yf.addEventListener('change', e=>{ FILTER_YEAR = Number(e.target.value); renderContent(); updateSidebarBadges(); });
 }
 
 function renderBellWrap(){
