@@ -1116,6 +1116,7 @@ app.post('/api/notifications', requireLogin, requireAdmin, validateBody(notifica
   DB.notifications.push(notif);
   await auditLog(req.session.user, 'create', 'notifications', notif.id, { targetUsername: targetUser.username, message });
   await saveDB();
+  broadcastChange('notifications', 'create');   // ⬅️ TAMBAHKAN BARIS INI
   res.json(notif);
 });
 
@@ -1128,6 +1129,7 @@ app.delete('/api/notifications/:id', requireLogin, async (req, res) => {
   }
   DB.notifications.splice(idx, 1);
   await saveDB();
+  broadcastChange('notifications', 'delete');   // ⬅️ TAMBAHKAN BARIS INI
   res.json({ deleted: true });
 });
 
