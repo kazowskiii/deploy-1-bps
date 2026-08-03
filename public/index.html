@@ -1514,13 +1514,22 @@ function renderReminderBanner(){
   </div>`;
 }
 
+// Dianggap "ada isi" hanya kalau mengandung minimal satu huruf a-z (case-insensitive).
+// Placeholder seperti "---" atau kosong tidak dihitung.
+function hasIsiTeks(str){
+  return typeof str === 'string' && /[a-zA-Z]/.test(str);
+}
+
 function renderDashboard(){
   const ikuYear = DB.iku.filter(i=>i.tahun===FILTER_YEAR);
   const tugasYear = DB.tugas.filter(t=>t.tahun===FILTER_YEAR);
 
   const fraYear = DB.fra.filter(f=>Number(f.tahun)===FILTER_YEAR || !f.tahun);
   const fraAvgPct = fraYear.length ? Math.round(fraYear.reduce((s,f)=>s+(Number(f.persentase)||0),0)/fraYear.length) : 0;
-  const totalKegiatan = DB.kegiatan.length;
+
+  const kendalaCount = DB.kegiatan.filter(k=>hasIsiTeks(k.kendala)).length;
+  const solusiCount  = DB.kegiatan.filter(k=>hasIsiTeks(k.solusi)).length;
+  const rtlCount     = DB.kegiatan.filter(k=>hasIsiTeks(k.rtl)).length;
 
   const kpis = `
     <div class="grid-4">
@@ -1531,21 +1540,21 @@ function renderDashboard(){
         <div class="sub">Rata-rata capaian FRA tahun ${FILTER_YEAR}</div>
       </div>
       <div class="kpi-card">
-        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <span class="trend ${kendalaCount===0?'up':'warn'}">${kendalaCount} tercatat</span>
         <div class="eyebrow">Total Kendala</div>
-        <div class="value">${totalKegiatan}</div>
+        <div class="value">${kendalaCount}</div>
         <div class="sub">Kendala tercatat pada Analisis Kegiatan</div>
       </div>
       <div class="kpi-card">
-        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <span class="trend ${solusiCount===0?'up':'warn'}">${solusiCount} tercatat</span>
         <div class="eyebrow">Solusi</div>
-        <div class="value">${totalKegiatan}</div>
+        <div class="value">${solusiCount}</div>
         <div class="sub">Solusi tercatat pada Analisis Kegiatan</div>
       </div>
       <div class="kpi-card">
-        <span class="trend ${totalKegiatan===0?'up':'warn'}">${totalKegiatan} tercatat</span>
+        <span class="trend ${rtlCount===0?'up':'warn'}">${rtlCount} tercatat</span>
         <div class="eyebrow">RTL</div>
-        <div class="value">${totalKegiatan}</div>
+        <div class="value">${rtlCount}</div>
         <div class="sub">Rencana tindak lanjut tercatat</div>
       </div>
     </div>`;
