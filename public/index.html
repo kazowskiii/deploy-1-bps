@@ -397,6 +397,19 @@ tbody tr:last-child td{border-bottom:none;}
   .login-visual h1{font-size:32px;}
 }
 
+/* ===== Profile dropdown ===== */
+.profile-wrap{position:relative;}
+.profile-btn{
+  display:flex;align-items:center;gap:7px;
+  border:1px solid var(--line-strong);background:var(--surface-2);
+  border-radius:9px;padding:6px 11px 6px 7px;color:var(--ink);
+  font-size:13px;font-weight:600;
+}
+.profile-btn:hover{border-color:var(--primary);color:var(--primary);}
+.profile-btn svg{flex:none;}
+.profile-btn-name{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media(max-width:640px){.profile-btn-name{display:none;}}
+
 /* ===== Notification bell ===== */
 .bell-wrap{position:relative;}
 .bell-btn{
@@ -471,6 +484,8 @@ const ICONS = {
   eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
   eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.3 20.3 0 0 1 5.06-6.06M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/></svg>',
   warning:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  userCircle:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19c1-2.5 3.2-4 5.5-4s4.5 1.5 5.5 4"/></svg>',
+  chevronDown:'<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6"/></svg>',
 };
 
 const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
@@ -507,6 +522,7 @@ let AUDIT_LOGS = [];
 let NOTIFICATIONS = [];
 let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
+let profileMenuOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '', triwulan: '' };
 let ROUTE = 'dashboard';
 let KEGIATAN_SUBTAB = 'kegiatan'; // 'kegiatan' | 'pencapaian'
@@ -1332,7 +1348,7 @@ function renderTopbar(){
       ${routeAddButton()}
       <button class="bell-btn" id="manualRefreshBtn" onclick="manualRefresh()" title="Muat ulang data">${ICONS.refresh}</button>
       ${renderBellWrap()}
-      <button class="btn btn-danger-ghost btn-sm" onclick="logout()">Keluar</button>
+      ${renderProfileWrap()}
     </div>
   `;
   const yf = document.getElementById('yearFilter');
@@ -1382,6 +1398,93 @@ function toggleBellPanel(e){
   renderTopbar();
 }
 document.addEventListener('click', ()=>{ if(bellOpen){ bellOpen=false; if(document.getElementById('topbar')) renderTopbar(); } });
+
+function renderProfileWrap(){
+  if(!AUTH.user) return '';
+  return `<div class="profile-wrap">
+    <button class="profile-btn" onclick="toggleProfileMenu(event)" title="Akun saya">
+      ${ICONS.userCircle}<span class="profile-btn-name">${escapeHtml(AUTH.user.username)}</span>${ICONS.chevronDown}
+    </button>
+    ${profileMenuOpen ? renderProfileMenu() : ''}
+  </div>`;
+}
+function renderProfileMenu(){
+  return `<div class="bell-panel" style="width:180px;" onclick="event.stopPropagation()">
+    <div class="bp-item" style="cursor:pointer;" onclick="event.stopPropagation();openProfileFromMenu();">
+      <div class="nm">Profil</div>
+    </div>
+    <div class="bp-item" style="cursor:pointer;border-bottom:none;" onclick="event.stopPropagation();logout();">
+      <div class="nm" style="color:var(--danger);">Logout</div>
+    </div>
+  </div>`;
+}
+function toggleProfileMenu(e){
+  e.stopPropagation();
+  profileMenuOpen = !profileMenuOpen;
+  renderTopbar();
+}
+document.addEventListener('click', ()=>{ if(profileMenuOpen){ profileMenuOpen=false; if(document.getElementById('topbar')) renderTopbar(); } });
+function openProfileFromMenu(){
+  profileMenuOpen = false;
+  renderTopbar();
+  openProfileModal();
+}
+function openProfileModal(){
+  const u = AUTH.user;
+  const body = `
+    <div class="field"><label>Username</label><input type="text" id="pf_username" value="${escapeHtml(u.username)}"></div>
+    <div class="field"><label>Email</label><input type="text" id="pf_email" value="${escapeHtml(u.email)}"></div>
+    <div class="field">
+      <label>Kata Sandi</label>
+      <div class="flex gap-8 items-center">
+        <input type="password" value="********" disabled style="background:var(--surface-2);color:var(--ink-muted);flex:1;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="toggleChangePasswordFields()">Ubah</button>
+      </div>
+    </div>
+    <div id="pf_passwordFields" style="display:none;">
+      <div class="field"><label>Kata Sandi Baru</label><input type="password" id="pf_password" placeholder="Minimal 6 karakter"></div>
+      <div class="field"><label>Konfirmasi Kata Sandi Baru</label><input type="password" id="pf_password2" placeholder="Ulangi kata sandi baru"></div>
+    </div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveProfile()">Simpan</button>`;
+  openModal(modalShell('Profil Saya', body, foot));
+}
+function toggleChangePasswordFields(){
+  const el = document.getElementById('pf_passwordFields');
+  if(!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+async function saveProfile(){
+  const username = document.getElementById('pf_username').value.trim();
+  const email = document.getElementById('pf_email').value.trim();
+  const pwFieldsEl = document.getElementById('pf_passwordFields');
+  const pwVisible = pwFieldsEl && pwFieldsEl.style.display !== 'none';
+  const password = pwVisible ? document.getElementById('pf_password').value : '';
+  const confirmPassword = pwVisible ? document.getElementById('pf_password2').value : '';
+  if(!username || username.length<3){ toast('Username wajib diisi, minimal 3 karakter','err'); return; }
+  if(!email || !email.includes('@')){ toast('Email wajib diisi dengan format yang benar','err'); return; }
+  if(pwVisible){
+    if(!password || password.length<6){ toast('Kata sandi baru minimal 6 karakter','err'); return; }
+    if(password !== confirmPassword){ toast('Konfirmasi kata sandi baru tidak cocok','err'); return; }
+  }
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    const res = await fetch('/api/profile', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ username, email, password, confirmPassword }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || 'Gagal menyimpan profil');
+    AUTH.user = { ...AUTH.user, username: data.username, email: data.email };
+    closeModal();
+    toast('Profil berhasil diperbarui','ok');
+    renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan profil','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
+}
 
 function gotoReminder(tugasId){
   bellOpen = false;

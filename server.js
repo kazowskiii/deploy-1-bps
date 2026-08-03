@@ -686,6 +686,13 @@ const userUpdateSchema = Joi.object({
   teamId: Joi.string().allow(null, '').when('role', { is: 'operator', then: Joi.string().required() }),
 });
 
+const profileUpdateSchema = Joi.object({
+  username: Joi.string().trim().min(3).max(50).required(),
+  email: Joi.string().trim().email().required(),
+  password: Joi.string().min(6).allow('', null),
+  confirmPassword: Joi.string().allow('', null),
+});
+
 function validateBody(schema) {
   return (req, res, next) => {
     const payload = sanitizePayload(req.body);
@@ -837,6 +844,36 @@ app.get('/api/me', (req, res) => {
     return res.json(req.session.user);
   }
   res.status(401).json({ error: 'Belum login' });
+});
+
+// User mengubah profilnya sendiri (username, email, kata sandi) — bukan role/tim, itu tetap wewenang admin.
+app.put('/api/profile', requireLogin, isJsonRequest, validateBody(profileUpdateSchema), async (req, res) => {
+  const { username, email, password, confirmPassword } = req.body;
+  const emailLower = email.toLowerCase();
+  const currentUserId = req.session.user.id;
+
+  const dup = (DB.users || []).find(
+    (u) => u.id !== currentUserId && (u.username.toLowerCase() === username.toLowerCase() || u.email.toLowerCase() === emailLower)
+  );
+  if (dup) return res.status(400).json({ error: 'Username atau email sudah digunakan oleh user lain' });
+
+  if (password) {
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Konfirmasi kata sandi baru tidak cocok' });
+    }
+  }
+
+  const idx = (DB.users || []).findIndex((u) => u.id === currentUserId);
+  if (idx === -1) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+  const existing = DB.users[idx];
+  const passwordHash = password ? await bcrypt.hash(password, 10) : existing.passwordHash;
+  DB.users[idx] = { ...existing, username, email: emailLower, passwordHash };
+
+  req.session.user = { ...req.session.user, username, email: emailLower };
+  await auditLog(req.session.user, 'update', 'users', currentUserId, { username, email: emailLower, note: 'ubah profil sendiri' });
+  await saveDB();
+  res.json(sanitizeUserForClient(DB.users[idx]));
 });
 
 app.get('/api/events', requireLogin, (req, res) => {
