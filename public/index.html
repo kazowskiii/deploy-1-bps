@@ -1148,14 +1148,20 @@ function findIkuTarget(ikuNomor, tahun){
   return (DB.ikuTargets||[]).find(t=>t.ikuNomor===ikuNomor && Number(t.tahun)===Number(tahun));
 }
 function yearsAvailable(){
-  const ys = new Set([FILTER_YEAR]);
+  const YEAR_START = 2023; // ubah sesuai kebutuhan, mis. tahun mulai sistem digunakan
+  const YEAR_END_BUFFER = 3; // berapa tahun ke depan dari tahun sekarang
   const thisYear = new Date().getFullYear();
-  ys.add(thisYear);
-  ys.add(thisYear + 1);
+  const ys = new Set();
+  for(let y = YEAR_START; y <= thisYear + YEAR_END_BUFFER; y++){
+    ys.add(y);
+  }
+  // tetap sertakan tahun yang sudah punya data walau di luar rentang di atas,
+  // supaya data lama tidak "hilang" dari filter
   DB.iku.forEach(i=>ys.add(Number(i.tahun)));
   DB.tugas.forEach(i=>ys.add(Number(i.tahun)));
   DB.fra.forEach(f=>{ if(f.tahun) ys.add(Number(f.tahun)); });
   DB.kegiatan.forEach(k=>{ if(k.tahun) ys.add(Number(k.tahun)); });
+  ys.add(FILTER_YEAR);
   return Array.from(ys).filter(y=>!isNaN(y)).sort((a,b)=>b-a);
 }
 
