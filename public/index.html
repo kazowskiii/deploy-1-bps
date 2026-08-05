@@ -799,10 +799,10 @@ function renderSetupPage(){
           <div class="eyebrow">Setup Awal</div>
           <h2>Buat akun admin</h2>
           <p>Isi data berikut untuk membuat akun administrator pertama.</p>
-          <form onsubmit="submitSetup(event)">
-            <div class="field"><label>Username</label><input id="setupUsername" type="text" autocomplete="username" placeholder="mis. admin_bps" required></div>
-            <div class="field"><label>Email</label><input id="setupEmail" type="email" autocomplete="email" placeholder="nama@bps.go.id" required></div>
-            <div class="field"><label>Kata sandi</label><input id="setupPassword" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter" required minlength="6"></div>
+          <form onsubmit="submitSetup(event)" method="post" action="#">
+  <div class="field"><label>Username</label><input id="setupUsername" name="username" type="text" autocomplete="username" placeholder="mis. admin_bps" required></div>
+  <div class="field"><label>Email</label><input id="setupEmail" name="email" type="email" autocomplete="email" placeholder="nama@bps.go.id" required></div>
+  <div class="field"><label>Kata sandi</label><input id="setupPassword" name="new-password" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter" required minlength="6"></div>
             <button class="btn-login" type="submit">
               Buat Akun Admin
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -861,9 +861,9 @@ function renderLoginPage(){
           <div class="eyebrow">Portal Internal</div>
           <h2>Selamat datang kembali</h2>
           <p>Masuk menggunakan akun instansi yang telah didaftarkan.</p>
-          <form onsubmit="login(event)">
-            <div class="field"><label>Username atau Email</label><input id="loginUsername" type="text" autocomplete="username" placeholder="username atau nama@bps.go.id" value="" required></div>
-            <div class="field"><label>Kata sandi</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+          <form onsubmit="login(event)" method="post" action="#">
+  <div class="field"><label>Username atau Email</label><input id="loginUsername" name="username" type="text" autocomplete="username" placeholder="username atau nama@bps.go.id" value="" required></div>
+  <div class="field"><label>Kata sandi</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
             <button class="btn-login" type="submit">
               Masuk ke SIMONEV
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
@@ -911,7 +911,7 @@ function renderRegisterPage(){
               ${teamOptionsHtml}
             </select></div>
             <div class="field"><label>Kata sandi</label><input id="regPassword" name="new-password" type="password" autocomplete="new-password" placeholder="Minimal 6 karakter" required minlength="6"></div>
-            <div class="field"><label>Ulangi kata sandi</label><input id="regPassword2" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi" required minlength="6"></div>
+            <div class="field"><label>Ulangi kata sandi</label><input id="regPassword2" name="new-password2" type="password" autocomplete="new-password" placeholder="Ulangi kata sandi" required minlength="6"></div>
             <button class="btn-login" type="submit">
               Daftar Akun
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
