@@ -658,7 +658,9 @@ function filterOptions(collection){
   </div>`;
 }
 function teamFilterOptions(){
-  const teams = isAdmin() ? DB.teams : DB.teams.filter(t=>t.id===AUTH.user.teamId);
+  // Semua user (admin & operator) bisa memfilter berdasarkan Tim manapun,
+  // karena sekarang semua bisa MELIHAT seluruh data.
+  const teams = DB.teams;
   return `<option value="">Semua Tim</option>${teams.map(t=>`<option value="${t.id}" ${t.id===PAGE_FILTERS.teamId?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}`;
 }
 function updatePageFilter(key, value){
@@ -2184,7 +2186,8 @@ function buildKegiatanGridItems(tahun){
   const quarters = PAGE_FILTERS.triwulan ? [Number(PAGE_FILTERS.triwulan)] : [1,2,3,4];
   const qLabels = {1:'Triwulan I',2:'Triwulan II',3:'Triwulan III',4:'Triwulan IV'};
   let targets = (DB.ikuTargets||[]).filter(t=>Number(t.tahun)===tahun);
-  if(!isAdmin()) targets = targets.filter(t=>t.timId===AUTH.user.teamId); // operator hanya lihat timnya sendiri
+  // admin & operator sama-sama melihat SELURUH No IKU & Tim (operator dibatasi
+  // hanya saat mengedit/menambah, lihat canEditTeamRow()).
   const items = [];
   const usedIds = new Set();
   targets.forEach(t=>{
@@ -2262,6 +2265,9 @@ function renderPencapaianPage(){
   </table></div></div>`;
 }
 function pencapaianActions(k){
+  if(!canEditTeamRow(k.timId)){
+    return `<span class="tag tag-muted" style="font-size:10.5px;" title="Hanya Tim terkait yang dapat mengubah data ini">Lihat saja</span>`;
+  }
   const hasFiles = (k.tlEvidenceFiles && k.tlEvidenceFiles.length) || k.hasTlEvidence;
   const delBtn = hasFiles
     ? `<button class="icon-btn" onclick="deletePencapaianEvidence('${k.id}')" title="Hapus Bukti Tindak Lanjut" style="color:var(--danger);">${ICONS.trash}</button>`
@@ -2272,6 +2278,9 @@ function pencapaianActions(k){
   </div>`;
 }
 function pencapaianVirtualActions(k){
+  if(!canEditTeamRow(k.timId)){
+    return `<span class="text-xs text-muted">—</span>`;
+  }
   return `<div class="flex gap-6">
     <button class="icon-btn" onclick="openPencapaianModal(null, {timId:'${k.timId}', ikuNomor:'${k.ikuNomor}', tahun:${k.tahun}, periode:'${k.periode}'})" title="Kelola Bukti Tindak Lanjut">${ICONS.upload}</button>
   </div>`;
@@ -2282,7 +2291,16 @@ function statusPill(s){
 }
 const ICON_STAR_OUTLINE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 3l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 18l-5.9 3.2 1.2-6.6L2.5 10l6.6-.9L12 3Z"/></svg>';
 const ICON_STAR_FILLED = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M12 3l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 18l-5.9 3.2 1.2-6.6L2.5 10l6.6-.9L12 3Z"/></svg>';
+// Operator hanya boleh mengubah/menambah data pada baris dengan Tim yang sama
+// dengan timnya sendiri. Admin selalu boleh. Baris Tim lain tetap TAMPIL,
+// hanya tombol aksinya yang disembunyikan.
+function canEditTeamRow(timId){
+  return isAdmin() || (AUTH.user && AUTH.user.teamId === timId);
+}
 function kegiatanActions(k){
+  if(!canEditTeamRow(k.timId)){
+    return `<span class="tag tag-muted" style="font-size:10.5px;" title="Hanya Tim terkait yang dapat mengubah data ini">Lihat saja</span>`;
+  }
   const starred = !!k.starred;
   const showWarn = isAdmin() && k.createdBy && k.createdBy !== AUTH.user.id;
   const warnBtn = showWarn
@@ -2296,6 +2314,9 @@ function kegiatanActions(k){
   </div>`;
 }
 function kegiatanVirtualActions(k){
+  if(!canEditTeamRow(k.timId)){
+    return `<span class="text-xs text-muted">—</span>`;
+  }
   return `<div class="flex gap-6">
     <button class="icon-btn" onclick="openKegiatanModal(null,'${k.timId}','${k.ikuNomor}',${k.tahun},'${k.periode}')" title="Tambah Analisis untuk baris ini">${ICONS.plus}</button>
   </div>`;
@@ -3222,7 +3243,7 @@ function updateKegiatanTimAuto(){
   const timHiddenEl = document.getElementById('f_tim');
   const timNamaEl = document.getElementById('f_timNama');
   if(!ikuEl || !tahunEl || !timHiddenEl || !timNamaEl) return;
-  const matches = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===ikuEl.value && Number(t.tahun)===Number(tahunEl.value));
+  const matches = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===ikuEl.value && Number(t.tahun)===Number(tahunEl.value) && (isAdmin() || t.timId===AUTH.user.teamId));
   if(matches.length === 1){
     timHiddenEl.value = matches[0].timId;
     timNamaEl.value = teamName(matches[0].timId);
@@ -3281,13 +3302,19 @@ async function saveKegiatan(id){
   }
 }
 /* ---- PENCAPAIAN modal (upload bukti dukung tindak lanjut, semua input dropdown) ---- */
+function teamOptionsForUser(selected){
+  // Operator hanya boleh memilih timnya sendiri di form ini (server juga
+  // menolak kalau timId tidak cocok), admin bebas memilih tim manapun.
+  const teams = isAdmin() ? DB.teams : DB.teams.filter(t=>t.id===AUTH.user.teamId);
+  return teams.map(t=>`<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtml(t.name)}</option>`).join('');
+}
 function openPencapaianModal(id, prefill){
   const k = id ? DB.kegiatan.find(x=>x.id===id) : null;
   const pre = prefill || {};
   const years = yearsAvailable();
   const body = `
     <div class="field-row">
-      <div class="field"><label>Tim</label><select id="pc_tim" onchange="updatePencapaianMatch()">${teamOptions(k?k.timId:(pre.timId||null))}</select></div>
+      <div class="field"><label>Tim</label><select id="pc_tim" onchange="updatePencapaianMatch()">${teamOptionsForUser(k?k.timId:(pre.timId||null))}</select></div>
       <div class="field"><label>Periode</label>
         <select id="pc_periode" onchange="updatePencapaianMatch()">
         ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>

@@ -545,7 +545,7 @@ function filterItems(items, user, collection, query) {
   // (walau bukan admin), karena datanya diinput admin dan dipakai untuk
   // monitoring bersama. Pembatasan per tim tetap berlaku untuk koleksi lain
   // (kegiatan, tugas, iku) supaya operator hanya mengelola datanya sendiri.
-  const READ_UNRESTRICTED = ['teams', 'fra'];
+  const READ_UNRESTRICTED = ['teams', 'fra', 'kegiatan'];
   if (user.role !== 'admin' && !READ_UNRESTRICTED.includes(collection)) {
     result = result.filter((item) => item.timId === user.teamId);
   }
