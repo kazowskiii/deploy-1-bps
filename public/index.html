@@ -3091,21 +3091,6 @@ function openKegiatanModal(id){
   const body = `
     <div class="field-row">
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${k?(k.tahun||FILTER_YEAR):FILTER_YEAR}" oninput="updateKegiatanTimAuto()"></div>
-      <div class="field">
-        <label>No IKU</label>
-        <select id="f_ikuNomor" onchange="updateKegiatanIkuNamaPreview(); updateKegiatanTimAuto();">
-        ${FRA_IKU_LIST.map(item=>
-        `<option value="${item.no}" ${k && k.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
-        ).join('')}
-        </select>
-      </div>
-    </div>
-    <div class="field">
-      <label>IKU</label>
-      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(k && k.ikuNomor ? k.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(k?k.timId:null)}</select></div>
       <div class="field"><label>Periode</label>
       <select id="f_periode">
       ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>
@@ -3113,6 +3098,23 @@ function openKegiatanModal(id){
       ).join('')}
       </select>
       </div>
+    </div>
+    <div class="field">
+      <label>No IKU</label>
+      <select id="f_ikuNomor" onchange="updateKegiatanIkuNamaPreview(); updateKegiatanTimAuto();">
+      ${FRA_IKU_LIST.map(item=>
+      `<option value="${item.no}" ${k && k.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
+      ).join('')}
+      </select>
+    </div>
+    <div class="field">
+      <label>IKU</label>
+      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(k && k.ikuNomor ? k.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
+    </div>
+    <div class="field">
+      <label>Tim</label>
+      <input type="text" id="f_timNama" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Otomatis mengikuti Kelola Target IKU">
+      <input type="hidden" id="f_tim" value="${k?k.timId:''}">
     </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_nama" value="${k?escapeHtml(k.nama):''}" placeholder="mis. Pengumpulan data Susenas"></div>
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
@@ -3132,16 +3134,28 @@ function openKegiatanModal(id){
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveKegiatan('${id||''}')">Simpan</button>`;
   openModal(modalShell(k?'Ubah Analisis Kegiatan':'Tambah Analisis Kegiatan', body, foot));
   wireEvidenceField('kegiatan', id);
-  if(!k) updateKegiatanTimAuto(); // hanya di-set otomatis saat tambah baru; saat mengubah data lama, Tim yang sudah tersimpan tidak diubah
+  updateKegiatanTimAuto(); // Tim selalu mengikuti Kelola Target IKU berdasarkan No IKU & Tahun yang dipilih
 }
 function updateKegiatanTimAuto(){
   const ikuEl = document.getElementById('f_ikuNomor');
   const tahunEl = document.getElementById('f_tahun');
-  const timEl = document.getElementById('f_tim');
-  if(!ikuEl || !tahunEl || !timEl) return;
+  const timHiddenEl = document.getElementById('f_tim');
+  const timNamaEl = document.getElementById('f_timNama');
+  if(!ikuEl || !tahunEl || !timHiddenEl || !timNamaEl) return;
   const matches = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===ikuEl.value && Number(t.tahun)===Number(tahunEl.value));
   if(matches.length === 1){
-    timEl.value = matches[0].timId; // hanya diisi otomatis kalau No IKU+Tahun ini cuma dipakai 1 tim
+    timHiddenEl.value = matches[0].timId;
+    timNamaEl.value = teamName(matches[0].timId);
+    timNamaEl.placeholder = '';
+  } else if(matches.length > 1){
+    // lebih dari satu tim punya target untuk No IKU & Tahun yang sama — ambil yang pertama,
+    // tampilkan semuanya supaya admin tahu ada lebih dari satu dan bisa mengecek di Kelola Target IKU
+    timHiddenEl.value = matches[0].timId;
+    timNamaEl.value = matches.map(m=>teamName(m.timId)).join(', ');
+  } else {
+    timHiddenEl.value = '';
+    timNamaEl.value = '';
+    timNamaEl.placeholder = 'Belum ada Target IKU untuk No IKU & Tahun ini — atur dulu di Kelola Target IKU';
   }
 }
 function updateKegiatanIkuNamaPreview(){
