@@ -2048,26 +2048,36 @@ function renderFraPage(){
     const totalRealisasi = [1,2,3,4].reduce((s,q)=> s + (g.quarters[q] ? (Number(g.quarters[q].realisasi)||0) : 0), 0);
     const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi/g.target)*10000)/100) : 0;
     const totalSt = fraStatusFor(totalCapaian);
+
     const quarterCells = [1,2,3,4].map(q=>{
       const entry = g.quarters[q];
+      const qTargetLive = findIkuTargetForQuarter(g.ikuNomor, FILTER_YEAR, g.timId, 'Triwulan '+qLabels[q]);
+      const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
       if(!entry){
-        const addBtn = isAdmin()
-          ? `<button class="icon-btn btn-sm" onclick="openFraModal(null, {timId:'${g.timId}', ikuNomor:'${g.ikuNomor}', periode:'Triwulan ${qLabels[q]}', tahun:${FILTER_YEAR}})" title="Isi Triwulan ${qLabels[q]}">${ICONS.plus}</button>`
-          : '';
-        return `<td class="mono text-center text-muted text-xs">— ${addBtn}</td><td class="mono text-center text-muted text-xs">—</td>`;
+        return `<td class="mono text-center text-muted text-xs">${qTarget?fmtNum(qTarget):'—'}</td><td class="mono text-center text-muted text-xs">—</td><td class="mono text-center text-muted text-xs">—</td>`;
       }
       const pct = Number(entry.persentase)||0;
       const qst = fraStatusFor(pct);
-      const actions = isAdmin()
-        ? `<button class="icon-btn" onclick="openFraModal('${entry.id}')" title="Ubah">${ICONS.edit}</button><button class="icon-btn" onclick="deleteItem('fra','${entry.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>`
-        : '';
-      return `<td class="mono">${fmtNum(entry.realisasi)}</td><td>
-        <div class="flex items-center gap-6">
-          <span class="tag ${qst.tag}" style="font-size:10px;">${pct}%</span>
-          ${actions}
-        </div>
-      </td>`;
+      return `<td class="mono">${fmtNum(qTarget)}</td><td class="mono">${fmtNum(entry.realisasi)}</td><td><span class="tag ${qst.tag}" style="font-size:10px;">${pct}%</span></td>`;
     }).join('');
+
+    const actions = isAdmin() ? `<div style="display:flex;flex-direction:column;gap:5px;">
+      ${[1,2,3,4].map(q=>{
+        const entry = g.quarters[q];
+        if(entry){
+          return `<div class="flex items-center gap-6" style="justify-content:flex-end;">
+            <span class="text-xs text-muted mono" style="width:36px;">TW ${qLabels[q]}</span>
+            <button class="icon-btn" onclick="openFraModal('${entry.id}')" title="Ubah TW ${qLabels[q]}">${ICONS.edit}</button>
+            <button class="icon-btn" onclick="deleteItem('fra','${entry.id}')" title="Hapus TW ${qLabels[q]}" style="color:var(--danger);">${ICONS.trash}</button>
+          </div>`;
+        }
+        return `<div class="flex items-center gap-6" style="justify-content:flex-end;">
+          <span class="text-xs text-muted mono" style="width:36px;">TW ${qLabels[q]}</span>
+          <button class="icon-btn btn-sm" onclick="openFraModal(null, {timId:'${g.timId}', ikuNomor:'${g.ikuNomor}', periode:'Triwulan ${qLabels[q]}', tahun:${FILTER_YEAR}})" title="Isi TW ${qLabels[q]}">${ICONS.plus}</button>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
     return `<tr>
       <td class="mono">${g.ikuNomor || '—'}</td>
       <td style="min-width:200px;">${escapeHtml(fraIkuNamaByNo(g.ikuNomor) || '—')}</td>
@@ -2077,17 +2087,18 @@ function renderFraPage(){
       <td><span class="tag ${totalSt.tag}">${totalCapaian}%</span></td>
       ${quarterCells}
       <td><span class="tag ${st.tag}">${st.label}</span></td>
+      <td style="min-width:130px;">${actions}</td>
     </tr>`;
   }).join('');
 
   return header + note + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr>
       <th>No IKU</th><th>IKU</th><th>Tim</th><th>Target Tahunan</th><th>Realisasi</th><th>Capaian</th>
-      <th>TW I Realisasi</th><th>TW I Capaian</th>
-      <th>TW II Realisasi</th><th>TW II Capaian</th>
-      <th>TW III Realisasi</th><th>TW III Capaian</th>
-      <th>TW IV Realisasi</th><th>TW IV Capaian</th>
-      <th>Status</th>
+      <th>TW I Target</th><th>TW I Realisasi</th><th>TW I Capaian</th>
+      <th>TW II Target</th><th>TW II Realisasi</th><th>TW II Capaian</th>
+      <th>TW III Target</th><th>TW III Realisasi</th><th>TW III Capaian</th>
+      <th>TW IV Target</th><th>TW IV Realisasi</th><th>TW IV Capaian</th>
+      <th>Status</th><th>Aksi</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
