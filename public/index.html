@@ -2358,9 +2358,19 @@ function renderTimPage(){
 
 function renderIkuTargetPage(){
   const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> sesuai Tim, No IKU, Triwulan, dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
+  const filterBar = `<div class="page-filters">
+    <div class="field"><label>Tahun</label><select id="iktYear" class="q-select" onchange="updatePageYear(this.value)">
+      ${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
+    </select></div>
+    <div class="field"><label>Tim</label><select id="iktTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">
+      ${teamFilterOptions()}
+    </select></div>
+  </div>`;
   const rows = FRA_IKU_LIST.map(item=>{
-    const records = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===item.no && Number(t.tahun)===FILTER_YEAR);
+    let records = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===item.no && Number(t.tahun)===FILTER_YEAR);
+    if(PAGE_FILTERS.teamId) records = records.filter(t=>t.timId===PAGE_FILTERS.teamId);
     if(!records.length){
+      if(PAGE_FILTERS.teamId) return ''; // tim tertentu dipilih & belum ada target -> baris disembunyikan, bukan ditampilkan kosong
       return `<tr>
         <td class="mono">${item.no}</td>
         <td style="min-width:220px;">${escapeHtml(item.nama)}</td>
@@ -2387,7 +2397,7 @@ function renderIkuTargetPage(){
         </td>
       </tr>`).join('');
   }).join('');
-  return note + `<div class="panel"><div class="table-wrap"><table>
+  return filterBar + note + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr>
       <th>No IKU</th><th>IKU</th><th>Tim</th><th>Tahun</th><th>Target Tahunan</th>
       <th>TW I</th><th>TW II</th><th>TW III</th><th>TW IV</th><th></th>
