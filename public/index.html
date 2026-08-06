@@ -1973,6 +1973,28 @@ function renderFraPage(){
   let scoped = [...fraByYear];
   if(PAGE_FILTERS.teamId) scoped = scoped.filter(f=>f.timId===PAGE_FILTERS.teamId);
   let groups = groupFraByTeamIku(scoped);
+
+  // Tambahkan baris "virtual" untuk setiap Target IKU tahun ini yang sudah
+  // diatur Admin di Kelola Target IKU, walau belum ada capaian (FRA) sama
+  // sekali. Supaya semua target yang sudah dikelola otomatis kelihatan di
+  // sini dan admin tinggal klik "+" per triwulan untuk mengisi capaiannya.
+  const targetsYear = (DB.ikuTargets||[]).filter(t=>
+    Number(t.tahun)===FILTER_YEAR && (!PAGE_FILTERS.teamId || t.timId===PAGE_FILTERS.teamId)
+  );
+  targetsYear.forEach(t=>{
+    const existing = groups.find(g=>g.timId===t.timId && g.ikuNomor===t.ikuNomor);
+    if(!existing){
+      groups.push({
+        timId: t.timId,
+        ikuNomor: t.ikuNomor,
+        target: Number(t.target)||0,
+        quarters: {1:null,2:null,3:null,4:null},
+      });
+    } else if(!existing.target){
+      existing.target = Number(t.target)||0;
+    }
+  });
+
   if(PAGE_FILTERS.status){
     groups = groups.filter(g=>groupFraStatus(g).label.toLowerCase()===PAGE_FILTERS.status.toLowerCase());
   }
@@ -2593,7 +2615,7 @@ function openIkuTargetModal(id, prefillIkuNomor){
       <div class="field"><label>Tim</label><select id="f_timTarget">${teamOptions(t?t.timId:null)}</select></div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
     </div>
-    <div class="field"><label>Target Tahunan</label><input type="number" id="f_targetTahunan" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100 (boleh dikosongkan)"></div>
+    <div class="field"><label>Target Tahunan</label><input type="number" id="f_targetTahunan" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100"></div>
     <div class="field-row">
       <div class="field"><label>Target TW I</label><input type="number" id="f_targetTw1" value="${t?t.targetTw1:''}" min="0" step="0.00001" placeholder="0"></div>
       <div class="field"><label>Target TW II</label><input type="number" id="f_targetTw2" value="${t?t.targetTw2:''}" min="0" step="0.00001" placeholder="0"></div>
