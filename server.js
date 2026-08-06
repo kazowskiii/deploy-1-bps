@@ -543,12 +543,13 @@ function auditLog(user, action, collection, itemId, details) {
 
 function filterItems(items, user, collection, query) {
   let result = Array.isArray(items) ? [...items] : [];
-  if (user.role !== 'admin') {
-    if (collection === 'teams') {
-      result = result.filter((item) => item.id === user.teamId);
-    } else {
-      result = result.filter((item) => item.timId === user.teamId);
-    }
+  // Nama tim & capaian FRA sengaja dibuat bisa dibaca semua user yang login
+  // (walau bukan admin), karena datanya diinput admin dan dipakai untuk
+  // monitoring bersama. Pembatasan per tim tetap berlaku untuk koleksi lain
+  // (kegiatan, tugas, iku) supaya operator hanya mengelola datanya sendiri.
+  const READ_UNRESTRICTED = ['teams', 'fra'];
+  if (user.role !== 'admin' && !READ_UNRESTRICTED.includes(collection)) {
+    result = result.filter((item) => item.timId === user.teamId);
   }
   if (query.teamId) {
     result = result.filter((item) => item.timId === query.teamId || item.id === query.teamId);
@@ -1030,11 +1031,7 @@ getCollectionRoute('iku', ikuSchema);
 // Target per No IKU + Tahun — hanya admin yang boleh mengatur, semua user yang
 // login boleh membaca (dipakai operator untuk mengunci field Target di form FRA).
 app.get('/api/iku-targets', requireLogin, (req, res) => {
-  const user = req.session.user;
-  const items = user.role === 'admin'
-    ? (DB.ikuTargets || [])
-    : (DB.ikuTargets || []).filter(t => t.timId === user.teamId);
-  res.json(items);
+  res.json(DB.ikuTargets || []);
 });
 
 app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
