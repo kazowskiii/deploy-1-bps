@@ -1694,7 +1694,19 @@ function renderReminderBanner(){
 function hasIsiTeks(str){
   return typeof str === 'string' && /[a-zA-Z]/.test(str);
 }
-
+function hasIsiTeks(str){
+  return typeof str === 'string' && /[a-zA-Z]/.test(str);
+}
+function computeKegiatanStatus(k){
+  const textFields = [k.nama, k.kendala, k.solusi, k.rtl, k.picTindakLanjut, k.batasWaktuTindakLanjut];
+  const filledText = textFields.filter(hasIsiTeks).length;
+  const hasEvidence = !!(k.hasEvidence || (k.evidenceFiles && k.evidenceFiles.length));
+  const filledCount = filledText + (hasEvidence ? 1 : 0);
+  const total = textFields.length + 1; // 7
+  if(filledCount === total) return 'Selesai';
+  if(filledCount === 0) return 'Belum Ditindaklanjuti';
+  return 'Dalam Proses';
+}
 function renderDashboard(){
   const ikuYear = DB.iku.filter(i=>i.tahun===FILTER_YEAR);
   const tugasYear = DB.tugas.filter(t=>t.tahun===FILTER_YEAR);
@@ -3112,10 +3124,10 @@ function openKegiatanModal(id){
       <div class="field"><label>PIC Tindak Lanjut</label><input type="text" id="f_picTindakLanjut" value="${k?escapeHtml(k.picTindakLanjut||''):''}" placeholder="mis. Budi Santoso"></div>
       <div class="field"><label>Batas Waktu Tindak Lanjut</label><input type="date" id="f_batasWaktuTindakLanjut" value="${k?(k.batasWaktuTindakLanjut||''):''}"></div>
     </div>
-    <div class="field"><label>Status</label>
-      <select id="f_status">
-        ${['Belum Ditindaklanjuti','Dalam Proses','Selesai'].map(s=>`<option value="${s}" ${k&&k.status===s?'selected':''}>${s}</option>`).join('')}
-      </select>
+    <div class="field">
+      <label>Status</label>
+      <input type="text" value="${k?escapeHtml(k.status):'Belum Ditindaklanjuti'}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
+      <div class="text-xs text-muted mt-8">Status dihitung otomatis: lengkap semua (Kendala, Solusi, RTL, PIC TL, Batas Waktu TL, Bukti Dukung) → Selesai; sebagian → Dalam Proses; kosong semua → Belum Ditindaklanjuti.</div>
     </div>
     ${evidenceField('kegiatan', k)}
   `;
@@ -3139,16 +3151,15 @@ async function saveKegiatan(id){
   const kendala = document.getElementById('f_kendala').value.trim();
   const solusi = document.getElementById('f_solusi').value.trim();
   const rtl = document.getElementById('f_rtl').value.trim();
-  const status = document.getElementById('f_status').value;
   const picTindakLanjut = document.getElementById('f_picTindakLanjut').value.trim();
   const batasWaktuTindakLanjut = document.getElementById('f_batasWaktuTindakLanjut').value.trim();
   if(!nama || nama.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
   if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
   if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
   if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
-  let payload = {timId,periode,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,status,picTindakLanjut,batasWaktuTindakLanjut};
   const evMeta = persistPendingEvidence('kegiatan');
-  if(evMeta) Object.assign(payload, evMeta);
+  let payload = {timId,periode,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta};
+  payload.status = computeKegiatanStatus(payload);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
@@ -3229,13 +3240,14 @@ async function savePencapaian(){
   if(!PENCAPAIAN_MATCH_ID){ toast('Tidak ada data Analisis Kegiatan yang cocok untuk disimpan','err'); return; }
   const match = DB.kegiatan.find(x=>x.id===PENCAPAIAN_MATCH_ID);
   if(!match){ toast('Data tidak ditemukan','err'); return; }
+  const evMeta = persistPendingEvidence('kegiatan');
   const payload = {
     timId: match.timId, periode: match.periode, tanggal: match.tanggal, tahun: match.tahun,
     ikuNomor: match.ikuNomor, nama: match.nama, kendala: match.kendala,
-    solusi: match.solusi, rtl: match.rtl, status: match.status, starred: !!match.starred,
+    solusi: match.solusi, rtl: match.rtl, picTindakLanjut: match.picTindakLanjut, batasWaktuTindakLanjut: match.batasWaktuTindakLanjut,
+    starred: !!match.starred, ...evMeta,
   };
-  const evMeta = persistPendingEvidence('kegiatan');
-  if(evMeta) Object.assign(payload, evMeta);
+  payload.status = computeKegiatanStatus(payload);
   const btn = document.getElementById('pc_saveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
@@ -3255,9 +3267,10 @@ async function deletePencapaianEvidence(id){
   const payload = {
     timId: item.timId, periode: item.periode, tanggal: item.tanggal, tahun: item.tahun,
     ikuNomor: item.ikuNomor, nama: item.nama, kendala: item.kendala,
-    solusi: item.solusi, rtl: item.rtl, status: item.status, starred: !!item.starred,
-    hasEvidence: false, evidenceFiles: [],
+    solusi: item.solusi, rtl: item.rtl, picTindakLanjut: item.picTindakLanjut, batasWaktuTindakLanjut: item.batasWaktuTindakLanjut,
+    starred: !!item.starred, hasEvidence: false, evidenceFiles: [],
   };
+  payload.status = computeKegiatanStatus(payload);
   try{
     await apiPut('kegiatan', id, payload);
     await loadAll();

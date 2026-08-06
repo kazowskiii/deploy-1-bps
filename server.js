@@ -921,7 +921,19 @@ async function deleteEvidenceFiles(fileIds) {
     }
   }
 }
-
+function hasIsiTeksServer(str) {
+  return typeof str === 'string' && /[a-zA-Z]/.test(str);
+}
+function computeKegiatanStatusServer(body) {
+  const textFields = [body.nama, body.kendala, body.solusi, body.rtl, body.picTindakLanjut, body.batasWaktuTindakLanjut];
+  const filledText = textFields.filter(hasIsiTeksServer).length;
+  const hasEvidence = !!(body.hasEvidence || (Array.isArray(body.evidenceFiles) && body.evidenceFiles.length));
+  const filledCount = filledText + (hasEvidence ? 1 : 0);
+  const total = textFields.length + 1; // 7
+  if (filledCount === total) return 'Selesai';
+  if (filledCount === 0) return 'Belum Ditindaklanjuti';
+  return 'Dalam Proses';
+}
 function getCollectionRoute(name, schema, options = {}) {
   const isAdminOnly = options.adminOnly || false;
   const beforeSave = options.beforeSave || null;
@@ -1026,7 +1038,9 @@ function enrichFraWithLiveTarget(item) {
 
 getCollectionRoute('teams', teamSchema, { adminOnly: true });
 getCollectionRoute('fra', fraSchema, { adminOnly: true, beforeSave: computeFraPersentase, enrichForRead: enrichFraWithLiveTarget });
-getCollectionRoute('kegiatan', kegiatanSchema);
+getCollectionRoute('kegiatan', kegiatanSchema, {
+  beforeSave: (body) => ({ ...body, status: computeKegiatanStatusServer(body) }),
+});
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);
 
