@@ -1697,12 +1697,16 @@ function hasIsiTeks(str){
 function hasIsiTeks(str){
   return typeof str === 'string' && /[a-zA-Z]/.test(str);
 }
+function hasIsiTanggal(str){
+  return typeof str === 'string' && str.trim().length > 0;
+}
 function computeKegiatanStatus(k){
-  const textFields = [k.nama, k.kendala, k.solusi, k.rtl, k.picTindakLanjut, k.batasWaktuTindakLanjut];
+  const textFields = [k.nama, k.kendala, k.solusi, k.rtl, k.picTindakLanjut];
   const filledText = textFields.filter(hasIsiTeks).length;
+  const filledTanggal = hasIsiTanggal(k.batasWaktuTindakLanjut) ? 1 : 0;
   const hasEvidence = !!(k.hasEvidence || (k.evidenceFiles && k.evidenceFiles.length));
-  const filledCount = filledText + (hasEvidence ? 1 : 0);
-  const total = textFields.length + 1; // 7
+  const filledCount = filledText + filledTanggal + (hasEvidence ? 1 : 0);
+  const total = textFields.length + 2; // 5 field teks + batas waktu + bukti dukung = 7
   if(filledCount === total) return 'Selesai';
   if(filledCount === 0) return 'Belum Ditindaklanjuti';
   return 'Dalam Proses';
@@ -2179,9 +2183,9 @@ function renderKegiatanListPage(){
         <div class="cell-title" style="white-space:pre-wrap;">${escapeHtml(k.nama)}</div>
       </td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
-      <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
-      <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
-      <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
+      <td style="min-width:190px; color:var(--danger); white-space:pre-wrap;">${escapeHtml(k.kendala)}</td>
+      <td style="min-width:190px; color:var(--success); white-space:pre-wrap;">${escapeHtml(k.solusi)}</td>
+      <td style="min-width:190px; white-space:pre-wrap;">${escapeHtml(k.rtl)}</td>
       <td style="min-width:120px;">${escapeHtml(k.picTindakLanjut||'—')}</td>
       <td style="min-width:130px;" class="mono">${k.batasWaktuTindakLanjut ? fmtDate(k.batasWaktuTindakLanjut) : '—'}</td>
       <td>${evidenceCell(k,'kegiatan')}</td>
@@ -3175,10 +3179,6 @@ async function saveKegiatan(id){
   const rtl = document.getElementById('f_rtl').value.trim();
   const picTindakLanjut = document.getElementById('f_picTindakLanjut').value.trim();
   const batasWaktuTindakLanjut = document.getElementById('f_batasWaktuTindakLanjut').value.trim();
-  if(!nama || nama.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
-  if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
-  if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
-  if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
   const evMeta = persistPendingEvidence('kegiatan');
   let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta};
   payload.status = computeKegiatanStatus(payload);

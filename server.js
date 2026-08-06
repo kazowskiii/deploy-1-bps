@@ -612,11 +612,11 @@ const fraSchema = Joi.object({
 const kegiatanSchema = Joi.object({
   timId: Joi.string().required(),
   periode: Joi.string().trim().min(3).max(120).required(),
-  nama: Joi.string().trim().min(3).max(3000).required(),
+  nama: Joi.string().trim().max(3000).allow('', null),
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
-  kendala: Joi.string().trim().min(3).max(1000).required(),
-  solusi: Joi.string().trim().min(3).max(1000).required(),
-  rtl: Joi.string().trim().min(3).max(1000).required(),
+  kendala: Joi.string().trim().max(1000).allow('', null),
+  solusi: Joi.string().trim().max(1000).allow('', null),
+  rtl: Joi.string().trim().max(1000).allow('', null),
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
   picTindakLanjut: Joi.string().trim().max(200).allow('', null),
   batasWaktuTindakLanjut: Joi.string().allow('', null),
@@ -921,12 +921,16 @@ async function deleteEvidenceFiles(fileIds) {
 function hasIsiTeksServer(str) {
   return typeof str === 'string' && /[a-zA-Z]/.test(str);
 }
+function hasIsiTanggalServer(str) {
+  return typeof str === 'string' && str.trim().length > 0;
+}
 function computeKegiatanStatusServer(body) {
-  const textFields = [body.nama, body.kendala, body.solusi, body.rtl, body.picTindakLanjut, body.batasWaktuTindakLanjut];
+  const textFields = [body.nama, body.kendala, body.solusi, body.rtl, body.picTindakLanjut];
   const filledText = textFields.filter(hasIsiTeksServer).length;
+  const filledTanggal = hasIsiTanggalServer(body.batasWaktuTindakLanjut) ? 1 : 0;
   const hasEvidence = !!(body.hasEvidence || (Array.isArray(body.evidenceFiles) && body.evidenceFiles.length));
-  const filledCount = filledText + (hasEvidence ? 1 : 0);
-  const total = textFields.length + 1; // 7
+  const filledCount = filledText + filledTanggal + (hasEvidence ? 1 : 0);
+  const total = textFields.length + 2; // 5 field teks + batas waktu + bukti dukung = 7
   if (filledCount === total) return 'Selesai';
   if (filledCount === 0) return 'Belum Ditindaklanjuti';
   return 'Dalam Proses';
