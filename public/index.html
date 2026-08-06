@@ -2560,30 +2560,42 @@ async function saveTim(id){
 /* ---- TARGET IKU modal (khusus admin) ---- */
 function openIkuTargetModal(id, prefillIkuNomor){
   const t = id ? (DB.ikuTargets||[]).find(x=>x.id===id) : null;
+  const currentIkuNomor = t ? t.ikuNomor : (prefillIkuNomor || FRA_IKU_LIST[0].no);
   const body = `
-    <div class="field"><label>No IKU</label>
-      <select id="f_ikuNomorTarget" ${prefillIkuNomor?'disabled':''}>
+    <div class="field">
+      <label>No IKU</label>
+      <select id="f_ikuNomorTarget" onchange="updateIkuTargetNamaPreview()" ${prefillIkuNomor?'disabled':''}>
       ${FRA_IKU_LIST.map(item=>
-      `<option value="${item.no}" ${(t? t.ikuNomor===item.no : prefillIkuNomor===item.no) ? 'selected' : ''}>${item.no} — ${escapeHtml(item.nama)}</option>`
+      `<option value="${item.no}" ${currentIkuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
       ).join('')}
       </select>
+    </div>
+    <div class="field">
+      <label>IKU</label>
+      <input type="text" id="f_ikuNamaTarget" value="${escapeHtml(fraIkuNamaByNo(currentIkuNomor))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
     </div>
     <div class="field-row">
       <div class="field"><label>Tim</label><select id="f_timTarget">${teamOptions(t?t.timId:null)}</select></div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
     </div>
-    <div class="field"><label>Target Tahunan</label><input type="number" id="f_targetTahunan" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100"></div>
+    <div class="field"><label>Target Tahunan</label><input type="number" id="f_targetTahunan" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100 (boleh dikosongkan)"></div>
     <div class="field-row">
-      <div class="field"><label>Target TW I</label><input type="number" id="f_targetTw1" value="${t?t.targetTw1:''}" min="0" step="0.00001"></div>
-      <div class="field"><label>Target TW II</label><input type="number" id="f_targetTw2" value="${t?t.targetTw2:''}" min="0" step="0.00001"></div>
+      <div class="field"><label>Target TW I</label><input type="number" id="f_targetTw1" value="${t?t.targetTw1:''}" min="0" step="0.00001" placeholder="0"></div>
+      <div class="field"><label>Target TW II</label><input type="number" id="f_targetTw2" value="${t?t.targetTw2:''}" min="0" step="0.00001" placeholder="0"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Target TW III</label><input type="number" id="f_targetTw3" value="${t?t.targetTw3:''}" min="0" step="0.00001"></div>
-      <div class="field"><label>Target TW IV</label><input type="number" id="f_targetTw4" value="${t?t.targetTw4:''}" min="0" step="0.00001"></div>
+      <div class="field"><label>Target TW III</label><input type="number" id="f_targetTw3" value="${t?t.targetTw3:''}" min="0" step="0.00001" placeholder="0"></div>
+      <div class="field"><label>Target TW IV</label><input type="number" id="f_targetTw4" value="${t?t.targetTw4:''}" min="0" step="0.00001" placeholder="0"></div>
     </div>
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveIkuTarget('${id||''}')">Simpan</button>`;
   openModal(modalShell(t?'Ubah Target IKU':'Tambah Target IKU', body, foot));
+}
+function updateIkuTargetNamaPreview(){
+  const selectEl = document.getElementById('f_ikuNomorTarget');
+  const nameEl = document.getElementById('f_ikuNamaTarget');
+  if(!selectEl || !nameEl) return;
+  nameEl.value = fraIkuNamaByNo(selectEl.value);
 }
 async function saveIkuTarget(id){
   const ikuNomor = document.getElementById('f_ikuNomorTarget').value;
@@ -2594,8 +2606,7 @@ async function saveIkuTarget(id){
   const targetTw2 = Number(document.getElementById('f_targetTw2').value)||0;
   const targetTw3 = Number(document.getElementById('f_targetTw3').value)||0;
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
-  if(!target){ toast('Target Tahunan wajib diisi','err'); return; }
-  if(!targetTw1 && !targetTw2 && !targetTw3 && !targetTw4){ toast('Isi minimal satu target triwulan','err'); return; }
+  if(!timId){ toast('Tim wajib dipilih','err'); return; }
   const payload = { ikuNomor, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
