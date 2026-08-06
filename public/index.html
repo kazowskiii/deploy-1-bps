@@ -2002,9 +2002,6 @@ function renderFraPage(){
   if(PAGE_FILTERS.status){
     groups = groups.filter(g=>groupFraStatus(g).label.toLowerCase()===PAGE_FILTERS.status.toLowerCase());
   }
-  if(PAGE_FILTERS.triwulan){
-    groups = groups.filter(g=>!!g.quarters[Number(PAGE_FILTERS.triwulan)]);
-  }
   groups.sort((a,b)=> ikuOrderIndex(a.ikuNomor) - ikuOrderIndex(b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)));
 
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>FRA</b> mencatat <b>Target Tahunan</b> per IKU serta realisasi &amp; capaian tiap triwulan (TW I–IV).</div></div>`;
