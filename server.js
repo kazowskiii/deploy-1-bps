@@ -622,7 +622,7 @@ const kegiatanSchema = Joi.object({
   rtl: Joi.string().trim().min(3).max(1000).required(),
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
   picTindakLanjut: Joi.string().trim().max(200).allow('', null),
-  batasWaktuTindakLanjut: Joi.string().trim().max(100).allow('', null),
+  batasWaktuTindakLanjut: Joi.string().allow('', null),
   starred: Joi.boolean().optional(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   hasEvidence: Joi.boolean().optional(),

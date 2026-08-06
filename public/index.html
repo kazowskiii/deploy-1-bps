@@ -2172,7 +2172,7 @@ function renderKegiatanListPage(){
       <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
       <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
       <td style="min-width:120px;">${escapeHtml(k.picTindakLanjut||'—')}</td>
-      <td style="min-width:130px;" class="mono">${escapeHtml(k.batasWaktuTindakLanjut||'—')}</td>
+      <td style="min-width:130px;" class="mono">${k.batasWaktuTindakLanjut ? fmtDate(k.batasWaktuTindakLanjut) : '—'}</td>
       <td>${evidenceCell(k,'kegiatan')}</td>
       <td>${statusPill(k.status)}</td>
       <td>${kegiatanActions(k)}</td>
@@ -3110,7 +3110,7 @@ function openKegiatanModal(id){
     <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea id="f_rtl" placeholder="Rencana tindak lanjut berikutnya...">${k?escapeHtml(k.rtl):''}</textarea></div>
     <div class="field-row">
       <div class="field"><label>PIC Tindak Lanjut</label><input type="text" id="f_picTindakLanjut" value="${k?escapeHtml(k.picTindakLanjut||''):''}" placeholder="mis. Budi Santoso"></div>
-      <div class="field"><label>Batas Waktu Tindak Lanjut</label><input type="text" id="f_batasWaktuTindakLanjut" value="${k?escapeHtml(k.batasWaktuTindakLanjut||''):''}" placeholder="mis. 20 Agustus 2026"></div>
+      <div class="field"><label>Batas Waktu Tindak Lanjut</label><input type="date" id="f_batasWaktuTindakLanjut" value="${k?(k.batasWaktuTindakLanjut||''):''}"></div>
     </div>
     <div class="field"><label>Status</label>
       <select id="f_status">
