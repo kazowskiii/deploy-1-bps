@@ -2560,8 +2560,20 @@ async function saveTim(id){
 /* ---- TARGET IKU modal (khusus admin) ---- */
 function openIkuTargetModal(id, prefillIkuNomor){
   const t = id ? (DB.ikuTargets||[]).find(x=>x.id===id) : null;
+  const isFreeTextMode = !id && !prefillIkuNomor; // hanya saat dibuka dari tombol "Tambah Target IKU" di kanan atas
   const currentIkuNomor = t ? t.ikuNomor : (prefillIkuNomor || FRA_IKU_LIST[0].no);
-  const body = `
+
+  const ikuFieldsHtml = isFreeTextMode
+    ? `
+    <div class="field">
+      <label>No IKU</label>
+      <input type="text" id="f_ikuNomorTarget" value="" placeholder="mis. 1.1.1.1">
+    </div>
+    <div class="field">
+      <label>IKU</label>
+      <input type="text" id="f_ikuNamaTarget" value="" placeholder="mis. Persentase Publikasi/Laporan Statistik ...">
+    </div>`
+    : `
     <div class="field">
       <label>No IKU</label>
       <select id="f_ikuNomorTarget" onchange="updateIkuTargetNamaPreview()" ${prefillIkuNomor?'disabled':''}>
@@ -2573,7 +2585,10 @@ function openIkuTargetModal(id, prefillIkuNomor){
     <div class="field">
       <label>IKU</label>
       <input type="text" id="f_ikuNamaTarget" value="${escapeHtml(fraIkuNamaByNo(currentIkuNomor))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
-    </div>
+    </div>`;
+
+  const body = `
+    ${ikuFieldsHtml}
     <div class="field-row">
       <div class="field"><label>Tim</label><select id="f_timTarget">${teamOptions(t?t.timId:null)}</select></div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
@@ -2594,11 +2609,13 @@ function openIkuTargetModal(id, prefillIkuNomor){
 function updateIkuTargetNamaPreview(){
   const selectEl = document.getElementById('f_ikuNomorTarget');
   const nameEl = document.getElementById('f_ikuNamaTarget');
-  if(!selectEl || !nameEl) return;
+  if(!selectEl || selectEl.tagName !== 'SELECT' || !nameEl) return;
   nameEl.value = fraIkuNamaByNo(selectEl.value);
 }
 async function saveIkuTarget(id){
-  const ikuNomor = document.getElementById('f_ikuNomorTarget').value;
+  const ikuNomor = document.getElementById('f_ikuNomorTarget').value.trim();
+  const ikuNamaInput = document.getElementById('f_ikuNamaTarget');
+  const ikuNama = ikuNamaInput ? ikuNamaInput.value.trim() : '';
   const timId = document.getElementById('f_timTarget').value;
   const tahun = Number(document.getElementById('f_tahunTarget').value)||FILTER_YEAR;
   const target = Number(document.getElementById('f_targetTahunan').value)||0;
@@ -2606,6 +2623,7 @@ async function saveIkuTarget(id){
   const targetTw2 = Number(document.getElementById('f_targetTw2').value)||0;
   const targetTw3 = Number(document.getElementById('f_targetTw3').value)||0;
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
+  if(!ikuNomor){ toast('No IKU wajib diisi','err'); return; }
   if(!timId){ toast('Tim wajib dipilih','err'); return; }
   const payload = { ikuNomor, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
