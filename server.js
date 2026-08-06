@@ -296,15 +296,13 @@ const PDF_TITLES = {
 const PDF_COLUMNS = {
   teams: [{ key: 'name', label: 'Nama Tim', width: 480 }],
   fra: [
-    { key: 'team', label: 'Tim', width: 70 },
-    { key: 'iku', label: 'IKU', width: 35 },
-    { key: 'nama', label: 'Nama Kegiatan', width: 100 },
-    { key: 'tanggal', label: 'Tanggal', width: 55 },
-    { key: 'periode', label: 'Triwulan', width: 55 },
-    { key: 'target', label: 'Target', width: 45 },
-    { key: 'realisasi', label: 'Realisasi', width: 50 },
-    { key: 'persen', label: 'Capaian', width: 45 },
-    { key: 'status', label: 'Status', width: 55 },
+    { key: 'team', label: 'Tim', width: 90 },
+    { key: 'iku', label: 'IKU', width: 45 },
+    { key: 'periode', label: 'Triwulan', width: 65 },
+    { key: 'target', label: 'Target', width: 55 },
+    { key: 'realisasi', label: 'Realisasi', width: 60 },
+    { key: 'persen', label: 'Capaian', width: 55 },
+    { key: 'status', label: 'Status', width: 65 },
   ],
   kegiatan: [
     { key: 'team', label: 'Tim', width: 70 },
@@ -355,8 +353,6 @@ function buildPdfRow(collection, item) {
     return {
       team: teamNm,
       iku: item.ikuNomor ? `IKU ${item.ikuNomor}` : '-',
-      nama: item.namaKegiatan || item.uraian || '-',
-      tanggal: formatDateIndo(item.tanggalKegiatan),
       periode: item.periode || '-',
       target: String(Number(item.target) || 0),
       realisasi: String(Number(item.realisasi) || 0),

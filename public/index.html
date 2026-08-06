@@ -1957,14 +1957,7 @@ function renderFraPage(){
     return `<tr>
       <td class="mono">${f.ikuNomor || '—'}</td>
       <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(f.ikuNomor) || '—')}</td>
-      <td>
-        <span class="team-pill">${escapeHtml(teamName(f.timId))}</span>
-        <div class="cell-sub mono" style="margin-top:4px;">${fmtDate(f.tanggalKegiatan)}${f.tanggalKegiatan ? ' · '+fmtTime(f.tanggalKegiatan) : ''}</div>
-      </td>
-      <td style="min-width:200px;">
-        <div class="cell-title">${escapeHtml(f.namaKegiatan || f.uraian || '—')}</div>
-        ${f.catatan?`<div class="cell-sub">${escapeHtml(f.catatan)}</div>`:''}
-      </td>
+      <td><span class="team-pill">${escapeHtml(teamName(f.timId))}</span></td>
       <td class="mono">${escapeHtml(f.periode||'—')}</td>
       <td class="mono">${fmtNum(f.target)}</td>
       <td class="mono">${fmtNum(f.realisasi)}</td>
@@ -1974,13 +1967,12 @@ function renderFraPage(){
           <span class="mono text-xs">${pct}%</span>
         </div>
       </td>
-      <td>${evidenceCell(f, 'fra')}</td>
       <td><span class="tag ${st.tag}">${st.label}</span></td>
       <td>${fraRowActions(f)}</td>
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Nama Kegiatan</th><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>Target</th><th>Realisasi</th><th>Capaian</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
