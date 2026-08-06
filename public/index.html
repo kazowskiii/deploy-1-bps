@@ -478,6 +478,7 @@ const ICONS = {
   edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>',
   empty:'<svg class="es-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/></svg>',
+  circleX:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
   x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 6 6 18M6 6l12 12"/></svg>',
   bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
   refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>',
@@ -2360,17 +2361,39 @@ function renderIkuTargetPage(){
   const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> sesuai Tim, No IKU, Triwulan, dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
   const filterBar = `<div class="page-filters">
     <div class="field"><label>Tahun</label><select id="iktYear" class="q-select" onchange="updatePageYear(this.value)">
-      ${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
+      ${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
     </select></div>
     <div class="field"><label>Tim</label><select id="iktTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">
       ${teamFilterOptions()}
     </select></div>
   </div>`;
+
+  function targetRow(no, nama, t){
+    return `<tr>
+      <td class="mono">${escapeHtml(no)}</td>
+      <td style="min-width:220px;">${nama ? escapeHtml(nama) : '<span class="text-muted text-xs">—</span>'}</td>
+      <td><span class="team-pill">${escapeHtml(teamName(t.timId))}</span></td>
+      <td class="mono">${t.tahun}</td>
+      <td class="mono">${fmtNum(t.target)}</td>
+      <td class="mono">${fmtNum(t.targetTw1)}</td>
+      <td class="mono">${fmtNum(t.targetTw2)}</td>
+      <td class="mono">${fmtNum(t.targetTw3)}</td>
+      <td class="mono">${fmtNum(t.targetTw4)}</td>
+      <td>
+        <div class="flex gap-6">
+          <button class="icon-btn" onclick="openIkuTargetModal('${t.id}')" title="Ubah">${ICONS.edit}</button>
+          <button class="icon-btn" onclick="deleteIkuTarget('${t.id}')" title="Hapus Baris" style="color:var(--danger);">${ICONS.trash}</button>
+          <button class="icon-btn" onclick="clearIkuTargetValues('${t.id}')" title="Kosongkan Nilai Target" style="color:var(--warning);">${ICONS.circleX}</button>
+        </div>
+      </td>
+    </tr>`;
+  }
+
   const rows = FRA_IKU_LIST.map(item=>{
     let records = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===item.no && Number(t.tahun)===FILTER_YEAR);
     if(PAGE_FILTERS.teamId) records = records.filter(t=>t.timId===PAGE_FILTERS.teamId);
     if(!records.length){
-      if(PAGE_FILTERS.teamId) return ''; // tim tertentu dipilih & belum ada target -> baris disembunyikan, bukan ditampilkan kosong
+      if(PAGE_FILTERS.teamId) return '';
       return `<tr>
         <td class="mono">${item.no}</td>
         <td style="min-width:220px;">${escapeHtml(item.nama)}</td>
@@ -2378,31 +2401,23 @@ function renderIkuTargetPage(){
         <td><button class="icon-btn" onclick="openIkuTargetModal(null,'${item.no}')" title="Tambah Target">${ICONS.plus}</button></td>
       </tr>`;
     }
-    return records.map(t=>`
-      <tr>
-        <td class="mono">${item.no}</td>
-        <td style="min-width:220px;">${escapeHtml(item.nama)}</td>
-        <td><span class="team-pill">${escapeHtml(teamName(t.timId))}</span></td>
-        <td class="mono">${t.tahun}</td>
-        <td class="mono">${fmtNum(t.target)}</td>
-        <td class="mono">${fmtNum(t.targetTw1)}</td>
-        <td class="mono">${fmtNum(t.targetTw2)}</td>
-        <td class="mono">${fmtNum(t.targetTw3)}</td>
-        <td class="mono">${fmtNum(t.targetTw4)}</td>
-        <td>
-          <div class="flex gap-6">
-            <button class="icon-btn" onclick="openIkuTargetModal('${t.id}')" title="Ubah">${ICONS.edit}</button>
-            <button class="icon-btn" onclick="deleteIkuTarget('${t.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
-          </div>
-        </td>
-      </tr>`).join('');
+    return records.map(t=>targetRow(item.no, item.nama, t)).join('');
   }).join('');
+
+  // Baris untuk No IKU "custom" yang ditambahkan admin di luar 17 No IKU resmi
+  // (mis. lewat tombol "Tambah Target IKU" dengan input bebas). Supaya tetap
+  // kelihatan di tabel, bukan tersimpan diam-diam tanpa pernah tampil.
+  const knownNos = new Set(FRA_IKU_LIST.map(i=>i.no));
+  let customRecords = (DB.ikuTargets||[]).filter(t=>!knownNos.has(t.ikuNomor) && Number(t.tahun)===FILTER_YEAR);
+  if(PAGE_FILTERS.teamId) customRecords = customRecords.filter(t=>t.timId===PAGE_FILTERS.teamId);
+  const customRows = customRecords.map(t=>targetRow(t.ikuNomor, null, t)).join('');
+
   return filterBar + note + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr>
       <th>No IKU</th><th>IKU</th><th>Tim</th><th>Tahun</th><th>Target Tahunan</th>
       <th>TW I</th><th>TW II</th><th>TW III</th><th>TW IV</th><th></th>
     </tr></thead>
-    <tbody>${rows}</tbody>
+    <tbody>${rows}${customRows}</tbody>
   </table></div></div>`;
 }
 
@@ -2679,7 +2694,21 @@ async function deleteIkuTarget(id){
     toast('Target IKU dihapus','ok'); renderShell();
   }catch(e){ toast(e.message || 'Gagal menghapus target IKU','err'); }
 }
-
+async function clearIkuTargetValues(id){
+  const t = (DB.ikuTargets||[]).find(x=>x.id===id);
+  if(!t) return;
+  if(!confirm(`Kosongkan nilai Target Tahunan & TW I–IV untuk No IKU ${t.ikuNomor} (${teamName(t.timId)})? Baris ini tidak akan terhapus, hanya angkanya direset ke 0.`)) return;
+  try{
+    await apiPut('iku-targets', id, {
+      ikuNomor: t.ikuNomor, tahun: t.tahun, timId: t.timId,
+      target: 0, targetTw1: 0, targetTw2: 0, targetTw3: 0, targetTw4: 0,
+    });
+    await loadAll();
+    toast('Nilai target dikosongkan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal mengosongkan nilai target','err');
+  }
+}
 /* ---- FRA modal ---- */
 function openFraModal(id, prefill){
   if(!isAdmin()){
