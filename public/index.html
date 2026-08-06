@@ -529,6 +529,27 @@ let REMINDERS = { items: [], daysLeft: 0, quarterKey: '', year: 0 };
 let bellOpen = false;
 let profileMenuOpen = false;
 let PAGE_FILTERS = { search: '', teamId: '', status: '', triwulan: '' };
+// Setiap halaman punya filter Tahun & filter lain (Tim/Status/Triwulan/Cari)
+// miliknya sendiri, tidak saling memengaruhi. Kecuali badge jumlah di sidebar,
+// yang selalu mengikuti filter Tahun di Dashboard saja.
+let ROUTE_YEARS = {};
+let ROUTE_PAGE_FILTERS = {};
+let LAST_RENDERED_ROUTE = null;
+function defaultPageFilters(){ return { search:'', teamId:'', status:'', triwulan:'' }; }
+function syncRouteFilters(){
+  if(LAST_RENDERED_ROUTE !== ROUTE){
+    if(ROUTE_YEARS[ROUTE]===undefined) ROUTE_YEARS[ROUTE] = FILTER_YEAR;
+    FILTER_YEAR = ROUTE_YEARS[ROUTE];
+    if(!ROUTE_PAGE_FILTERS[ROUTE]) ROUTE_PAGE_FILTERS[ROUTE] = defaultPageFilters();
+    PAGE_FILTERS = ROUTE_PAGE_FILTERS[ROUTE];
+    LAST_RENDERED_ROUTE = ROUTE;
+  } else {
+    // tetap di halaman yang sama — simpan kalau ada perubahan tahun yang
+    // disengaja (mis. setelah simpan data baru, halaman lompat ke tahunnya).
+    ROUTE_YEARS[ROUTE] = FILTER_YEAR;
+    ROUTE_PAGE_FILTERS[ROUTE] = PAGE_FILTERS;
+  }
+}
 let ROUTE = 'dashboard';
 let KEGIATAN_SUBTAB = 'kegiatan'; // 'kegiatan' | 'pencapaian'
 let PENCAPAIAN_MATCH_ID = null;
@@ -639,6 +660,7 @@ function teamFilterOptions(){
   return `<option value="">Semua Tim</option>${teams.map(t=>`<option value="${t.id}" ${t.id===PAGE_FILTERS.teamId?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}`;
 }
 function updatePageFilter(key, value){
+  if(!ROUTE_PAGE_FILTERS[ROUTE]) ROUTE_PAGE_FILTERS[ROUTE] = PAGE_FILTERS;
   PAGE_FILTERS[key] = value;
   const activeId = document.activeElement ? document.activeElement.id : null;
   const cursorPos = (activeId && document.activeElement.selectionStart !== undefined)
@@ -656,9 +678,10 @@ function updatePageFilter(key, value){
 }
 function updatePageYear(value){
   FILTER_YEAR = Number(value);
-  renderTopbar();       // supaya badge "Tahun ..." di judul halaman ikut update
+  ROUTE_YEARS[ROUTE] = FILTER_YEAR; // hanya tersimpan untuk halaman ini
+  renderTopbar();
   renderContent();
-  updateSidebarBadges(); // supaya angka badge sidebar (FRA, Kegiatan, dst) ikut update
+  updateSidebarBadges();
 }
 function buildSearchRegex(rawNeedle){
   const escaped = rawNeedle.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1060,12 +1083,14 @@ function scheduleSseRefresh(){
   }, 400);
 }
 function countByYear(collection){
-  // FRA & Kegiatan: item lama tanpa field tahun tetap ikut dihitung (anggap "semua tahun").
-  // Kelola Target IKU: field tahun selalu ada, jadi filter ketat sesuai FILTER_YEAR.
+  // Badge sidebar sengaja SELALU mengikuti filter Tahun di Dashboard saja,
+  // supaya ganti tahun di halaman lain (FRA, Kegiatan, dst) tidak ikut
+  // mengubah angka badge di sidebar.
+  const badgeYear = ROUTE_YEARS.dashboard!==undefined ? ROUTE_YEARS.dashboard : FILTER_YEAR;
   if(collection === 'ikuTargets'){
-    return (DB.ikuTargets||[]).filter(t=>Number(t.tahun)===FILTER_YEAR).length;
+    return (DB.ikuTargets||[]).filter(t=>Number(t.tahun)===badgeYear).length;
   }
-  return (DB[collection]||[]).filter(item=>!item.tahun || Number(item.tahun)===FILTER_YEAR).length;
+  return (DB[collection]||[]).filter(item=>!item.tahun || Number(item.tahun)===badgeYear).length;
 }
 function updateSidebarBadges(){
   const counts = {
@@ -1310,6 +1335,7 @@ function navItem(route, icon, label, count){
 }
 
 function renderShell(){
+  syncRouteFilters();
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="sidebar">
@@ -1381,7 +1407,7 @@ function renderTopbar(){
     <div class="topbar-title"><h1 class="flex items-center gap-8" style="display:flex;">${t} ${yearBadge}</h1><p>${sub}</p></div>
     <div class="topbar-actions">
       ${yearFilter ? `<select class="select-mini" id="yearFilter">
-        ${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
+        ${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
       </select>` : ''}
       ${routeAddButton()}
       <button class="bell-btn" id="manualRefreshBtn" onclick="manualRefresh()" title="Muat ulang data">${ICONS.refresh}</button>
@@ -1390,7 +1416,12 @@ function renderTopbar(){
     </div>
   `;
   const yf = document.getElementById('yearFilter');
-  if(yf) yf.addEventListener('change', e=>{ FILTER_YEAR = Number(e.target.value); renderContent(); updateSidebarBadges(); });
+if(yf) yf.addEventListener('change', e=>{
+  FILTER_YEAR = Number(e.target.value);
+  ROUTE_YEARS.dashboard = FILTER_YEAR; // ini yang jadi acuan badge sidebar
+  renderContent();
+  updateSidebarBadges();
+});
 }
 
 function renderBellWrap(){
@@ -2360,10 +2391,10 @@ function renderTimPage(){
 function renderIkuTargetPage(){
   const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> sesuai Tim, No IKU, Triwulan, dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
   const filterBar = `<div class="page-filters">
-    <div class="field"><label>Tahun</label><select id="iktYear" class="q-select" onchange="updatePageYear(this.value)">
+    <div class="field" style="flex:0 0 220px;min-width:220px;"><label>Tahun</label><select id="iktYear" class="q-select" onchange="updatePageYear(this.value)">
       ${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}
     </select></div>
-    <div class="field"><label>Tim</label><select id="iktTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">
+    <div class="field" style="flex:0 0 220px;min-width:220px;"><label>Tim</label><select id="iktTeam" class="q-select" onchange="updatePageFilter('teamId', this.value)">
       ${teamFilterOptions()}
     </select></div>
   </div>`;
