@@ -2061,21 +2061,9 @@ function renderFraPage(){
       return `<td class="mono">${fmtNum(qTarget)}</td><td class="mono">${fmtNum(entry.realisasi)}</td><td><span class="tag ${qst.tag}" style="font-size:10px;">${pct}%</span></td>`;
     }).join('');
 
-    const actions = isAdmin() ? `<div style="display:flex;flex-direction:column;gap:5px;">
-      ${[1,2,3,4].map(q=>{
-        const entry = g.quarters[q];
-        if(entry){
-          return `<div class="flex items-center gap-6" style="justify-content:flex-end;">
-            <span class="text-xs text-muted mono" style="width:36px;">TW ${qLabels[q]}</span>
-            <button class="icon-btn" onclick="openFraModal('${entry.id}')" title="Ubah TW ${qLabels[q]}">${ICONS.edit}</button>
-            <button class="icon-btn" onclick="deleteItem('fra','${entry.id}')" title="Hapus TW ${qLabels[q]}" style="color:var(--danger);">${ICONS.trash}</button>
-          </div>`;
-        }
-        return `<div class="flex items-center gap-6" style="justify-content:flex-end;">
-          <span class="text-xs text-muted mono" style="width:36px;">TW ${qLabels[q]}</span>
-          <button class="icon-btn btn-sm" onclick="openFraModal(null, {timId:'${g.timId}', ikuNomor:'${g.ikuNomor}', periode:'Triwulan ${qLabels[q]}', tahun:${FILTER_YEAR}})" title="Isi TW ${qLabels[q]}">${ICONS.plus}</button>
-        </div>`;
-      }).join('')}
+    const actions = isAdmin() ? `<div class="flex gap-6">
+      <button class="icon-btn" onclick="openFraGroupModal('${g.timId}','${g.ikuNomor}')" title="Ubah">${ICONS.edit}</button>
+      <button class="icon-btn" onclick="deleteFraGroup('${g.timId}','${g.ikuNomor}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
     </div>` : '';
 
     return `<tr>
@@ -2098,7 +2086,7 @@ function renderFraPage(){
       <th>TW II Target</th><th>TW II Realisasi</th><th>TW II Capaian</th>
       <th>TW III Target</th><th>TW III Realisasi</th><th>TW III Capaian</th>
       <th>TW IV Target</th><th>TW IV Realisasi</th><th>TW IV Capaian</th>
-      <th>Status</th><th>Aksi</th>
+      <th>Status</th><th style="width:80px;">Aksi</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
@@ -2758,6 +2746,71 @@ async function clearIkuTargetValues(id){
   }catch(e){
     toast(e.message || 'Gagal mengosongkan nilai target','err');
   }
+}
+function openFraGroupModal(timId, ikuNomor){
+  if(!isAdmin()){ toast('Hanya admin yang dapat mengelola data FRA','err'); return; }
+  const qLabels = {1:'I',2:'II',3:'III',4:'IV'};
+  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR));
+  const g = groups.find(x=>x.timId===timId && x.ikuNomor===ikuNomor) || {timId, ikuNomor, target:0, quarters:{1:null,2:null,3:null,4:null}};
+
+  const rowsHtml = [1,2,3,4].map(q=>{
+    const entry = g.quarters[q];
+    const qTargetLive = findIkuTargetForQuarter(ikuNomor, FILTER_YEAR, timId, 'Triwulan '+qLabels[q]);
+    const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
+    return `<div class="field-row" style="align-items:flex-end;">
+      <div class="field"><label>Target TW ${qLabels[q]}</label><input type="text" value="${qTarget?fmtNum(qTarget):'Belum diatur Admin'}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+      <div class="field"><label>Realisasi TW ${qLabels[q]}</label><input type="number" id="fg_real_${q}" value="${entry?(entry.realisasi??''):''}" min="0" step="0.00001" placeholder="0" data-target="${qTarget}" data-entryid="${entry?entry.id:''}"></div>
+    </div>`;
+  }).join('');
+
+  const body = `
+    <div class="field"><label>Tim</label><input type="text" value="${escapeHtml(teamName(timId))}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+    <div class="field"><label>No IKU</label><input type="text" value="${ikuNomor} — ${escapeHtml(fraIkuNamaByNo(ikuNomor))}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+    ${rowsHtml}
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFraGroup('${timId}','${ikuNomor}')">Simpan Semua Triwulan</button>`;
+  openModal(modalShell('Ubah Capaian — TW I s/d IV', body, foot));
+}
+async function saveFraGroup(timId, ikuNomor){
+  const qLabels = {1:'I',2:'II',3:'III',4:'IV'};
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    for(const q of [1,2,3,4]){
+      const input = document.getElementById('fg_real_'+q);
+      if(!input) continue;
+      const target = Number(input.dataset.target)||0;
+      const entryId = input.dataset.entryid;
+      const raw = input.value;
+      if(raw === '' && !entryId) continue; // TW ini tidak diisi & belum ada data -> lewati
+      if(!target){
+        if(raw !== '') toast(`Target TW ${qLabels[q]} belum diatur Admin, TW ini dilewati`, 'err');
+        continue;
+      }
+      const realisasi = Number(raw)||0;
+      const persentase = Math.min(120, Math.round((realisasi/target)*10000)/100);
+      const payload = { timId, periode:'Triwulan '+qLabels[q], ikuNomor, target, realisasi, persentase, tahun:FILTER_YEAR };
+      if(entryId) await apiPut('fra', entryId, payload);
+      else await apiPost('fra', payload);
+    }
+    await loadAll();
+    closeModal(); toast('Capaian tim disimpan','ok'); renderShell();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan capaian tim','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan Semua Triwulan'; }
+  }
+}
+async function deleteFraGroup(timId, ikuNomor){
+  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR));
+  const g = groups.find(x=>x.timId===timId && x.ikuNomor===ikuNomor);
+  const ids = g ? [1,2,3,4].map(q=>g.quarters[q]).filter(Boolean).map(e=>e.id) : [];
+  if(!ids.length){ toast('Tidak ada data untuk dihapus','err'); return; }
+  if(!confirm(`Hapus seluruh capaian (TW I–IV) untuk No IKU ${ikuNomor} — ${teamName(timId)}? Tindakan tidak dapat dibatalkan.`)) return;
+  try{
+    for(const id of ids) await apiDelete('fra', id);
+    await loadAll();
+    toast('Capaian dihapus','ok'); renderShell();
+  }catch(e){ toast(e.message || 'Gagal menghapus data','err'); }
 }
 /* ---- FRA modal ---- */
 function openFraModal(id, prefill){
