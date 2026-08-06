@@ -665,6 +665,7 @@ const ikuTargetSchema = Joi.object({
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   timId: Joi.string().required(),
+  target: Joi.number().min(0).required(),
   targetTw1: Joi.number().min(0).required(),
   targetTw2: Joi.number().min(0).required(),
   targetTw3: Joi.number().min(0).required(),
@@ -1032,16 +1033,11 @@ app.get('/api/iku-targets', requireLogin, (req, res) => {
   res.json(DB.ikuTargets || []);
 });
 
-function withAnnualTarget(body){
-  const sum = (Number(body.targetTw1)||0) + (Number(body.targetTw2)||0) + (Number(body.targetTw3)||0) + (Number(body.targetTw4)||0);
-  return { ...body, target: sum };
-}
-
 app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
   const { ikuNomor, tahun, timId } = req.body;
   const dup = (DB.ikuTargets || []).find(t => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun) && t.timId === timId);
   if (dup) return res.status(400).json({ error: 'Target untuk No IKU, Tim, dan tahun ini sudah ada. Silakan ubah data yang sudah ada.' });
-  const item = { id: uuidv4(), ...withAnnualTarget(req.body) };
+  const item = { id: uuidv4(), ...req.body };
   DB.ikuTargets.push(item);
   await auditLog(req.session.user, 'create', 'ikuTargets', item.id, { item });
   await saveDB();
@@ -1055,7 +1051,7 @@ app.put('/api/iku-targets/:id', requireLogin, requireAdmin, validateBody(ikuTarg
   const { ikuNomor, tahun, timId } = req.body;
   const dup = DB.ikuTargets.find(t => t.id !== req.params.id && t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun) && t.timId === timId);
   if (dup) return res.status(400).json({ error: 'Target untuk No IKU, Tim, dan tahun ini sudah ada pada data lain.' });
-  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...withAnnualTarget(req.body), id: req.params.id };
+  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...req.body, id: req.params.id };
   await auditLog(req.session.user, 'update', 'ikuTargets', req.params.id, { newValue: DB.ikuTargets[idx] });
   await saveDB();
   broadcastChange('fra', 'update');

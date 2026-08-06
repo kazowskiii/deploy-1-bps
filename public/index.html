@@ -2572,6 +2572,7 @@ function openIkuTargetModal(id, prefillIkuNomor){
       <div class="field"><label>Tim</label><select id="f_timTarget">${teamOptions(t?t.timId:null)}</select></div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
     </div>
+    <div class="field"><label>Target Tahunan</label><input type="number" id="f_targetTahunan" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100"></div>
     <div class="field-row">
       <div class="field"><label>Target TW I</label><input type="number" id="f_targetTw1" value="${t?t.targetTw1:''}" min="0" step="0.00001"></div>
       <div class="field"><label>Target TW II</label><input type="number" id="f_targetTw2" value="${t?t.targetTw2:''}" min="0" step="0.00001"></div>
@@ -2588,12 +2589,14 @@ async function saveIkuTarget(id){
   const ikuNomor = document.getElementById('f_ikuNomorTarget').value;
   const timId = document.getElementById('f_timTarget').value;
   const tahun = Number(document.getElementById('f_tahunTarget').value)||FILTER_YEAR;
+  const target = Number(document.getElementById('f_targetTahunan').value)||0;
   const targetTw1 = Number(document.getElementById('f_targetTw1').value)||0;
   const targetTw2 = Number(document.getElementById('f_targetTw2').value)||0;
   const targetTw3 = Number(document.getElementById('f_targetTw3').value)||0;
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
+  if(!target){ toast('Target Tahunan wajib diisi','err'); return; }
   if(!targetTw1 && !targetTw2 && !targetTw3 && !targetTw4){ toast('Isi minimal satu target triwulan','err'); return; }
-  const payload = { ikuNomor, timId, tahun, targetTw1, targetTw2, targetTw3, targetTw4 };
+  const payload = { ikuNomor, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
