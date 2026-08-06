@@ -2625,6 +2625,18 @@ function teamOptions(selected){
   return DB.teams.map(t=>`<option value="${t.id}" ${t.id===selected?'selected':''}>${escapeHtml(t.name)}</option>`).join('');
 }
 
+// Scroll mouse vertikal (roda mouse) diubah jadi scroll horizontal ketika kursor
+// berada di atas tabel yang lebar (.table-wrap), supaya tidak perlu geser scrollbar
+// bawah secara manual. Hanya aktif kalau tabel memang overflow ke samping.
+document.addEventListener('wheel', function(e){
+  const wrap = e.target.closest('.table-wrap');
+  if(!wrap) return;
+  if(wrap.scrollWidth <= wrap.clientWidth) return; // tidak overflow, biarkan scroll normal
+  if(Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // sudah scroll horizontal manual (trackpad), biarkan
+  e.preventDefault();
+  wrap.scrollLeft += e.deltaY;
+}, { passive: false });
+
 /* ---- TIM modal ---- */
 function openTimModal(id){
   const t = id ? DB.teams.find(x=>x.id===id) : null;
