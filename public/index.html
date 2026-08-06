@@ -1760,12 +1760,12 @@ function renderDashboard(){
     </tr>`;
   }).join('');
 
-  const starredKegiatan = DB.kegiatan.filter(k=>k.starred).sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
+  const starredKegiatan = DB.kegiatan.filter(k=>k.starred).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   const recentList = starredKegiatan.length ? starredKegiatan.map(k=>`
     <div style="padding:11px 0;border-bottom:1px solid var(--line);">
       <div class="flex items-center gap-8" style="justify-content:space-between;">
         <span class="flex items-center gap-6" style="color:#B4872A;">${ICON_STAR_FILLED}<span class="cell-title" style="font-size:12.5px;color:var(--ink);">${escapeHtml(k.nama)}</span></span>
-        <span class="text-xs text-muted mono">${fmtDate(k.tanggal)}${k.createdAt ? ' · '+fmtTime(k.createdAt) : ''}</span>
+        <span class="text-xs text-muted mono">${k.createdAt ? fmtDate(k.createdAt)+' · '+fmtTime(k.createdAt) : ''}</span>
       </div>
       <div class="text-xs text-muted mt-8"><b style="color:var(--danger);">Kendala:</b> ${escapeHtml(truncate(k.kendala,70))}</div>
     </div>`).join('') : `<div class="empty-state" style="padding:24px 0;">Belum ada kegiatan yang dibintangi. Tandai kegiatan di halaman Analisis Kegiatan agar muncul di sini.</div>`;
@@ -2166,7 +2166,7 @@ function switchKegiatanSubtab(tab){
 
 function renderKegiatanListPage(){
   const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
-  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
+  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')), 'kegiatan');
   const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Catat kendala, solusi, dan rencana tindak lanjut kegiatan.');
@@ -2177,7 +2177,6 @@ function renderKegiatanListPage(){
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td style="min-width:160px;">
         <div class="cell-title">${escapeHtml(k.nama)}</div>
-        <div class="cell-sub mono">${fmtDate(k.tanggal)}</div>
       </td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
       <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
@@ -2197,7 +2196,7 @@ function renderKegiatanListPage(){
 
 function renderPencapaianPage(){
   const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
-  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
+  const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||'')), 'kegiatan');
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>TL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Tambahkan datanya dulu di tab Analisis Kegiatan.');
@@ -2249,7 +2248,7 @@ async function toggleStarKegiatan(id){
   const item = DB.kegiatan.find(x=>x.id===id);
   if(!item) return;
   const payload = {
-    timId:item.timId, periode:item.periode, tanggal:item.tanggal, tahun: item.tahun || new Date().getFullYear(),
+    timId:item.timId, periode:item.periode, tahun: item.tahun || new Date().getFullYear(),
     ikuNomor: item.ikuNomor, nama:item.nama, kendala:item.kendala,
     solusi:item.solusi, rtl:item.rtl, status:item.status, starred: !item.starred,
   };
@@ -3091,6 +3090,21 @@ function openKegiatanModal(id){
   const k = id ? DB.kegiatan.find(x=>x.id===id) : null;
   const body = `
     <div class="field-row">
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${k?(k.tahun||FILTER_YEAR):FILTER_YEAR}" oninput="updateKegiatanTimAuto()"></div>
+      <div class="field">
+        <label>No IKU</label>
+        <select id="f_ikuNomor" onchange="updateKegiatanIkuNamaPreview(); updateKegiatanTimAuto();">
+        ${FRA_IKU_LIST.map(item=>
+        `<option value="${item.no}" ${k && k.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
+        ).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>IKU</label>
+      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(k && k.ikuNomor ? k.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
+    </div>
+    <div class="field-row">
       <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(k?k.timId:null)}</select></div>
       <div class="field"><label>Periode</label>
       <select id="f_periode">
@@ -3099,22 +3113,6 @@ function openKegiatanModal(id){
       ).join('')}
       </select>
       </div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Tanggal</label><input type="date" id="f_tanggal" value="${k?k.tanggal:new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${k?(k.tahun||FILTER_YEAR):FILTER_YEAR}"></div>
-    </div>
-    <div class="field">
-      <label>No IKU</label>
-      <select id="f_ikuNomor" onchange="updateKegiatanIkuNamaPreview()">
-      ${FRA_IKU_LIST.map(item=>
-      `<option value="${item.no}" ${k && k.ikuNomor===item.no ? 'selected' : ''}>${item.no}</option>`
-      ).join('')}
-      </select>
-    </div>
-    <div class="field">
-      <label>IKU</label>
-      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(k && k.ikuNomor ? k.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
     </div>
     <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_nama" value="${k?escapeHtml(k.nama):''}" placeholder="mis. Pengumpulan data Susenas"></div>
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
@@ -3134,6 +3132,17 @@ function openKegiatanModal(id){
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveKegiatan('${id||''}')">Simpan</button>`;
   openModal(modalShell(k?'Ubah Analisis Kegiatan':'Tambah Analisis Kegiatan', body, foot));
   wireEvidenceField('kegiatan', id);
+  if(!k) updateKegiatanTimAuto(); // hanya di-set otomatis saat tambah baru; saat mengubah data lama, Tim yang sudah tersimpan tidak diubah
+}
+function updateKegiatanTimAuto(){
+  const ikuEl = document.getElementById('f_ikuNomor');
+  const tahunEl = document.getElementById('f_tahun');
+  const timEl = document.getElementById('f_tim');
+  if(!ikuEl || !tahunEl || !timEl) return;
+  const matches = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===ikuEl.value && Number(t.tahun)===Number(tahunEl.value));
+  if(matches.length === 1){
+    timEl.value = matches[0].timId; // hanya diisi otomatis kalau No IKU+Tahun ini cuma dipakai 1 tim
+  }
 }
 function updateKegiatanIkuNamaPreview(){
   const selectEl = document.getElementById('f_ikuNomor');
@@ -3144,7 +3153,6 @@ function updateKegiatanIkuNamaPreview(){
 async function saveKegiatan(id){
   const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value;
-  const tanggal = document.getElementById('f_tanggal').value;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   const ikuNomor = document.getElementById('f_ikuNomor').value;
   const nama = document.getElementById('f_nama').value.trim();
@@ -3158,7 +3166,7 @@ async function saveKegiatan(id){
   if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
   if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
   const evMeta = persistPendingEvidence('kegiatan');
-  let payload = {timId,periode,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta};
+  let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta};
   payload.status = computeKegiatanStatus(payload);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
@@ -3242,7 +3250,7 @@ async function savePencapaian(){
   if(!match){ toast('Data tidak ditemukan','err'); return; }
   const evMeta = persistPendingEvidence('kegiatan');
   const payload = {
-    timId: match.timId, periode: match.periode, tanggal: match.tanggal, tahun: match.tahun,
+    timId: match.timId, periode: match.periode, tahun: match.tahun,
     ikuNomor: match.ikuNomor, nama: match.nama, kendala: match.kendala,
     solusi: match.solusi, rtl: match.rtl, picTindakLanjut: match.picTindakLanjut, batasWaktuTindakLanjut: match.batasWaktuTindakLanjut,
     starred: !!match.starred, ...evMeta,
@@ -3265,7 +3273,7 @@ async function deletePencapaianEvidence(id){
   if(!item) return;
   if(!confirm('Hapus semua bukti dukung tindak lanjut untuk kegiatan ini? Data kegiatan (kendala/solusi/RTL) tidak akan terhapus.')) return;
   const payload = {
-    timId: item.timId, periode: item.periode, tanggal: item.tanggal, tahun: item.tahun,
+    timId: item.timId, periode: item.periode, tahun: item.tahun,
     ikuNomor: item.ikuNomor, nama: item.nama, kendala: item.kendala,
     solusi: item.solusi, rtl: item.rtl, picTindakLanjut: item.picTindakLanjut, batasWaktuTindakLanjut: item.batasWaktuTindakLanjut,
     starred: !!item.starred, hasEvidence: false, evidenceFiles: [],
