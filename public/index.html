@@ -1983,8 +1983,10 @@ function renderFraPage(){
   // sekali. Supaya semua target yang sudah dikelola otomatis kelihatan di
   // sini dan admin tinggal klik "+" per triwulan untuk mengisi capaiannya.
   const targetsYear = (DB.ikuTargets||[]).filter(t=>
-    Number(t.tahun)===FILTER_YEAR && (!PAGE_FILTERS.teamId || t.timId===PAGE_FILTERS.teamId)
-  );
+  Number(t.tahun)===FILTER_YEAR
+  && (isAdmin() || t.timId===AUTH.user.teamId)
+  && (!PAGE_FILTERS.teamId || t.timId===PAGE_FILTERS.teamId)
+);
   targetsYear.forEach(t=>{
     const existing = groups.find(g=>g.timId===t.timId && g.ikuNomor===t.ikuNomor);
     if(!existing){

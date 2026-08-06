@@ -1030,7 +1030,11 @@ getCollectionRoute('iku', ikuSchema);
 // Target per No IKU + Tahun — hanya admin yang boleh mengatur, semua user yang
 // login boleh membaca (dipakai operator untuk mengunci field Target di form FRA).
 app.get('/api/iku-targets', requireLogin, (req, res) => {
-  res.json(DB.ikuTargets || []);
+  const user = req.session.user;
+  const items = user.role === 'admin'
+    ? (DB.ikuTargets || [])
+    : (DB.ikuTargets || []).filter(t => t.timId === user.teamId);
+  res.json(items);
 });
 
 app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
