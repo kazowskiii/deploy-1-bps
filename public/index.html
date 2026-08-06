@@ -616,10 +616,10 @@ function filterOptions(collection){
   ];
   const searchField = `<div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>`;
   const triwulanField = `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
-  const yearField = `<div class="field"><label>Tahun</label><select id="pageYear" class="q-select" onchange="updatePageYear(this.value)">${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}</select></div>`;
+  const yearField = `<div class="field"><label>Tahun</label><select id="pageYear" class="q-select" onchange="updatePageYear(this.value)">${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}</select></div>`;
   let firstFields;
   if(collection === 'fra' || collection === 'kegiatan'){
-    firstFields = triwulanField + yearField;
+    firstFields = yearField + triwulanField;
   } else {
     firstFields = searchField;
   }
@@ -1156,7 +1156,7 @@ function findIkuTarget(ikuNomor, tahun){
 }
 function yearsAvailable(){
   const YEAR_START = 2026; // tahun mulai sistem digunakan
-  const YEAR_END_BUFFER = 3; // berapa tahun ke depan dari tahun sekarang
+  const YEAR_END_BUFFER = 4; // berapa tahun ke depan dari tahun sekarang
   const thisYear = new Date().getFullYear();
   const ys = new Set();
   for(let y = YEAR_START; y <= thisYear + YEAR_END_BUFFER; y++){
