@@ -616,9 +616,10 @@ function filterOptions(collection){
   ];
   const searchField = `<div class="field"><label>Cari</label><input id="pageSearch" type="search" class="q-input" value="${escapeHtml(PAGE_FILTERS.search)}" placeholder="Cari kata kunci..." oninput="updatePageFilter('search', this.value)"></div>`;
   const triwulanField = `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
+  const yearField = `<div class="field"><label>Tahun</label><select id="pageYear" class="q-select" onchange="updatePageYear(this.value)">${yearsAvailable().map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}</select></div>`;
   let firstFields;
   if(collection === 'fra' || collection === 'kegiatan'){
-    firstFields = triwulanField;
+    firstFields = triwulanField + yearField;
   } else {
     firstFields = searchField;
   }
@@ -647,6 +648,12 @@ function updatePageFilter(key, value){
       }
     }
   }
+}
+function updatePageYear(value){
+  FILTER_YEAR = Number(value);
+  renderTopbar();       // supaya badge "Tahun ..." di judul halaman ikut update
+  renderContent();
+  updateSidebarBadges(); // supaya angka badge sidebar (FRA, Kegiatan, dst) ikut update
 }
 function buildSearchRegex(rawNeedle){
   const escaped = rawNeedle.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1148,7 +1155,7 @@ function findIkuTarget(ikuNomor, tahun){
   return (DB.ikuTargets||[]).find(t=>t.ikuNomor===ikuNomor && Number(t.tahun)===Number(tahun));
 }
 function yearsAvailable(){
-  const YEAR_START = 2023; // ubah sesuai kebutuhan, mis. tahun mulai sistem digunakan
+  const YEAR_START = 2026; // tahun mulai sistem digunakan
   const YEAR_END_BUFFER = 3; // berapa tahun ke depan dari tahun sekarang
   const thisYear = new Date().getFullYear();
   const ys = new Set();
