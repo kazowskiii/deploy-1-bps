@@ -612,7 +612,7 @@ const fraSchema = Joi.object({
 const kegiatanSchema = Joi.object({
   timId: Joi.string().required(),
   periode: Joi.string().trim().min(3).max(120).required(),
-  nama: Joi.string().trim().min(3).max(250).required(),
+  nama: Joi.string().trim().min(3).max(3000).required(),
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
   kendala: Joi.string().trim().min(3).max(1000).required(),
   solusi: Joi.string().trim().min(3).max(1000).required(),
