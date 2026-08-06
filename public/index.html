@@ -644,8 +644,10 @@ function filterOptions(collection){
   const triwulanField = `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
   const yearField = `<div class="field"><label>Tahun</label><select id="pageYear" class="q-select" onchange="updatePageYear(this.value)">${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}</select></div>`;
   let firstFields;
-  if(collection === 'kegiatan' || collection === 'fra'){
+  if(collection === 'kegiatan'){
     firstFields = yearField + triwulanField;
+  } else if(collection === 'fra'){
+    firstFields = yearField;
   } else {
     firstFields = searchField;
   }
@@ -2169,11 +2171,14 @@ function renderKegiatanListPage(){
       <td style="min-width:190px; color:var(--danger);">${escapeHtml(k.kendala)}</td>
       <td style="min-width:190px; color:var(--success);">${escapeHtml(k.solusi)}</td>
       <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
+      <td style="min-width:120px;">${escapeHtml(k.picTindakLanjut||'—')}</td>
+      <td style="min-width:130px;" class="mono">${escapeHtml(k.batasWaktuTindakLanjut||'—')}</td>
+      <td>${evidenceCell(k,'kegiatan')}</td>
       <td>${statusPill(k.status)}</td>
       <td>${kegiatanActions(k)}</td>
     </tr>`).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -3103,14 +3108,20 @@ function openKegiatanModal(id){
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
     <div class="field"><label>Solusi</label><textarea id="f_solusi" placeholder="Solusi yang diterapkan...">${k?escapeHtml(k.solusi):''}</textarea></div>
     <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea id="f_rtl" placeholder="Rencana tindak lanjut berikutnya...">${k?escapeHtml(k.rtl):''}</textarea></div>
+    <div class="field-row">
+      <div class="field"><label>PIC Tindak Lanjut</label><input type="text" id="f_picTindakLanjut" value="${k?escapeHtml(k.picTindakLanjut||''):''}" placeholder="mis. Budi Santoso"></div>
+      <div class="field"><label>Batas Waktu Tindak Lanjut</label><input type="text" id="f_batasWaktuTindakLanjut" value="${k?escapeHtml(k.batasWaktuTindakLanjut||''):''}" placeholder="mis. 20 Agustus 2026"></div>
+    </div>
     <div class="field"><label>Status</label>
       <select id="f_status">
         ${['Belum Ditindaklanjuti','Dalam Proses','Selesai'].map(s=>`<option value="${s}" ${k&&k.status===s?'selected':''}>${s}</option>`).join('')}
       </select>
     </div>
+    ${evidenceField('kegiatan', k)}
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveKegiatan('${id||''}')">Simpan</button>`;
   openModal(modalShell(k?'Ubah Analisis Kegiatan':'Tambah Analisis Kegiatan', body, foot));
+  wireEvidenceField('kegiatan', id);
 }
 function updateKegiatanIkuNamaPreview(){
   const selectEl = document.getElementById('f_ikuNomor');
@@ -3129,16 +3140,22 @@ async function saveKegiatan(id){
   const solusi = document.getElementById('f_solusi').value.trim();
   const rtl = document.getElementById('f_rtl').value.trim();
   const status = document.getElementById('f_status').value;
+  const picTindakLanjut = document.getElementById('f_picTindakLanjut').value.trim();
+  const batasWaktuTindakLanjut = document.getElementById('f_batasWaktuTindakLanjut').value.trim();
   if(!nama || nama.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
   if(!kendala || kendala.length < 3){ toast('Kendala wajib diisi, minimal 3 karakter','err'); return; }
   if(!solusi || solusi.length < 3){ toast('Solusi wajib diisi, minimal 3 karakter','err'); return; }
   if(!rtl || rtl.length < 3){ toast('Rencana tindak lanjut wajib diisi, minimal 3 karakter','err'); return; }
-  const payload = {timId,periode,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,status};
+  let payload = {timId,periode,tanggal,tahun,ikuNomor,nama,kendala,solusi,rtl,status,picTindakLanjut,batasWaktuTindakLanjut};
+  const evMeta = persistPendingEvidence('kegiatan');
+  if(evMeta) Object.assign(payload, evMeta);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    if(id) await apiPut('kegiatan', id, payload);
-    else await apiPost('kegiatan', payload);
+    let saved;
+    if(id) saved = await apiPut('kegiatan', id, payload);
+    else saved = await apiPost('kegiatan', payload);
+    registerAutoAttachIfUploading('kegiatan', 'kegiatan', saved.id);
     await loadAll();
     closeModal(); toast('Analisis kegiatan disimpan','ok'); FILTER_YEAR = tahun; renderShell();
   }catch(e){
