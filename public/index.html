@@ -618,10 +618,8 @@ function filterOptions(collection){
   const triwulanField = `<div class="field"><label>Triwulan</label><select id="pageTriwulan" class="q-select" onchange="updatePageFilter('triwulan', this.value)">${triwulanOptions.map(o=>`<option value="${o.value}" ${o.value===PAGE_FILTERS.triwulan?'selected':''}>${o.label}</option>`).join('')}</select></div>`;
   const yearField = `<div class="field"><label>Tahun</label><select id="pageYear" class="q-select" onchange="updatePageYear(this.value)">${[...yearsAvailable()].sort((a,b)=>a-b).map(y=>`<option value="${y}" ${y===FILTER_YEAR?'selected':''}>Tahun ${y}</option>`).join('')}</select></div>`;
   let firstFields;
-  if(collection === 'kegiatan'){
+  if(collection === 'kegiatan' || collection === 'fra'){
     firstFields = yearField + triwulanField;
-  } else if(collection === 'fra'){
-    firstFields = yearField + searchField;
   } else {
     firstFields = searchField;
   }
@@ -1153,8 +1151,14 @@ function fmtBytes(n){
   return (n/1024/1024).toFixed(1) + ' MB';
 }
 function teamName(id){ const t = DB.teams.find(t=>t.id===id); return t ? t.name : '—'; }
-function findIkuTarget(ikuNomor, tahun){
-  return (DB.ikuTargets||[]).find(t=>t.ikuNomor===ikuNomor && Number(t.tahun)===Number(tahun));
+function findIkuTargetRecord(ikuNomor, tahun, timId){
+  return (DB.ikuTargets||[]).find(t=>t.ikuNomor===ikuNomor && Number(t.tahun)===Number(tahun) && t.timId===timId);
+}
+function findIkuTargetForQuarter(ikuNomor, tahun, timId, periode){
+  const record = findIkuTargetRecord(ikuNomor, tahun, timId);
+  if(!record) return null;
+  const q = periodeToArabic(periode);
+  return q ? Number(record['targetTw'+q])||0 : Number(record.target)||0;
 }
 function yearsAvailable(){
   const YEAR_START = 2026; // tahun mulai sistem digunakan
@@ -1968,13 +1972,12 @@ function renderFraPage(){
   const fraByYear = DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR);
   let scoped = [...fraByYear];
   if(PAGE_FILTERS.teamId) scoped = scoped.filter(f=>f.timId===PAGE_FILTERS.teamId);
-  if(PAGE_FILTERS.search){
-    const regex = buildSearchRegex(PAGE_FILTERS.search);
-    if(regex) scoped = scoped.filter(f=>regex.test(buildSearchableText(f,'fra')));
-  }
   let groups = groupFraByTeamIku(scoped);
   if(PAGE_FILTERS.status){
     groups = groups.filter(g=>groupFraStatus(g).label.toLowerCase()===PAGE_FILTERS.status.toLowerCase());
+  }
+  if(PAGE_FILTERS.triwulan){
+    groups = groups.filter(g=>!!g.quarters[Number(PAGE_FILTERS.triwulan)]);
   }
   groups.sort((a,b)=> teamName(a.timId).localeCompare(teamName(b.timId)) || a.ikuNomor.localeCompare(b.ikuNomor));
 
@@ -2331,26 +2334,41 @@ function renderTimPage(){
 }
 
 function renderIkuTargetPage(){
-  const items = [...(DB.ikuTargets||[])]
-    .filter(t=>Number(t.tahun)===FILTER_YEAR)
-    .sort((a,b)=> a.ikuNomor.localeCompare(b.ikuNomor));
-  const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> untuk No IKU dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
-  if(!items.length) return note + emptyState('ikutarget',`Belum ada target IKU untuk tahun ${FILTER_YEAR}`,'Tambahkan target untuk setiap No IKU pada tahun ini agar operator bisa mulai mengisi FRA.');
-  const rows = items.map(t=>`
-    <tr>
-      <td class="mono">${escapeHtml(t.ikuNomor)}</td>
-      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(t.ikuNomor) || '—')}</td>
-      <td class="mono">${t.tahun}</td>
-      <td class="mono">${fmtNum(t.target)}</td>
-      <td>
-        <div class="flex gap-6">
-          <button class="icon-btn" onclick="openIkuTargetModal('${t.id}')" title="Ubah">${ICONS.edit}</button>
-          <button class="icon-btn" onclick="deleteIkuTarget('${t.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
-        </div>
-      </td>
-    </tr>`).join('');
+  const note = `<div class="section-note">${ICONS.info}<div>Target di sini otomatis mengunci field <b>Target</b> pada form <b>FRA — Capaian Tim</b> sesuai Tim, No IKU, Triwulan, dan tahun yang sama. Operator tidak bisa mengubahnya secara manual.</div></div>`;
+  const rows = FRA_IKU_LIST.map(item=>{
+    const records = (DB.ikuTargets||[]).filter(t=>t.ikuNomor===item.no && Number(t.tahun)===FILTER_YEAR);
+    if(!records.length){
+      return `<tr>
+        <td class="mono">${item.no}</td>
+        <td style="min-width:220px;">${escapeHtml(item.nama)}</td>
+        <td colspan="6" class="text-muted text-xs">Belum ada target untuk tahun ${FILTER_YEAR}</td>
+        <td><button class="icon-btn" onclick="openIkuTargetModal(null,'${item.no}')" title="Tambah Target">${ICONS.plus}</button></td>
+      </tr>`;
+    }
+    return records.map(t=>`
+      <tr>
+        <td class="mono">${item.no}</td>
+        <td style="min-width:220px;">${escapeHtml(item.nama)}</td>
+        <td><span class="team-pill">${escapeHtml(teamName(t.timId))}</span></td>
+        <td class="mono">${t.tahun}</td>
+        <td class="mono">${fmtNum(t.target)}</td>
+        <td class="mono">${fmtNum(t.targetTw1)}</td>
+        <td class="mono">${fmtNum(t.targetTw2)}</td>
+        <td class="mono">${fmtNum(t.targetTw3)}</td>
+        <td class="mono">${fmtNum(t.targetTw4)}</td>
+        <td>
+          <div class="flex gap-6">
+            <button class="icon-btn" onclick="openIkuTargetModal('${t.id}')" title="Ubah">${ICONS.edit}</button>
+            <button class="icon-btn" onclick="deleteIkuTarget('${t.id}')" title="Hapus" style="color:var(--danger);">${ICONS.trash}</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }).join('');
   return note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr><th>No IKU</th><th>Nama IKU</th><th>Tahun</th><th>Target</th><th></th></tr></thead>
+    <thead><tr>
+      <th>No IKU</th><th>IKU</th><th>Tim</th><th>Tahun</th><th>Target Tahunan</th>
+      <th>TW I</th><th>TW II</th><th>TW III</th><th>TW IV</th><th></th>
+    </tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2540,19 +2558,27 @@ async function saveTim(id){
 }
 
 /* ---- TARGET IKU modal (khusus admin) ---- */
-function openIkuTargetModal(id){
+function openIkuTargetModal(id, prefillIkuNomor){
   const t = id ? (DB.ikuTargets||[]).find(x=>x.id===id) : null;
   const body = `
     <div class="field"><label>No IKU</label>
-      <select id="f_ikuNomorTarget">
+      <select id="f_ikuNomorTarget" ${prefillIkuNomor?'disabled':''}>
       ${FRA_IKU_LIST.map(item=>
-      `<option value="${item.no}" ${t && t.ikuNomor===item.no ? 'selected' : ''}>${item.no} — ${escapeHtml(item.nama)}</option>`
+      `<option value="${item.no}" ${(t? t.ikuNomor===item.no : prefillIkuNomor===item.no) ? 'selected' : ''}>${item.no} — ${escapeHtml(item.nama)}</option>`
       ).join('')}
       </select>
     </div>
     <div class="field-row">
+      <div class="field"><label>Tim</label><select id="f_timTarget">${teamOptions(t?t.timId:null)}</select></div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahunTarget" value="${t?t.tahun:FILTER_YEAR}"></div>
-      <div class="field"><label>Target</label><input type="number" id="f_targetValue" value="${t?t.target:''}" min="0" step="0.00001" placeholder="mis. 100"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Target TW I</label><input type="number" id="f_targetTw1" value="${t?t.targetTw1:''}" min="0" step="0.00001"></div>
+      <div class="field"><label>Target TW II</label><input type="number" id="f_targetTw2" value="${t?t.targetTw2:''}" min="0" step="0.00001"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Target TW III</label><input type="number" id="f_targetTw3" value="${t?t.targetTw3:''}" min="0" step="0.00001"></div>
+      <div class="field"><label>Target TW IV</label><input type="number" id="f_targetTw4" value="${t?t.targetTw4:''}" min="0" step="0.00001"></div>
     </div>
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveIkuTarget('${id||''}')">Simpan</button>`;
@@ -2560,10 +2586,14 @@ function openIkuTargetModal(id){
 }
 async function saveIkuTarget(id){
   const ikuNomor = document.getElementById('f_ikuNomorTarget').value;
+  const timId = document.getElementById('f_timTarget').value;
   const tahun = Number(document.getElementById('f_tahunTarget').value)||FILTER_YEAR;
-  const target = Number(document.getElementById('f_targetValue').value)||0;
-  if(!target){ toast('Target wajib diisi','err'); return; }
-  const payload = { ikuNomor, tahun, target };
+  const targetTw1 = Number(document.getElementById('f_targetTw1').value)||0;
+  const targetTw2 = Number(document.getElementById('f_targetTw2').value)||0;
+  const targetTw3 = Number(document.getElementById('f_targetTw3').value)||0;
+  const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
+  if(!targetTw1 && !targetTw2 && !targetTw3 && !targetTw4){ toast('Isi minimal satu target triwulan','err'); return; }
+  const payload = { ikuNomor, timId, tahun, targetTw1, targetTw2, targetTw3, targetTw4 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
@@ -2595,9 +2625,9 @@ function openFraModal(id, prefill){
   const pre = prefill || {};
   const body = `
     <div class="field-row">
-      <div class="field"><label>Tim</label><select id="f_tim">${teamOptions(f?f.timId:(pre.timId||null))}</select></div>
+      <div class="field"><label>Tim</label><select id="f_tim" onchange="updateFraTargetPreview()">${teamOptions(f?f.timId:(pre.timId||null))}</select></div>
       <div class="field"><label>Periode</label>
-      <select id="f_periode">
+      <select id="f_periode" onchange="updateFraTargetPreview()">
       ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>
       `<option value="${p}" ${(f? f.periode===p : pre.periode===p) ? 'selected' : ''}>${p}</option>`
       ).join('')}
@@ -2644,15 +2674,17 @@ function updateFraIkuNamaPreview(){
 function updateFraTargetPreview(){
   const ikuEl = document.getElementById('f_ikuNomor');
   const tahunEl = document.getElementById('f_tahun');
+  const timEl = document.getElementById('f_tim');
+  const periodeEl = document.getElementById('f_periode');
   const targetEl = document.getElementById('f_target');
-  if(!ikuEl || !tahunEl || !targetEl) return;
-  const found = findIkuTarget(ikuEl.value, tahunEl.value);
-  if(found){
-    targetEl.value = found.target;
+  if(!ikuEl || !tahunEl || !timEl || !periodeEl || !targetEl) return;
+  const nilai = findIkuTargetForQuarter(ikuEl.value, tahunEl.value, timEl.value, periodeEl.value);
+  if(nilai !== null){
+    targetEl.value = nilai;
     targetEl.placeholder = '';
   } else {
     targetEl.value = '';
-    targetEl.placeholder = 'Admin belum atur target IKU ini';
+    targetEl.placeholder = 'Admin belum atur target triwulan ini';
   }
   updateFraPersenPreview();
 }

@@ -664,7 +664,11 @@ const ikuSchema = Joi.object({
 const ikuTargetSchema = Joi.object({
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
-  target: Joi.number().min(0.0001).required(),
+  timId: Joi.string().required(),
+  targetTw1: Joi.number().min(0).required(),
+  targetTw2: Joi.number().min(0).required(),
+  targetTw3: Joi.number().min(0).required(),
+  targetTw4: Joi.number().min(0).required(),
 });
 
 const userCreateSchema = Joi.object({
@@ -995,15 +999,22 @@ function computeFraPersentase(body) {
   return { ...body, persentase };
 }
 
-function getLiveIkuTarget(ikuNomor, tahun) {
-  const found = (DB.ikuTargets || []).find(
-    (t) => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun)
+const TW_ROMAN_TO_NUM = { i: 1, ii: 2, iii: 3, iv: 4 };
+function periodeToQuarterNum(periode) {
+  if (!periode) return null;
+  const m = /triwulan\s+(iv|iii|ii|i)\b/i.exec(periode);
+  return m ? TW_ROMAN_TO_NUM[m[1].toLowerCase()] : null;
+}
+function findIkuTargetRecord(ikuNomor, tahun, timId) {
+  return (DB.ikuTargets || []).find(
+    (t) => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun) && t.timId === timId
   );
-  return found ? Number(found.target) : null;
 }
 function enrichFraWithLiveTarget(item) {
-  const liveTarget = getLiveIkuTarget(item.ikuNomor, item.tahun);
-  if (liveTarget === null) return item;
+  const record = findIkuTargetRecord(item.ikuNomor, item.tahun, item.timId);
+  if (!record) return item;
+  const q = periodeToQuarterNum(item.periode);
+  const liveTarget = q ? Number(record['targetTw' + q]) || 0 : Number(record.target) || 0;
   const realisasi = Number(item.realisasi) || 0;
   const persentase = liveTarget ? Math.min(120, Math.round((realisasi / liveTarget) * 10000) / 100) : 0;
   return { ...item, target: liveTarget, persentase };
@@ -1021,11 +1032,16 @@ app.get('/api/iku-targets', requireLogin, (req, res) => {
   res.json(DB.ikuTargets || []);
 });
 
+function withAnnualTarget(body){
+  const sum = (Number(body.targetTw1)||0) + (Number(body.targetTw2)||0) + (Number(body.targetTw3)||0) + (Number(body.targetTw4)||0);
+  return { ...body, target: sum };
+}
+
 app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
-  const { ikuNomor, tahun } = req.body;
-  const dup = (DB.ikuTargets || []).find(t => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
-  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada. Silakan ubah data yang sudah ada.' });
-  const item = { id: uuidv4(), ...req.body };
+  const { ikuNomor, tahun, timId } = req.body;
+  const dup = (DB.ikuTargets || []).find(t => t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun) && t.timId === timId);
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU, Tim, dan tahun ini sudah ada. Silakan ubah data yang sudah ada.' });
+  const item = { id: uuidv4(), ...withAnnualTarget(req.body) };
   DB.ikuTargets.push(item);
   await auditLog(req.session.user, 'create', 'ikuTargets', item.id, { item });
   await saveDB();
@@ -1036,10 +1052,10 @@ app.post('/api/iku-targets', requireLogin, requireAdmin, validateBody(ikuTargetS
 app.put('/api/iku-targets/:id', requireLogin, requireAdmin, validateBody(ikuTargetSchema), async (req, res) => {
   const idx = (DB.ikuTargets || []).findIndex(x => x.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Data tidak ditemukan' });
-  const { ikuNomor, tahun } = req.body;
-  const dup = DB.ikuTargets.find(t => t.id !== req.params.id && t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun));
-  if (dup) return res.status(400).json({ error: 'Target untuk No IKU dan tahun ini sudah ada pada data lain.' });
-  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...req.body, id: req.params.id };
+  const { ikuNomor, tahun, timId } = req.body;
+  const dup = DB.ikuTargets.find(t => t.id !== req.params.id && t.ikuNomor === ikuNomor && Number(t.tahun) === Number(tahun) && t.timId === timId);
+  if (dup) return res.status(400).json({ error: 'Target untuk No IKU, Tim, dan tahun ini sudah ada pada data lain.' });
+  DB.ikuTargets[idx] = { ...DB.ikuTargets[idx], ...withAnnualTarget(req.body), id: req.params.id };
   await auditLog(req.session.user, 'update', 'ikuTargets', req.params.id, { newValue: DB.ikuTargets[idx] });
   await saveDB();
   broadcastChange('fra', 'update');
