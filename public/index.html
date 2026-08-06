@@ -508,6 +508,10 @@ const FRA_IKU_LIST = [
   { no: '3.2.4.1', nama: 'Nilai SAKIP oleh Inspektorat' },
   { no: '3.2.4.2', nama: 'Indeks Implementasi BerAKHLAK' },
 ];
+function ikuOrderIndex(no){
+  const idx = FRA_IKU_LIST.findIndex(x=>x.no===no);
+  return idx===-1 ? 999 : idx; // No IKU yang tak dikenal ditaruh paling belakang
+}
 function fraIkuNamaByNo(no){
   const item = FRA_IKU_LIST.find(x=>x.no===no);
   return item ? item.nama : '';
@@ -2001,7 +2005,7 @@ function renderFraPage(){
   if(PAGE_FILTERS.triwulan){
     groups = groups.filter(g=>!!g.quarters[Number(PAGE_FILTERS.triwulan)]);
   }
-  groups.sort((a,b)=> teamName(a.timId).localeCompare(teamName(b.timId)) || a.ikuNomor.localeCompare(b.ikuNomor));
+  groups.sort((a,b)=> ikuOrderIndex(a.ikuNomor) - ikuOrderIndex(b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)));
 
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>FRA</b> mencatat <b>Target Tahunan</b> per IKU serta realisasi &amp; capaian tiap triwulan (TW I–IV).</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('fra')}${exportButtons('fra')}</div>`;
