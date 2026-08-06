@@ -1014,7 +1014,7 @@ function enrichFraWithLiveTarget(item) {
 }
 
 getCollectionRoute('teams', teamSchema, { adminOnly: true });
-getCollectionRoute('fra', fraSchema, { beforeSave: computeFraPersentase, enrichForRead: enrichFraWithLiveTarget });
+getCollectionRoute('fra', fraSchema, { adminOnly: true, beforeSave: computeFraPersentase, enrichForRead: enrichFraWithLiveTarget });
 getCollectionRoute('kegiatan', kegiatanSchema);
 getCollectionRoute('tugas', tugasSchema);
 getCollectionRoute('iku', ikuSchema);

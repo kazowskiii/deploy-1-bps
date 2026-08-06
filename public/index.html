@@ -1588,6 +1588,7 @@ async function promptReminderForKegiatan(id){
 }
 
 function routeAddButton(){
+  if(ROUTE === 'fra' && !isAdmin()) return ''; // operator hanya bisa melihat FRA
   if(ROUTE === 'audit'){
     if(!AUDIT_LOGS.length) return '';
     return `<button class="btn btn-danger-ghost btn-sm" style="border:1px solid var(--danger);" onclick="clearAuditLog()">${ICONS.trash} Kosongkan Riwayat</button>`;
@@ -2007,7 +2008,8 @@ function rowActions(kind, id){
   </div>`;
 }
 function fraRowActions(f){
-  const showWarn = isAdmin() && f.createdBy && f.createdBy !== AUTH.user.id;
+  if(!isAdmin()) return ''; // operator hanya bisa melihat, tidak ada aksi ubah/hapus
+  const showWarn = f.createdBy && f.createdBy !== AUTH.user.id;
   const warnBtn = showWarn
     ? `<button class="icon-btn" onclick="promptReminderForFra('${f.id}')" title="Ingatkan pengunggah data ini" style="color:var(--warning);">${ICONS.warning}</button>`
     : '';
@@ -2543,6 +2545,10 @@ async function deleteIkuTarget(id){
 
 /* ---- FRA modal ---- */
 function openFraModal(id){
+  if(!isAdmin()){
+    toast('Hanya admin yang dapat mengelola data FRA','err');
+    return;
+  }
   const f = id ? DB.fra.find(x=>x.id===id) : null;
   const body = `
     <div class="field-row">
