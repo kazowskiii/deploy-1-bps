@@ -2111,11 +2111,13 @@ function renderFraPage(){
 }
 let EVIDENCE_GROUPS = {};   // groupId -> array file untuk baris tsb
 let EVIDENCE_GROUP_SEQ = 0; // penomor unik tiap kali evidenceCell dirender
-function evidenceCell(item, kind, qKey){
+function evidenceCell(item, kind, qKey, variant){
   const src = qKey ? (item[qKey]||{}) : item;
-  const files = src.evidenceFiles && src.evidenceFiles.length
-    ? src.evidenceFiles
-    : (src.hasEvidence && src.evidenceFileName ? [{fileName:src.evidenceFileName, originalName:src.evidenceOriginalName}] : []);
+  const filesKey = variant==='tl' ? 'tlEvidenceFiles' : 'evidenceFiles';
+  const hasKey = variant==='tl' ? 'hasTlEvidence' : 'hasEvidence';
+  const files = src[filesKey] && src[filesKey].length
+    ? src[filesKey]
+    : (variant!=='tl' && src[hasKey] && src.evidenceFileName ? [{fileName:src.evidenceFileName, originalName:src.evidenceOriginalName}] : []);
   if(!files.length) return `<span class="tag tag-danger">Belum ada bukti</span>`;
   const groupId = 'evg_' + (++EVIDENCE_GROUP_SEQ);
   EVIDENCE_GROUPS[groupId] = files;
@@ -2180,14 +2182,14 @@ function renderKegiatanListPage(){
       <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td style="min-width:160px;">
-        <div class="cell-title" style="white-space:pre-wrap;">${escapeHtml(k.nama)}</div>
+        <div class="cell-title" style="white-space:pre-wrap;">${escapeHtml(k.nama || '—')}</div>
       </td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
-      <td style="min-width:190px; color:var(--danger); white-space:pre-wrap;">${escapeHtml(k.kendala)}</td>
-      <td style="min-width:190px; color:var(--success); white-space:pre-wrap;">${escapeHtml(k.solusi)}</td>
-      <td style="min-width:190px; white-space:pre-wrap;">${escapeHtml(k.rtl)}</td>
+      <td style="min-width:190px; color:var(--danger); white-space:pre-wrap;">${escapeHtml(k.kendala || '—')}</td>
+      <td style="min-width:190px; color:var(--success); white-space:pre-wrap;">${escapeHtml(k.solusi || '—')}</td>
+      <td style="min-width:190px; white-space:pre-wrap;">${escapeHtml(k.rtl || '—')}</td>
       <td style="min-width:120px;">${escapeHtml(k.picTindakLanjut||'—')}</td>
-      <td style="min-width:130px;" class="mono">${k.batasWaktuTindakLanjut ? fmtDate(k.batasWaktuTindakLanjut) : '—'}</td>
+      <td style="min-width:130px;">${k.batasWaktuTindakLanjut ? `<span class="mono">${fmtDate(k.batasWaktuTindakLanjut)}</span>` : '—'}</td>
       <td>${evidenceCell(k,'kegiatan')}</td>
       <td>${statusPill(k.status)}</td>
       <td>${kegiatanActions(k)}</td>
@@ -2211,7 +2213,7 @@ function renderPencapaianPage(){
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td style="min-width:190px;">${escapeHtml(k.rtl)}</td>
       <td>${statusPill(k.status)}</td>
-      <td>${evidenceCell(k,'kegiatan')}</td>
+      <td>${evidenceCell(k,'kegiatan',null,'tl')}</td>
       <td>${pencapaianActions(k)}</td>
     </tr>`).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table>
@@ -2220,7 +2222,7 @@ function renderPencapaianPage(){
   </table></div></div>`;
 }
 function pencapaianActions(k){
-  const hasFiles = (k.evidenceFiles && k.evidenceFiles.length) || k.hasEvidence;
+  const hasFiles = (k.tlEvidenceFiles && k.tlEvidenceFiles.length) || k.hasTlEvidence;
   const delBtn = hasFiles
     ? `<button class="icon-btn" onclick="deletePencapaianEvidence('${k.id}')" title="Hapus Bukti Tindak Lanjut" style="color:var(--danger);">${ICONS.trash}</button>`
     : '';
@@ -2255,6 +2257,9 @@ async function toggleStarKegiatan(id){
     timId:item.timId, periode:item.periode, tahun: item.tahun || new Date().getFullYear(),
     ikuNomor: item.ikuNomor, nama:item.nama, kendala:item.kendala,
     solusi:item.solusi, rtl:item.rtl, status:item.status, starred: !item.starred,
+    picTindakLanjut: item.picTindakLanjut, batasWaktuTindakLanjut: item.batasWaktuTindakLanjut,
+    hasEvidence: !!item.hasEvidence, evidenceFiles: item.evidenceFiles || [],
+    hasTlEvidence: !!item.hasTlEvidence, tlEvidenceFiles: item.tlEvidenceFiles || [],
   };
   try{
     await apiPut('kegiatan', id, payload);
@@ -2926,11 +2931,13 @@ function updateFraPersenPreview(){
   const realisasi = Number(realisasiEl.value) || 0;
   persenEl.value = target ? Math.min(120, Math.round((realisasi/target)*10000)/100) : 0;
 }
-function evidenceField(kind, item){
-  const existing = (item && item.evidenceFiles) || (item && item.hasEvidence ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
+function evidenceField(kind, item, variant){
+  const filesKey = variant==='tl' ? 'tlEvidenceFiles' : 'evidenceFiles';
+  const hasKey = variant==='tl' ? 'hasTlEvidence' : 'hasEvidence';
+  const existing = (item && item[filesKey]) || (variant!=='tl' && item && item[hasKey] ? [{fileName:item.evidenceFileName, originalName:item.evidenceOriginalName, size:item.evidenceSize}] : []);
   EXISTING_EVIDENCE[kind] = existing.slice();
   return `<div class="field">
-    <label>Bukti Dukung Laporan (PDF / Word / Gambar, maks ${MAX_FILE_MB}MB per berkas) — bisa unggah lebih dari satu sekaligus</label>
+    <label>Bukti Dukung ${variant==='tl' ? 'Tindak Lanjut' : 'Laporan'} (PDF / Word / Gambar, maks ${MAX_FILE_MB}MB per berkas) — bisa unggah lebih dari satu sekaligus</label>
     <div id="existingEvidenceList_${kind}" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${renderEvidenceChips(kind)}</div>
     <div class="dropzone" id="dz_${kind}" onclick="document.getElementById('fileInput_${kind}').click()">
       <div id="dzContent_${kind}">
@@ -3001,6 +3008,14 @@ function wireEvidenceField(kind, id){
       if(triwulanEl) extra.triwulan = triwulanEl.value;
     }
     if(kind === 'kegiatan'){
+      const periodeEl = document.getElementById('f_periode');
+      const ikuEl = document.getElementById('f_ikuNomor');
+      const tahunEl = document.getElementById('f_tahun');
+      if(periodeEl) extra.periode = periodeEl.value;
+      if(ikuEl) extra.ikuNomor = ikuEl.value;
+      if(tahunEl) extra.tahun = tahunEl.value;
+    }
+    if(kind === 'pencapaian'){
       const periodeEl = document.getElementById('pc_periode');
       const ikuEl = document.getElementById('pc_ikuNomor');
       const tahunEl = document.getElementById('pc_tahun');
@@ -3030,8 +3045,11 @@ function wireEvidenceField(kind, id){
             const record = (DB[target.collection] || []).find(x=>x.id===target.id);
             const base = record ? {...record} : {};
             delete base.id;
-            const combined = [...(base.evidenceFiles||[]), meta].map(f=>({fileName:f.fileName||f.filename, originalName:f.originalName, size:f.size}));
-            await apiPut(target.collection, target.id, { ...base, hasEvidence:true, evidenceFiles: combined });
+            const isTl = (kind === 'pencapaian');
+            const filesField = isTl ? 'tlEvidenceFiles' : 'evidenceFiles';
+            const hasField = isTl ? 'hasTlEvidence' : 'hasEvidence';
+            const combined = [...(base[filesField]||[]), meta].map(f=>({fileName:f.fileName||f.filename, originalName:f.originalName, size:f.size}));
+            await apiPut(target.collection, target.id, { ...base, [hasField]:true, [filesField]: combined });
             await loadAll();
             renderContent();
             toast('Berkas bukti berhasil dikaitkan ke data yang sudah disimpan','ok');
@@ -3048,10 +3066,13 @@ function wireEvidenceField(kind, id){
     if(dz) dz.innerHTML = `<div class="dz-title">Klik untuk unggah berkas</div><div class="dz-sub">Bisa pilih beberapa berkas sekaligus — PDF atau Word</div>`;
   });
 }
-function persistPendingEvidence(kind){
+function persistPendingEvidence(kind, variant){
   const existing = (EXISTING_EVIDENCE[kind]||[]).map(f=>({fileName:f.fileName, originalName:f.originalName, size:f.size}));
   const pending = (PENDING_EVIDENCE[kind]||[]).map(f=>({fileName:f.filename, originalName:f.originalName, size:f.size}));
   const combined = [...existing, ...pending];
+  if(variant === 'tl'){
+    return { hasTlEvidence: combined.length>0, tlEvidenceFiles: combined };
+  }
   return { hasEvidence: combined.length>0, evidenceFiles: combined };
 }
 // Panggil setelah record berhasil disimpan (create/update). Kalau upload untuk
@@ -3180,7 +3201,12 @@ async function saveKegiatan(id){
   const picTindakLanjut = document.getElementById('f_picTindakLanjut').value.trim();
   const batasWaktuTindakLanjut = document.getElementById('f_batasWaktuTindakLanjut').value.trim();
   const evMeta = persistPendingEvidence('kegiatan');
-  let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta};
+  const existingItem = id ? DB.kegiatan.find(x=>x.id===id) : null;
+  const tlMeta = {
+    hasTlEvidence: existingItem ? !!existingItem.hasTlEvidence : false,
+    tlEvidenceFiles: existingItem && existingItem.tlEvidenceFiles ? existingItem.tlEvidenceFiles : [],
+  };
+  let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta, ...tlMeta};
   payload.status = computeKegiatanStatus(payload);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
@@ -3253,28 +3279,32 @@ function updatePencapaianMatch(){
     <div class="field"><label>Kendala</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.kendala)}</textarea></div>
     <div class="field"><label>Solusi</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.solusi)}</textarea></div>
     <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea disabled style="background:var(--surface-2);color:var(--ink-muted);">${escapeHtml(match.rtl)}</textarea></div>
-    ${evidenceField('kegiatan', match)}
+    ${evidenceField('pencapaian', match, 'tl')}
   `;
-  wireEvidenceField('kegiatan', match.id);
+  wireEvidenceField('pencapaian', match.id);
   if(saveBtn) saveBtn.disabled = false;
 }
 async function savePencapaian(){
   if(!PENCAPAIAN_MATCH_ID){ toast('Tidak ada data Analisis Kegiatan yang cocok untuk disimpan','err'); return; }
   const match = DB.kegiatan.find(x=>x.id===PENCAPAIAN_MATCH_ID);
   if(!match){ toast('Data tidak ditemukan','err'); return; }
-  const evMeta = persistPendingEvidence('kegiatan');
+  const evMeta = persistPendingEvidence('pencapaian', 'tl');
+  const mainMeta = {
+    hasEvidence: !!match.hasEvidence,
+    evidenceFiles: match.evidenceFiles || [],
+  };
   const payload = {
     timId: match.timId, periode: match.periode, tahun: match.tahun,
     ikuNomor: match.ikuNomor, nama: match.nama, kendala: match.kendala,
     solusi: match.solusi, rtl: match.rtl, picTindakLanjut: match.picTindakLanjut, batasWaktuTindakLanjut: match.batasWaktuTindakLanjut,
-    starred: !!match.starred, ...evMeta,
+    starred: !!match.starred, ...mainMeta, ...evMeta,
   };
   payload.status = computeKegiatanStatus(payload);
   const btn = document.getElementById('pc_saveBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
     const saved = await apiPut('kegiatan', PENCAPAIAN_MATCH_ID, payload);
-    registerAutoAttachIfUploading('kegiatan', 'kegiatan', saved.id);
+    registerAutoAttachIfUploading('pencapaian', 'kegiatan', saved.id);
     await loadAll();
     closeModal(); toast('Bukti dukung tindak lanjut disimpan','ok'); renderShell();
   }catch(e){
@@ -3290,7 +3320,9 @@ async function deletePencapaianEvidence(id){
     timId: item.timId, periode: item.periode, tahun: item.tahun,
     ikuNomor: item.ikuNomor, nama: item.nama, kendala: item.kendala,
     solusi: item.solusi, rtl: item.rtl, picTindakLanjut: item.picTindakLanjut, batasWaktuTindakLanjut: item.batasWaktuTindakLanjut,
-    starred: !!item.starred, hasEvidence: false, evidenceFiles: [],
+    starred: !!item.starred,
+    hasEvidence: !!item.hasEvidence, evidenceFiles: item.evidenceFiles || [],
+    hasTlEvidence: false, tlEvidenceFiles: [],
   };
   payload.status = computeKegiatanStatus(payload);
   try{

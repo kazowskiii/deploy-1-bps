@@ -628,6 +628,12 @@ const kegiatanSchema = Joi.object({
     originalName: Joi.string().required(),
     size: Joi.number().min(0).required(),
   })).default([]),
+  hasTlEvidence: Joi.boolean().optional(),
+  tlEvidenceFiles: Joi.array().items(Joi.object({
+    fileName: Joi.string().required(),
+    originalName: Joi.string().required(),
+    size: Joi.number().min(0).required(),
+  })).default([]),
 });
 const tugasSchema = Joi.object({
   timId: Joi.string().required(),
@@ -894,11 +900,17 @@ app.get('/api/events', requireLogin, (req, res) => {
 
 function collectEvidenceFileIds(name, item) {
   if (!item) return [];
+  let ids = [];
   if (Array.isArray(item.evidenceFiles)) {
-    return item.evidenceFiles.map((f) => f.fileName).filter(Boolean);
+    ids = ids.concat(item.evidenceFiles.map((f) => f.fileName).filter(Boolean));
+  } else if (item.evidenceFileName) {
+    // Kompatibel mundur dengan data lama yang masih pakai field tunggal.
+    ids.push(item.evidenceFileName);
   }
-  // Kompatibel mundur dengan data lama yang masih pakai field tunggal.
-  return item.evidenceFileName ? [item.evidenceFileName] : [];
+  if (Array.isArray(item.tlEvidenceFiles)) {
+    ids = ids.concat(item.tlEvidenceFiles.map((f) => f.fileName).filter(Boolean));
+  }
+  return ids;
 }
 
 async function deleteEvidenceFiles(fileIds) {
@@ -1298,6 +1310,7 @@ const UPLOAD_FOLDER_BY_KIND = {
   iku: 'SIMONEV-IKU',
   tugas: 'SIMONEV-Tugas',
   kegiatan: 'SIMONEV-Kegiatan',
+  pencapaian: 'SIMONEV-TL-Sebelumnya',
 };
 
 const TRIWULAN_ROMAN_TO_ARABIC = { I: 1, II: 2, III: 3, IV: 4 };
@@ -1320,7 +1333,7 @@ function buildUploadFolder(kind, meta) {
   const baseFolder = UPLOAD_FOLDER_BY_KIND[kind];
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
 
-  if (kind === 'fra' || kind === 'kegiatan') {
+  if (kind === 'fra' || kind === 'kegiatan' || kind === 'pencapaian') {
     // Semua berkas FRA & Kegiatan dikelompokkan per tahun: "SIMONEV-2026/SIMONEV-FRA/...".
     // Kalau field tahun tidak dikirim (data lama / kasus tak terduga), fallback ke folder lama tanpa prefix tahun.
     const tahunNum = parseInt(meta.tahun, 10);
