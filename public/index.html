@@ -1389,7 +1389,7 @@ function renderTopbar(){
     dashboard:['Dashboard','Ringkasan capaian kinerja seluruh tim & indikator utama'],
     fra:['FRA — Monitoring Capaian Kinerja Tim','Pantau capaian tiap tim beserta bukti dukung laporan'],
     kegiatan:['Analisis Kegiatan','Kendala, solusi, dan rencana tindak lanjut (RTL) tiap kegiatan'],
-    pencapaian:['RTL TW Sebelumnya','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
+    pencapaian:['TL TW Sebelumnya','Bukti dukung tindak lanjut berdasarkan data Analisis Kegiatan'],
     tim:['Kelola Tim','Daftar tim kerja yang digunakan pada seluruh modul'],
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
     ikutarget:['Kelola Target IKU','Atur target capaian setiap No IKU per tahun — terkunci untuk operator'],
@@ -2133,7 +2133,7 @@ function emptyState(kind, title, sub){
 function renderKegiatanPage(){
   const tabsHtml = `<div class="tabs-mini" style="margin-bottom:16px;display:inline-flex;">
     <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='kegiatan'?'active':''}" onclick="switchKegiatanSubtab('kegiatan')">Analisis Kegiatan</button>
-    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='pencapaian'?'active':''}" onclick="switchKegiatanSubtab('pencapaian')">RTL TW Sebelumnya</button>
+    <button type="button" class="tab-mini-btn ${KEGIATAN_SUBTAB==='pencapaian'?'active':''}" onclick="switchKegiatanSubtab('pencapaian')">TL TW Sebelumnya</button>
   </div><br>`;
   if(KEGIATAN_SUBTAB === 'pencapaian') return tabsHtml + renderPencapaianPage();
   return tabsHtml + renderKegiatanListPage();
@@ -2174,7 +2174,7 @@ function renderKegiatanListPage(){
 function renderPencapaianPage(){
   const kegiatanByYear = DB.kegiatan.filter(k=>!k.tahun || Number(k.tahun)===FILTER_YEAR);
   const items = applyPageFilters([...kegiatanByYear].sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||'')), 'kegiatan');
-  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>RTL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
+  const note = `<div class="section-note">${ICONS.info}<div>Modul <b>TL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada analisis kegiatan','Tambahkan datanya dulu di tab Analisis Kegiatan.');
   const rows = items.map(k=>`
@@ -3094,7 +3094,7 @@ function openPencapaianModal(id){
     <div id="pc_matchResult"></div>
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" id="pc_saveBtn" onclick="savePencapaian()" disabled>Simpan</button>`;
-  openModal(modalShell('RTL TW Sebelumnya — Bukti Tindak Lanjut', body, foot));
+  openModal(modalShell('TL TW Sebelumnya — Bukti Tindak Lanjut', body, foot));
   updatePencapaianMatch();
 }
 function findMatchingKegiatan(){
