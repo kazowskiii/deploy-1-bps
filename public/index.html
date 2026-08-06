@@ -2573,11 +2573,6 @@ function openFraModal(id){
       <label>IKU</label>
       <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(f && f.ikuNomor ? f.ikuNomor : FRA_IKU_LIST[0].no))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
     </div>
-    <div class="field"><label>Nama Kegiatan</label><input type="text" id="f_namaKegiatan" value="${f?escapeHtml(f.namaKegiatan||''):''}" placeholder="mis. Publikasi Statistik Daerah"></div>
-    <div class="field-row">
-      <div class="field"><label>Tanggal Kegiatan</label><input type="date" id="f_tanggalKegiatan" value="${f && f.tanggalKegiatan ? f.tanggalKegiatan.slice(0,10) : new Date().toISOString().slice(0,10)}"></div>
-      <div class="field"><label>Jam</label><input type="time" id="f_jamKegiatan" value="${f && f.tanggalKegiatan ? f.tanggalKegiatan.slice(11,16) : '08:00'}"></div>
-    </div>
     <div class="field-row">
       <div class="field">
         <label>Target (diatur Admin)</label>
@@ -2592,21 +2587,10 @@ function openFraModal(id){
       </div>
       <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:FILTER_YEAR}" oninput="updateFraTargetPreview()"></div>
     </div>
-    <div class="field"><label>Catatan (opsional)</label><input type="text" id="f_catatan" value="${f?escapeHtml(f.catatan||''):''}"></div>
-    ${evidenceField('fra', f)}
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFra('${id||''}')">Simpan</button>`;
   openModal(modalShell(f?'Ubah Capaian Tim':'Tambah Capaian Tim (FRA)', body, foot));
-  wireEvidenceField('fra', id);
   updateFraTargetPreview();
-  ['f_periode','f_ikuNomor'].forEach(fieldId=>{
-    const el = document.getElementById(fieldId);
-    if(el) el.addEventListener('change', ()=>{
-      if(PENDING_EVIDENCE['fra']){
-        toast('Triwulan/IKU diubah setelah upload — silakan pilih ulang berkasnya agar tersimpan di folder yang benar','err');
-      }
-    });
-  });
 }
 function updateFraIkuNamaPreview(){
   const selectEl = document.getElementById('f_ikuNomor');
@@ -2781,29 +2765,18 @@ async function saveFra(id){
   const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value.trim();
   const ikuNomor = document.getElementById('f_ikuNomor').value;
-  const namaKegiatan = document.getElementById('f_namaKegiatan').value.trim();
-  const tanggalInput = document.getElementById('f_tanggalKegiatan').value;
-  const jamInput = document.getElementById('f_jamKegiatan').value || '00:00';
-  const tanggalKegiatan = tanggalInput ? `${tanggalInput}T${jamInput}:00` : null;
   const target = Number(document.getElementById('f_target').value)||0;
   const realisasi = Number(document.getElementById('f_realisasi').value)||0;
   const persentase = Number(document.getElementById('f_persenPreview').value)||0;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
-  const catatan = document.getElementById('f_catatan').value.trim();
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
-  if(!namaKegiatan || namaKegiatan.length < 3){ toast('Nama kegiatan wajib diisi, minimal 3 karakter','err'); return; }
-  if(!tanggalInput){ toast('Tanggal kegiatan wajib diisi','err'); return; }
   if(!target){ toast('Target belum diatur Admin untuk No IKU & tahun ini. Hubungi Admin di menu Kelola Target IKU.','err'); return; }
-  let payload = {timId, periode, ikuNomor, namaKegiatan, tanggalKegiatan, target, realisasi, persentase, tahun, catatan};
-  const evMeta = persistPendingEvidence('fra');
-  if(evMeta) Object.assign(payload, evMeta);
+  let payload = {timId, periode, ikuNomor, target, realisasi, persentase, tahun};
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    let saved;
-    if(id) saved = await apiPut('fra', id, payload);
-    else saved = await apiPost('fra', payload);
-    registerAutoAttachIfUploading('fra', 'fra', saved.id);
+    if(id) await apiPut('fra', id, payload);
+    else await apiPost('fra', payload);
     await loadAll();
     closeModal(); toast('Capaian tim disimpan','ok'); renderShell();
   }catch(e){
