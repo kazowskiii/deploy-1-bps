@@ -183,6 +183,11 @@ tbody tr:last-child td{border-bottom:none;}
 .center-table, .center-table th, .center-table td{
   border:1px solid var(--line-strong);
 }
+.center-table thead th{
+  white-space:normal;
+  max-width:90px;
+  line-height:1.3;
+}
 
 /* ===== Badges / status ===== */
 .tag{
@@ -1726,7 +1731,10 @@ function renderDashboard(){
   const tugasYear = DB.tugas.filter(t=>t.tahun===FILTER_YEAR);
 
   const fraYear = DB.fra.filter(f=>Number(f.tahun)===FILTER_YEAR || !f.tahun);
-  const fraAvgPct = fraYear.length ? Math.round(fraYear.reduce((s,f)=>s+(Number(f.persentase)||0),0)/fraYear.length) : 0;
+const fraGroupsYear = groupFraByTeamIku(fraYear); // 1 grup = 1 Tim + 1 No IKU
+const totalTargetFra = fraYear.reduce((s,f)=>s+(Number(f.target)||0),0);
+const totalRealisasiFra = fraYear.reduce((s,f)=>s+(Number(f.realisasi)||0),0);
+const fraAvgPct = totalTargetFra ? Math.min(120, Math.round((totalRealisasiFra/totalTargetFra)*10000)/100) : 0;
 
   const kendalaCount = DB.kegiatan.filter(k=>hasIsiTeks(k.kendala)).length;
   const solusiCount  = DB.kegiatan.filter(k=>hasIsiTeks(k.solusi)).length;
@@ -1737,8 +1745,8 @@ function renderDashboard(){
       <div class="kpi-card">
         <span class="trend ${fraAvgPct>=75?'up':fraAvgPct>=40?'warn':'down'}">${fraAvgPct}%</span>
         <div class="eyebrow">Realisasi Kerja</div>
-        <div class="value">${fraYear.length}</div>
-        <div class="sub">Rata-rata capaian FRA tahun ${FILTER_YEAR}</div>
+        <div class="value">${fraGroupsYear.length}</div>
+        <div class="sub">Jumlah IKU terisi &middot; Capaian ${fraAvgPct}% dari total target tahun ${FILTER_YEAR}</div>
       </div>
       <div class="kpi-card">
         <span class="trend ${kendalaCount===0?'up':'warn'}">${kendalaCount} tercatat</span>
@@ -2260,7 +2268,7 @@ function renderKegiatanListPage(){
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th>Catatan</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th>Catatan</th><th>Aksi</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2287,7 +2295,7 @@ function renderPencapaianPage(){
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th>Catatan</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th>Catatan</th><th>Aksi</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
