@@ -175,6 +175,11 @@ tbody tr:last-child td{border-bottom:none;}
 .cell-title{font-weight:600;color:var(--ink);}
 .cell-sub{font-size:11.5px;color:var(--ink-muted);margin-top:2px;}
 .table-wrap{overflow-x:auto;}
+.center-table th:not(:first-child),
+.center-table td:not(:first-child){ text-align:center; }
+.center-table td:not(:first-child) .team-pill,
+.center-table td:not(:first-child) .tag{ display:inline-flex; }
+.center-table thead tr:first-child th{ border-bottom:1px solid var(--line); }
 
 /* ===== Badges / status ===== */
 .tag{
@@ -2099,15 +2104,29 @@ function renderFraPage(){
     </tr>`;
   }).join('');
 
-  return header + note + `<div class="panel"><div class="table-wrap"><table>
-    <thead><tr>
-      <th>No IKU</th><th>IKU</th><th>Tim</th><th>Target Tahunan</th><th>Realisasi</th><th>Capaian</th>
-      <th>TW I Target</th><th>TW I Realisasi</th><th>TW I Capaian</th>
-      <th>TW II Target</th><th>TW II Realisasi</th><th>TW II Capaian</th>
-      <th>TW III Target</th><th>TW III Realisasi</th><th>TW III Capaian</th>
-      <th>TW IV Target</th><th>TW IV Realisasi</th><th>TW IV Capaian</th>
-      <th>Status</th><th style="width:80px;">Aksi</th>
-    </tr></thead>
+  return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
+    <thead>
+      <tr>
+        <th rowspan="2">No IKU</th>
+        <th rowspan="2">IKU</th>
+        <th rowspan="2">Tim</th>
+        <th rowspan="2">Target Tahunan</th>
+        <th rowspan="2">Realisasi Tahunan</th>
+        <th rowspan="2">Capaian Tahunan</th>
+        <th colspan="3">Triwulan I</th>
+        <th colspan="3">Triwulan II</th>
+        <th colspan="3">Triwulan III</th>
+        <th colspan="3">Triwulan IV</th>
+        <th rowspan="2">Status</th>
+        <th rowspan="2" style="width:80px;">Aksi</th>
+      </tr>
+      <tr>
+        <th>Target</th><th>Realisasi</th><th>Capaian</th>
+        <th>Target</th><th>Realisasi</th><th>Capaian</th>
+        <th>Target</th><th>Realisasi</th><th>Capaian</th>
+        <th>Target</th><th>Realisasi</th><th>Capaian</th>
+      </tr>
+    </thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2233,7 +2252,7 @@ function renderKegiatanListPage(){
       <td>${isVirtual ? kegiatanVirtualActions(k) : kegiatanActions(k)}</td>
     </tr>`;
   }).join('');
-  return header + note + `<div class="panel"><div class="table-wrap"><table>
+  return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
     <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
@@ -2259,7 +2278,7 @@ function renderPencapaianPage(){
       <td>${isVirtual ? pencapaianVirtualActions(k) : pencapaianActions(k)}</td>
     </tr>`;
   }).join('');
-  return header + note + `<div class="panel"><div class="table-wrap"><table>
+  return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
     <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
