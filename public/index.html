@@ -2074,17 +2074,22 @@ function renderFraPage(){
     const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi/g.target)*10000)/100) : 0;
     const totalSt = fraStatusFor(totalCapaian);
 
-    const quarterCells = [1,2,3,4].map(q=>{
-      const entry = g.quarters[q];
-      const qTargetLive = findIkuTargetForQuarter(g.ikuNomor, FILTER_YEAR, g.timId, 'Triwulan '+qLabels[q]);
-      const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
-      if(!entry){
-        return `<td class="mono text-center text-muted text-xs">${qTarget?fmtNum(qTarget):'—'}</td><td class="mono text-center text-muted text-xs">—</td><td class="mono text-center text-muted text-xs">—</td>`;
-      }
-      const pct = Number(entry.persentase)||0;
-      const qst = fraStatusFor(pct);
-      return `<td class="mono">${fmtNum(qTarget)}</td><td class="mono">${fmtNum(entry.realisasi)}</td><td><span class="tag ${qst.tag}" style="font-size:10px;">${pct}%</span></td>`;
-    }).join('');
+    // SEKARANG (grouping per Target / Realisasi / Capaian)
+const qData = [1,2,3,4].map(q=>{
+  const entry = g.quarters[q];
+  const qTargetLive = findIkuTargetForQuarter(g.ikuNomor, FILTER_YEAR, g.timId, 'Triwulan '+qLabels[q]);
+  const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
+  if(!entry){
+    return { target: qTarget?fmtNum(qTarget):'—', realisasi:'—', capaianHtml:'—', muted:true };
+  }
+  const pct = Number(entry.persentase)||0;
+  const qst = fraStatusFor(pct);
+  return { target: fmtNum(qTarget), realisasi: fmtNum(entry.realisasi), capaianHtml: `<span class="tag ${qst.tag}" style="font-size:10px;">${pct}%</span>`, muted:false };
+});
+const targetCells    = qData.map(d=>`<td class="mono${d.muted?' text-muted text-xs':''}">${d.target}</td>`).join('');
+const realisasiCells = qData.map(d=>`<td class="mono${d.muted?' text-muted text-xs':''}">${d.realisasi}</td>`).join('');
+const capaianCells   = qData.map(d=>`<td${d.muted?' class="text-muted text-xs"':''}>${d.capaianHtml}</td>`).join('');
+const quarterCells = targetCells + realisasiCells + capaianCells;
 
     const actions = isAdmin() ? `<div class="flex gap-6">
       <button class="icon-btn" onclick="openFraGroupModal('${g.timId}','${g.ikuNomor}')" title="Ubah">${ICONS.edit}</button>
@@ -2113,18 +2118,16 @@ function renderFraPage(){
         <th rowspan="2">Target Tahunan</th>
         <th rowspan="2">Realisasi Tahunan</th>
         <th rowspan="2">Capaian Tahunan</th>
-        <th colspan="3">Triwulan I</th>
-        <th colspan="3">Triwulan II</th>
-        <th colspan="3">Triwulan III</th>
-        <th colspan="3">Triwulan IV</th>
+        <th colspan="4">Target</th>
+        <th colspan="4">Realisasi</th>
+        <th colspan="4">Capaian</th>
         <th rowspan="2">Status</th>
         <th rowspan="2" style="width:80px;">Aksi</th>
       </tr>
       <tr>
-        <th>Target</th><th>Realisasi</th><th>Capaian</th>
-        <th>Target</th><th>Realisasi</th><th>Capaian</th>
-        <th>Target</th><th>Realisasi</th><th>Capaian</th>
-        <th>Target</th><th>Realisasi</th><th>Capaian</th>
+        <th>TW 1</th><th>TW 2</th><th>TW 3</th><th>TW 4</th>
+        <th>TW 1</th><th>TW 2</th><th>TW 3</th><th>TW 4</th>
+        <th>TW 1</th><th>TW 2</th><th>TW 3</th><th>TW 4</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
@@ -2249,11 +2252,12 @@ function renderKegiatanListPage(){
       <td style="min-width:130px;">${k.batasWaktuTindakLanjut ? `<span class="mono">${fmtDate(k.batasWaktuTindakLanjut)}</span>` : '—'}</td>
       <td>${isVirtual ? `<span class="tag tag-danger">Belum ada bukti</span>` : evidenceCell(k,'kegiatan')}</td>
       <td>${statusPill(k.status)}</td>
+      <td style="min-width:160px; white-space:pre-wrap;">${escapeHtml(k.catatan || '—')}</td>
       <td>${isVirtual ? kegiatanVirtualActions(k) : kegiatanActions(k)}</td>
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Kegiatan</th><th>Triwulan</th><th>Kendala</th><th>Solusi</th><th>RTL</th><th>PIC TL</th><th>Batas Waktu TL</th><th>Bukti Dukung</th><th>Status</th><th>Catatan</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
 }
@@ -2275,13 +2279,55 @@ function renderPencapaianPage(){
       <td style="min-width:190px;">${escapeHtml(k.rtl || '—')}</td>
       <td>${statusPill(k.status)}</td>
       <td>${isVirtual ? `<span class="tag tag-danger">Belum ada bukti</span>` : evidenceCell(k,'kegiatan',null,'tl')}</td>
+      <td style="min-width:170px;">${catatanTlCell(k)}</td>
       <td>${isVirtual ? pencapaianVirtualActions(k) : pencapaianActions(k)}</td>
     </tr>`;
   }).join('');
   return header + note + `<div class="panel"><div class="table-wrap"><table class="center-table">
-    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th></th></tr></thead>
+    <thead><tr><th>No IKU</th><th>IKU</th><th>Tim</th><th>Triwulan</th><th>RTL</th><th>Status</th><th>Bukti Dukung</th><th>Catatan</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div></div>`;
+}
+function catatanTlCell(k){
+  if(k.__virtual) return `<span class="text-xs text-muted">—</span>`;
+  const preview = k.catatanTl
+    ? `<div class="text-xs" style="white-space:pre-wrap;margin-bottom:4px;">${escapeHtml(truncate(k.catatanTl,80))}</div>`
+    : `<div class="text-xs text-muted" style="margin-bottom:4px;">Belum ada catatan</div>`;
+  if(!canEditTeamRow(k.timId)) return preview;
+  return `${preview}<button class="icon-btn" onclick="openCatatanTlModal('${k.id}')" title="Tambah/Ubah Catatan">${ICONS.edit}</button>`;
+}
+function openCatatanTlModal(id){
+  const item = DB.kegiatan.find(x=>x.id===id);
+  if(!item) return;
+  const body = `<div class="field"><label>Catatan Tindak Lanjut</label><textarea id="ctl_catatan" placeholder="Catatan untuk tindak lanjut triwulan sebelumnya...">${escapeHtml(item.catatanTl||'')}</textarea></div>`;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveCatatanTl('${id}')">Simpan</button>`;
+  openModal(modalShell('Catatan Tindak Lanjut', body, foot));
+}
+async function saveCatatanTl(id){
+  const item = DB.kegiatan.find(x=>x.id===id);
+  if(!item) return;
+  const catatanTl = document.getElementById('ctl_catatan').value.trim();
+  const payload = {
+    timId: item.timId, periode: item.periode, tahun: item.tahun,
+    ikuNomor: item.ikuNomor, nama: item.nama, kendala: item.kendala,
+    solusi: item.solusi, rtl: item.rtl, catatan: item.catatan,
+    picTindakLanjut: item.picTindakLanjut, batasWaktuTindakLanjut: item.batasWaktuTindakLanjut,
+    starred: !!item.starred,
+    hasEvidence: !!item.hasEvidence, evidenceFiles: item.evidenceFiles || [],
+    hasTlEvidence: !!item.hasTlEvidence, tlEvidenceFiles: item.tlEvidenceFiles || [],
+    catatanTl,
+  };
+  payload.status = computeKegiatanStatus(payload);
+  const btn = document.querySelector('#modalOverlay .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
+  try{
+    await apiPut('kegiatan', id, payload);
+    await loadAll();
+    closeModal(); toast('Catatan disimpan','ok'); renderContent();
+  }catch(e){
+    toast(e.message || 'Gagal menyimpan catatan','err');
+    if(btn){ btn.disabled = false; btn.textContent = 'Simpan'; }
+  }
 }
 function pencapaianActions(k){
   if(!canEditTeamRow(k.timId)){
@@ -3239,6 +3285,7 @@ function openKegiatanModal(id, prefTimId, prefIkuNomor, prefTahun, prefPeriode){
     <div class="field"><label>Kendala</label><textarea id="f_kendala" placeholder="Kendala yang dihadapi...">${k?escapeHtml(k.kendala):''}</textarea></div>
     <div class="field"><label>Solusi</label><textarea id="f_solusi" placeholder="Solusi yang diterapkan...">${k?escapeHtml(k.solusi):''}</textarea></div>
     <div class="field"><label>Rencana Tindak Lanjut (RTL)</label><textarea id="f_rtl" placeholder="Rencana tindak lanjut berikutnya...">${k?escapeHtml(k.rtl):''}</textarea></div>
+    <div class="field"><label>Catatan</label><textarea id="f_catatan" placeholder="Catatan tambahan (opsional)...">${k?escapeHtml(k.catatan||''):''}</textarea></div>
     <div class="field-row">
       <div class="field"><label>PIC Tindak Lanjut</label><input type="text" id="f_picTindakLanjut" value="${k?escapeHtml(k.picTindakLanjut||''):''}" placeholder="mis. Budi Santoso"></div>
       <div class="field"><label>Batas Waktu Tindak Lanjut</label><input type="date" id="f_batasWaktuTindakLanjut" value="${k?(k.batasWaktuTindakLanjut||''):''}"></div>
@@ -3296,6 +3343,7 @@ async function saveKegiatan(id){
   const kendala = document.getElementById('f_kendala').value.trim();
   const solusi = document.getElementById('f_solusi').value.trim();
   const rtl = document.getElementById('f_rtl').value.trim();
+  const catatan = document.getElementById('f_catatan').value.trim();
   const picTindakLanjut = document.getElementById('f_picTindakLanjut').value.trim();
   const batasWaktuTindakLanjut = document.getElementById('f_batasWaktuTindakLanjut').value.trim();
   const evMeta = persistPendingEvidence('kegiatan');
@@ -3304,7 +3352,7 @@ async function saveKegiatan(id){
     hasTlEvidence: existingItem ? !!existingItem.hasTlEvidence : false,
     tlEvidenceFiles: existingItem && existingItem.tlEvidenceFiles ? existingItem.tlEvidenceFiles : [],
   };
-  let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta, ...tlMeta};
+  let payload = {timId,periode,tahun,ikuNomor,nama,kendala,solusi,rtl,catatan,picTindakLanjut,batasWaktuTindakLanjut, ...evMeta, ...tlMeta};
   payload.status = computeKegiatanStatus(payload);
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }

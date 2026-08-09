@@ -617,6 +617,8 @@ const kegiatanSchema = Joi.object({
   kendala: Joi.string().trim().max(1000).allow('', null),
   solusi: Joi.string().trim().max(1000).allow('', null),
   rtl: Joi.string().trim().max(1000).allow('', null),
+  catatan: Joi.string().trim().max(1000).allow('', null),        // BARU
+  catatanTl: Joi.string().trim().max(1000).allow('', null),      // BARU
   status: Joi.string().valid('Belum Ditindaklanjuti', 'Dalam Proses', 'Selesai').required(),
   picTindakLanjut: Joi.string().trim().max(200).allow('', null),
   batasWaktuTindakLanjut: Joi.string().allow('', null),
