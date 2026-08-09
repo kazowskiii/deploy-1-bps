@@ -112,7 +112,7 @@ button{font-family:inherit;cursor:pointer;}
   border-radius:7px;padding:7px 10px;font-size:12.5px;font-family:'IBM Plex Mono',monospace;color:var(--ink);
 }
 .content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px 28px 60px;}
-.content > *{max-width:1320px;width:100%;margin:0 auto;}
+.content > *{max-width:1800px;width:100%;margin:0 auto;}
 
 /* ===== Buttons ===== */
 .btn{
@@ -180,6 +180,9 @@ tbody tr:last-child td{border-bottom:none;}
 .center-table td:not(:first-child) .team-pill,
 .center-table td:not(:first-child) .tag{ display:inline-flex; }
 .center-table thead tr:first-child th{ border-bottom:1px solid var(--line); }
+.center-table, .center-table th, .center-table td{
+  border:1px solid var(--line-strong);
+}
 
 /* ===== Badges / status ===== */
 .tag{
