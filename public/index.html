@@ -3017,6 +3017,38 @@ async function deleteFraGroup(timId, ikuNomor){
     toast('Capaian dihapus','ok'); renderShell();
   }catch(e){ toast(e.message || 'Gagal menghapus data','err'); }
 }
+// BARU: ambil daftar No IKU yang sudah diatur Admin (Kelola Target IKU)
+// khusus untuk Tim & Tahun tertentu, diurutkan numerik.
+function ikuOptionsForTeamYear(timId, tahun){
+  const nos = new Set((DB.ikuTargets||[])
+    .filter(t=>t.timId===timId && Number(t.tahun)===Number(tahun))
+    .map(t=>t.ikuNomor));
+  return Array.from(nos).sort(compareIkuNomor);
+}
+
+// BARU: bangun ulang isi dropdown No IKU berdasarkan Tim & Tahun yang sedang dipilih.
+function updateFraIkuOptions(preserveSelection){
+  const timEl = document.getElementById('f_tim');
+  const tahunEl = document.getElementById('f_tahun');
+  const ikuEl = document.getElementById('f_ikuNomor');
+  if(!timEl || !tahunEl || !ikuEl) return;
+  const currentValue = preserveSelection ? ikuEl.value : null;
+  const options = ikuOptionsForTeamYear(timEl.value, tahunEl.value);
+  if(!options.length){
+    ikuEl.innerHTML = `<option value="">Belum ada Target IKU untuk tim & tahun ini</option>`;
+  } else {
+    ikuEl.innerHTML = options.map(no=>{
+      const nama = ikuNamaByNoAny(no);
+      const label = nama ? `${no} — ${nama}` : no;
+      return `<option value="${escapeHtml(no)}">${escapeHtml(label)}</option>`;
+    }).join('');
+    if(currentValue && options.includes(currentValue)){
+      ikuEl.value = currentValue;
+    }
+  }
+  updateFraIkuNamaPreview();
+  updateFraTargetPreview();
+}
 /* ---- FRA modal ---- */
 function openFraModal(id, prefill){
   if(!isAdmin()){
@@ -3027,7 +3059,7 @@ function openFraModal(id, prefill){
   const pre = prefill || {};
   const body = `
     <div class="field-row">
-      <div class="field"><label>Tim</label><select id="f_tim" onchange="updateFraTargetPreview()">${teamOptions(f?f.timId:(pre.timId||null))}</select></div>
+      <div class="field"><label>Tim</label><select id="f_tim" onchange="updateFraIkuOptions(false)">${teamOptions(f?f.timId:(pre.timId||null))}</select></div>
       <div class="field"><label>Periode</label>
       <select id="f_periode" onchange="updateFraTargetPreview()">
       ${['Triwulan I','Triwulan II','Triwulan III','Triwulan IV'].map(p=>
@@ -3038,15 +3070,11 @@ function openFraModal(id, prefill){
     </div>
     <div class="field">
       <label>No IKU</label>
-      <select id="f_ikuNomor" onchange="updateFraIkuNamaPreview(); updateFraTargetPreview();">
-      ${FRA_IKU_LIST.map(item=>
-      `<option value="${item.no}" ${(f? f.ikuNomor===item.no : pre.ikuNomor===item.no) ? 'selected' : ''}>${item.no}</option>`
-      ).join('')}
-      </select>
+      <select id="f_ikuNomor" onchange="updateFraIkuNamaPreview(); updateFraTargetPreview();"></select>
     </div>
     <div class="field">
       <label>IKU</label>
-      <input type="text" id="f_ikuNama" value="${escapeHtml(fraIkuNamaByNo(f && f.ikuNomor ? f.ikuNomor : (pre.ikuNomor || FRA_IKU_LIST[0].no)))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">
+      <input type="text" id="f_ikuNama" value="" disabled style="background:var(--surface-2);color:var(--ink-muted);">
     </div>
     <div class="field-row">
       <div class="field">
@@ -3060,18 +3088,25 @@ function openFraModal(id, prefill){
         <label>Capaian (%) — otomatis</label>
         <input type="number" id="f_persenPreview" value="${f?(f.persentase??''):''}" disabled style="background:var(--surface-2);color:var(--ink-muted);" placeholder="Otomatis dari Realisasi/Target">
       </div>
-      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:(pre.tahun||FILTER_YEAR)}" oninput="updateFraTargetPreview()"></div>
+      <div class="field"><label>Tahun</label><input type="number" id="f_tahun" value="${f?f.tahun:(pre.tahun||FILTER_YEAR)}" oninput="updateFraIkuOptions(false)"></div>
     </div>
   `;
   const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFra('${id||''}')">Simpan</button>`;
   openModal(modalShell(f?'Ubah Capaian Tim':'Tambah Capaian Tim (FRA)', body, foot));
+  updateFraIkuOptions(false);
+  const ikuEl = document.getElementById('f_ikuNomor');
+  const initialIku = f ? f.ikuNomor : pre.ikuNomor;
+  if(ikuEl && initialIku && Array.from(ikuEl.options).some(o=>o.value===initialIku)){
+    ikuEl.value = initialIku;
+  }
+  updateFraIkuNamaPreview();
   updateFraTargetPreview();
 }
 function updateFraIkuNamaPreview(){
   const selectEl = document.getElementById('f_ikuNomor');
   const nameEl = document.getElementById('f_ikuNama');
   if(!selectEl || !nameEl) return;
-  nameEl.value = fraIkuNamaByNo(selectEl.value);
+  nameEl.value = ikuNamaByNoAny(selectEl.value);
 }
 function updateFraTargetPreview(){
   const ikuEl = document.getElementById('f_ikuNomor');
