@@ -2624,7 +2624,7 @@ function renderIkuTargetPage(){
   const knownNos = new Set(FRA_IKU_LIST.map(i=>i.no));
   let customRecords = (DB.ikuTargets||[]).filter(t=>!knownNos.has(t.ikuNomor) && Number(t.tahun)===FILTER_YEAR);
   if(PAGE_FILTERS.teamId) customRecords = customRecords.filter(t=>t.timId===PAGE_FILTERS.teamId);
-  const customRows = customRecords.map(t=>targetRow(t.ikuNomor, null, t)).join('');
+  const customRows = customRecords.map(t=>targetRow(t.ikuNomor, t.ikuNama, t)).join('');
 
   return filterBar + note + `<div class="panel"><div class="table-wrap"><table>
     <thead><tr>
@@ -2899,7 +2899,7 @@ async function saveIkuTarget(id){
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
   if(!ikuNomor){ toast('No IKU wajib diisi','err'); return; }
   if(!timId){ toast('Tim wajib dipilih','err'); return; }
-  const payload = { ikuNomor, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
+  const payload = { ikuNomor, ikuNama, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{

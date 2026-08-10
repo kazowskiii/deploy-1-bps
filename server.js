@@ -57,6 +57,20 @@ function sanitizePayload(value) {
   return sanitizeText(value);
 }
 
+// Hapus karakter kontrol yang tidak valid di XML 1.0 (penyebab Excel minta "recover").
+// Tab, newline (\n), dan carriage return (\r) tetap dibiarkan karena itu valid.
+function sanitizeExcelText(value) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+}
+function sanitizeExcelRow(row) {
+  const clean = {};
+  Object.keys(row).forEach((key) => {
+    clean[key] = sanitizeExcelText(row[key]);
+  });
+  return clean;
+}
+
 function seedTeams() {
   return [
     { id: uuidv4(), name: 'Tim Statistik Sosial' },
@@ -671,6 +685,7 @@ const ikuSchema = Joi.object({
 
 const ikuTargetSchema = Joi.object({
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
+  ikuNama: Joi.string().trim().max(250).allow('', null).default(''),   // BARU
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   timId: Joi.string().required(),
   target: Joi.number().min(0).required(),
@@ -1241,7 +1256,7 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
     const sheet = workbook.addWorksheet(name);
     sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
     sheet.getRow(1).font = { bold: true };
-    items.forEach((item) => sheet.addRow(buildPdfRow(name, item)));
+    items.forEach((item) => sheet.addRow(sanitizeExcelRow(buildPdfRow(name, item))));
   }
   const filename = collection ? `simonev-${collection}.xlsx` : 'simonev-all.xlsx';
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
