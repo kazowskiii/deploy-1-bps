@@ -36,7 +36,7 @@ const path = require('path');
 const CLIENT_ID = process.env.AZURE_CLIENT_ID;
 const CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 const REDIRECT_URI = process.env.AZURE_REDIRECT_URI;
-const ONEDRIVE_FOLDER = process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads';
+const ONEDRIVE_FOLDER = process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads';
 
 // "consumers" = khusus akun Microsoft pribadi. Kalau app registration Anda
 // didaftarkan sebagai multi-tenant (organisasi + pribadi), ganti ke "common".
@@ -197,7 +197,7 @@ function encodeGraphPath(p) {
 }
 
 /**
- * Pastikan folder ada, termasuk folder bertingkat (mis. "SIMONEV-FRA/Triwulan 1/IKU 3").
+ * Pastikan folder ada, termasuk folder bertingkat (mis. "SIMORA-FRA/Triwulan 1/IKU 3").
  * Setiap level dicek & dibuat satu per satu kalau belum ada.
  */
 async function ensureFolder(folderPath) {
@@ -243,7 +243,7 @@ async function ensureFolder(folderPath) {
 /**
  * Unggah buffer berkas ke OneDrive lewat upload session (aman untuk berbagai
  * ukuran berkas, tidak dibatasi ~4MB seperti PUT langsung).
- * `folderName` opsional — boleh berupa path bertingkat, mis. "SIMONEV-FRA/Triwulan 1/IKU 3".
+ * `folderName` opsional — boleh berupa path bertingkat, mis. "SIMORA-FRA/Triwulan 1/IKU 3".
  * Kalau tidak diisi, pakai folder default (ONEDRIVE_FOLDER).
  * Mengembalikan metadata item OneDrive (termasuk `id`, dipakai sebagai
  * pengenal berkas di sisi aplikasi, menggantikan nama file lokal).

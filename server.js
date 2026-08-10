@@ -1,5 +1,5 @@
 ﻿/**
- * SIMONEV BPS — Sistem Monitoring & Evaluasi Kinerja
+ * SIMORA BPS — Sistem Monitoring & Evaluasi Kinerja
  * Backend server: Express + penyimpanan file lokal di server (folder /uploads)
  * Database sederhana disimpan sebagai JSON di /data/db.json
  * Autentikasi session, validasi input, backup harian, export JSON/Excel/PDF,
@@ -28,7 +28,7 @@ const { tanyaAI } = require('./groqService');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'simonev-session-secret';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'simora-session-secret';
 
 const DATA_DIR = path.join(__dirname, 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backup');
@@ -206,8 +206,8 @@ async function sendReminderEmails() {
       await transporter.sendMail({
         from: SMTP_FROM || SMTP_USER,
         to,
-        subject: `[SIMONEV] Pengingat: realisasi ${tasks[0].quarterLabel} belum diisi`,
-        text: `Halo ${timName},\n\nBerikut tugas yang belum diisi realisasinya untuk triwulan berjalan (H-${daysLeft}):\n\n${list}\n\nMohon segera dilengkapi di SIMONEV.\n\n— Sistem SIMONEV BPS`,
+        subject: `[SIMORA] Pengingat: realisasi ${tasks[0].quarterLabel} belum diisi`,
+        text: `Halo ${timName},\n\nBerikut tugas yang belum diisi realisasinya untuk triwulan berjalan (H-${daysLeft}):\n\n${list}\n\nMohon segera dilengkapi di SIMORA.\n\n— Sistem SIMORA BPS`,
       });
       console.log(`Pengingat email terkirim ke ${to} (${timName})`);
     } catch (err) {
@@ -449,7 +449,7 @@ function drawPdfCover(doc, title) {
     timeZone: 'Asia/Jakarta',
   });
   doc.font('Helvetica').fontSize(10.5).fillColor('#5B6B78')
-    .text(`Dicetak melalui SIMONEV BPS pada ${printedAt}`, 40, cursorY, {
+    .text(`Dicetak melalui SIMORA BPS pada ${printedAt}`, 40, cursorY, {
       align: 'center', width: pageWidth - 80,
     });
 
@@ -1236,7 +1236,7 @@ app.get('/api/export/json', requireLogin, (req, res) => {
   if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
   payload[name] = items;
 });
-  const filename = collection ? `simonev-${collection}.json` : 'simonev-all.json';
+  const filename = collection ? `simora-${collection}.json` : 'simora-all.json';
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(payload, null, 2));
@@ -1258,7 +1258,7 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
     sheet.getRow(1).font = { bold: true };
     items.forEach((item) => sheet.addRow(sanitizeExcelRow(buildPdfRow(name, item))));
   }
-  const filename = collection ? `simonev-${collection}.xlsx` : 'simonev-all.xlsx';
+  const filename = collection ? `simora-${collection}.xlsx` : 'simora-all.xlsx';
   res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   await workbook.xlsx.write(res);
@@ -1272,7 +1272,7 @@ app.get('/api/export/pdf', requireLogin, (req, res) => {
   if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
 
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
-  res.setHeader('Content-Disposition', `attachment; filename=simonev-${collection}.pdf`);
+  res.setHeader('Content-Disposition', `attachment; filename=simora-${collection}.pdf`);
   res.setHeader('Content-Type', 'application/pdf');
   doc.pipe(res);
 
@@ -1313,7 +1313,7 @@ app.get('/auth/redirect', requireLogin, requireAdmin, async (req, res) => {
   }
   try {
     await onedrive.exchangeCodeForTokens(code);
-    res.send('<h2>OneDrive berhasil terhubung.</h2><p>Anda bisa menutup tab ini dan kembali ke aplikasi SIMONEV.</p>');
+    res.send('<h2>OneDrive berhasil terhubung.</h2><p>Anda bisa menutup tab ini dan kembali ke aplikasi SIMORA.</p>');
   } catch (err) {
     console.error('Gagal menghubungkan OneDrive:', err.message);
     res.status(500).send(`Gagal menghubungkan OneDrive: ${err.message}`);
@@ -1321,13 +1321,13 @@ app.get('/auth/redirect', requireLogin, requireAdmin, async (req, res) => {
 });
 
 // Pemetaan modul -> nama folder OneDrive. Kalau kind tidak dikenali/tidak
-// dikirim, jatuh ke folder default (ONEDRIVE_FOLDER di .env / 'SIMONEV-Uploads').
+// dikirim, jatuh ke folder default (ONEDRIVE_FOLDER di .env / 'SIMORA-Uploads').
 const UPLOAD_FOLDER_BY_KIND = {
-  fra: 'SIMONEV-FRA',
-  iku: 'SIMONEV-IKU',
-  tugas: 'SIMONEV-Tugas',
-  kegiatan: 'SIMONEV-Kegiatan',
-  pencapaian: 'SIMONEV-TL-Sebelumnya',
+  fra: 'SIMORA-FRA',
+  iku: 'SIMORA-IKU',
+  tugas: 'SIMORA-Tugas',
+  kegiatan: 'SIMORA-Kegiatan',
+  pencapaian: 'SIMORA-TL-Sebelumnya',
 };
 
 const TRIWULAN_ROMAN_TO_ARABIC = { I: 1, II: 2, III: 3, IV: 4 };
@@ -1343,8 +1343,8 @@ function periodeToTriwulanNumber(periode) {
 const TUGAS_QKEY_TO_ARABIC = { q1: 1, q2: 2, q3: 3, q4: 4 };
 
 // Untuk FRA: kalau periode & ikuNomor valid, arahkan ke folder bertingkat
-// "SIMONEV-FRA/Triwulan {n}/IKU {n}".
-// Untuk Tugas: kalau triwulan valid, arahkan ke "SIMONEV-Tugas/Triwulan {n}".
+// "SIMORA-FRA/Triwulan {n}/IKU {n}".
+// Untuk Tugas: kalau triwulan valid, arahkan ke "SIMORA-Tugas/Triwulan {n}".
 // Modul lain tetap folder flat seperti biasa.
 // Nama folder OneDrive tidak boleh mengandung karakter tertentu (" \ / : * ? < > |)
 function sanitizeFolderSegment(name) {
@@ -1359,9 +1359,9 @@ function buildUploadFolder(kind, meta) {
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
 
   if (kind === 'fra' || kind === 'kegiatan' || kind === 'pencapaian') {
-    // SIMONEV-{tahun}/{baseFolder}/Triwulan {n}/{Nama Tim}/IKU {kode}
+    // SIMORA-{tahun}/{baseFolder}/Triwulan {n}/{Nama Tim}/IKU {kode}
     const tahunNum = parseInt(meta.tahun, 10);
-    const yearPrefix = tahunNum ? `SIMONEV-${tahunNum}/` : '';
+    const yearPrefix = tahunNum ? `SIMORA-${tahunNum}/` : '';
     const triwulanNum = periodeToTriwulanNumber(meta.periode);
     const ikuKode = String(meta.ikuNomor || '').trim();
     const teamSegment = meta.timId ? sanitizeFolderSegment(teamNameServer(meta.timId)) : '';
@@ -1405,7 +1405,7 @@ app.post('/api/upload', requireLogin, (req, res) => {
       const tahun = sanitizeText(req.body.tahun || '');
       const timId = sanitizeText(req.body.timId || '');           // BARU
       const folder = buildUploadFolder(kind, { periode, ikuNomor, triwulan, tahun, timId }); // timId ditambahkan
-      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
+      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads')}`);
       const item = await onedrive.uploadFile(req.file.buffer, storedName, folder);
       // "filename" yang dikembalikan sekarang adalah ID item OneDrive
       // (bukan lagi nama file di disk lokal), dipakai untuk lihat/hapus berkas.
@@ -1524,7 +1524,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`✓ SIMONEV BPS berjalan di http://localhost:${PORT}`);
+  console.log(`✓ SIMORA BPS berjalan di http://localhost:${PORT}`);
   console.log(`  Data JSON   : ${DB_FILE}`);
-  console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads'})`);
+  console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads'})`);
 });

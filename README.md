@@ -1,4 +1,4 @@
-# SIMONEV BPS — Sistem Monitoring & Evaluasi Kinerja
+# SIMORA BPS — Sistem Monitoring & Evaluasi Kinerja
 
 Aplikasi monitoring kinerja dengan 4 modul:
 - **FRA** — capaian kinerja tiap tim + bukti dukung laporan
@@ -12,7 +12,7 @@ di `data/db.json` dan **semua berkas PDF/Word tersimpan fisik di server**, di fo
 ## Struktur folder
 
 ```
-simonev-server/
+simora-server/
 ├── server.js          # backend Express (API + upload berkas)
 ├── package.json
 ├── data/
@@ -27,7 +27,7 @@ simonev-server/
 Syarat: [Node.js](https://nodejs.org) versi 18 ke atas.
 
 ```bash
-cd simonev-server
+cd simora-server
 npm install
 npm start
 ```
@@ -49,13 +49,13 @@ Lalu buka **http://localhost:3000** di browser. Data tim contoh akan otomatis te
 Aplikasi ini adalah aplikasi Node.js biasa, jadi bisa dijalankan di VPS/cloud (mis. server milik BPS,
 DigitalOcean, AWS EC2, dsb). Langkah umum:
 
-1. Salin seluruh folder `simonev-server` ke server.
+1. Salin seluruh folder `simora-server` ke server.
 2. Install Node.js 18+ di server tersebut.
 3. `npm install --production`
 4. Jalankan dengan process manager agar tetap hidup, contoh dengan [PM2](https://pm2.keymetrics.io/):
    ```bash
    npm install -g pm2
-   pm2 start server.js --name simonev-bps
+   pm2 start server.js --name simora-bps
    pm2 save
    pm2 startup
    ```
@@ -63,7 +63,7 @@ DigitalOcean, AWS EC2, dsb). Langkah umum:
    ```nginx
    server {
        listen 80;
-       server_name simonev.bps-daerah.go.id;
+       server_name simora.bps-daerah.go.id;
        location / {
            proxy_pass http://localhost:3000;
            proxy_set_header Host $host;
@@ -123,7 +123,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=akun@gmail.com
 SMTP_PASS=app-password
-SMTP_FROM="SIMONEV BPS <akun@gmail.com>"
+SMTP_FROM="SIMORA BPS <akun@gmail.com>"
 # opsional: alamat tujuan per tim, dipisah koma, format Nama Tim=email
 REMINDER_EMAILS="Tim Statistik Sosial=sosial@bps.go.id,Tim Statistik Produksi=produksi@bps.go.id"
 ```
