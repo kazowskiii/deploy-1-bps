@@ -3159,20 +3159,24 @@ function wireEvidenceField(kind, id){
       if(triwulanEl) extra.triwulan = triwulanEl.value;
     }
     if(kind === 'kegiatan'){
-      const periodeEl = document.getElementById('f_periode');
-      const ikuEl = document.getElementById('f_ikuNomor');
-      const tahunEl = document.getElementById('f_tahun');
-      if(periodeEl) extra.periode = periodeEl.value;
-      if(ikuEl) extra.ikuNomor = ikuEl.value;
-      if(tahunEl) extra.tahun = tahunEl.value;
+    const periodeEl = document.getElementById('f_periode');
+    const ikuEl = document.getElementById('f_ikuNomor');
+    const tahunEl = document.getElementById('f_tahun');
+    const timEl = document.getElementById('f_tim');           // BARU (hidden input)
+    if(periodeEl) extra.periode = periodeEl.value;
+    if(ikuEl) extra.ikuNomor = ikuEl.value;
+    if(tahunEl) extra.tahun = tahunEl.value;
+    if(timEl) extra.timId = timEl.value;                      // BARU
     }
     if(kind === 'pencapaian'){
-      const periodeEl = document.getElementById('pc_periode');
-      const ikuEl = document.getElementById('pc_ikuNomor');
-      const tahunEl = document.getElementById('pc_tahun');
-      if(periodeEl) extra.periode = periodeEl.value;
-      if(ikuEl) extra.ikuNomor = ikuEl.value;
-      if(tahunEl) extra.tahun = tahunEl.value;
+    const periodeEl = document.getElementById('pc_periode');
+    const ikuEl = document.getElementById('pc_ikuNomor');
+    const tahunEl = document.getElementById('pc_tahun');
+    const timEl = document.getElementById('pc_tim');           // BARU (select tim)
+    if(periodeEl) extra.periode = periodeEl.value;
+    if(ikuEl) extra.ikuNomor = ikuEl.value;
+    if(tahunEl) extra.tahun = tahunEl.value;
+    if(timEl) extra.timId = timEl.value;                       // BARU
     }
 
     const myToken = EVIDENCE_UPLOAD_TOKEN[kind]; // dipakai bersama untuk seluruh batch ini

@@ -1331,18 +1331,31 @@ const TUGAS_QKEY_TO_ARABIC = { q1: 1, q2: 2, q3: 3, q4: 4 };
 // "SIMONEV-FRA/Triwulan {n}/IKU {n}".
 // Untuk Tugas: kalau triwulan valid, arahkan ke "SIMONEV-Tugas/Triwulan {n}".
 // Modul lain tetap folder flat seperti biasa.
+// Nama folder OneDrive tidak boleh mengandung karakter tertentu (" \ / : * ? < > |)
+function sanitizeFolderSegment(name) {
+  return String(name || '')
+    .replace(/[":\\/*?<>|]/g, '')
+    .trim()
+    .slice(0, 100) || 'Lainnya';
+}
+
 function buildUploadFolder(kind, meta) {
   const baseFolder = UPLOAD_FOLDER_BY_KIND[kind];
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
 
   if (kind === 'fra' || kind === 'kegiatan' || kind === 'pencapaian') {
-    // Semua berkas FRA & Kegiatan dikelompokkan per tahun: "SIMONEV-2026/SIMONEV-FRA/...".
-    // Kalau field tahun tidak dikirim (data lama / kasus tak terduga), fallback ke folder lama tanpa prefix tahun.
+    // SIMONEV-{tahun}/{baseFolder}/Triwulan {n}/{Nama Tim}/IKU {kode}
     const tahunNum = parseInt(meta.tahun, 10);
     const yearPrefix = tahunNum ? `SIMONEV-${tahunNum}/` : '';
     const triwulanNum = periodeToTriwulanNumber(meta.periode);
     const ikuKode = String(meta.ikuNomor || '').trim();
+    const teamSegment = meta.timId ? sanitizeFolderSegment(teamNameServer(meta.timId)) : '';
+
+    if (triwulanNum && teamSegment && ikuKode) {
+      return `${yearPrefix}${baseFolder}/Triwulan ${triwulanNum}/${teamSegment}/IKU ${ikuKode}`;
+    }
     if (triwulanNum && ikuKode) {
+      // fallback kalau timId belum terkirim (data lama / kasus tak terduga)
       return `${yearPrefix}${baseFolder}/Triwulan ${triwulanNum}/IKU ${ikuKode}`;
     }
     return `${yearPrefix}${baseFolder}`;
@@ -1375,7 +1388,8 @@ app.post('/api/upload', requireLogin, (req, res) => {
       const ikuNomor = req.body.ikuNomor;
       const triwulan = sanitizeText(req.body.triwulan || '');
       const tahun = sanitizeText(req.body.tahun || '');
-      const folder = buildUploadFolder(kind, { periode, ikuNomor, triwulan, tahun });
+      const timId = sanitizeText(req.body.timId || '');           // BARU
+      const folder = buildUploadFolder(kind, { periode, ikuNomor, triwulan, tahun, timId }); // timId ditambahkan
       console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMONEV-Uploads')}`);
       const item = await onedrive.uploadFile(req.file.buffer, storedName, folder);
       // "filename" yang dikembalikan sekarang adalah ID item OneDrive
