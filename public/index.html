@@ -3037,11 +3037,9 @@ function updateFraIkuOptions(preserveSelection){
   if(!options.length){
     ikuEl.innerHTML = `<option value="">Belum ada Target IKU untuk tim & tahun ini</option>`;
   } else {
-    ikuEl.innerHTML = options.map(no=>{
-      const nama = ikuNamaByNoAny(no);
-      const label = nama ? `${no} — ${nama}` : no;
-      return `<option value="${escapeHtml(no)}">${escapeHtml(label)}</option>`;
-    }).join('');
+    ikuEl.innerHTML = options.map(no=>
+      `<option value="${escapeHtml(no)}">${escapeHtml(no)}</option>`
+    ).join('');
     if(currentValue && options.includes(currentValue)){
       ikuEl.value = currentValue;
     }
