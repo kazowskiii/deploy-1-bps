@@ -152,6 +152,10 @@ async function backupDB() {
 backupDB();
 setInterval(backupDB, 24 * 60 * 60 * 1000);
 
+// BARU: cek berkas yang mungkin sudah dihapus manual di OneDrive, setiap 20 menit.
+syncEvidenceFilesWithOneDrive();
+setInterval(syncEvidenceFilesWithOneDrive, 20 * 60 * 1000);
+
 /**
  * Pengingat email (opsional).
  * Aktif hanya jika variabel environment SMTP_HOST, SMTP_USER, SMTP_PASS diisi.
@@ -947,6 +951,94 @@ async function deleteEvidenceFiles(fileIds) {
     }
   }
 }
+// Cek apakah sebuah berkas masih benar-benar ada di OneDrive.
+async function fileExistsOnOneDrive(fileId) {
+  try {
+    const info = await onedrive.getDownloadUrl(fileId);
+    return !!info;
+  } catch (err) {
+    const msg = String(err.message || '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('itemnotfound')) {
+      return false; // benar-benar sudah dihapus di OneDrive
+    }
+    return true; // error lain (jaringan, dsb) — jangan anggap terhapus, biar aman
+  }
+}
+
+// Hapus satu referensi fileId tertentu dari SEMUA record (fra, kegiatan, tugas, iku)
+// yang mengandungnya, lalu simpan & broadcast supaya web langsung ter-update.
+async function pruneMissingFileReference(fileId) {
+  const collectionsToCheck = ['fra', 'kegiatan', 'tugas', 'iku'];
+  let changedAny = false;
+  for (const name of collectionsToCheck) {
+    const items = DB[name] || [];
+    for (const item of items) {
+      if (Array.isArray(item.evidenceFiles) && item.evidenceFiles.some((f) => f.fileName === fileId)) {
+        item.evidenceFiles = item.evidenceFiles.filter((f) => f.fileName !== fileId);
+        item.hasEvidence = item.evidenceFiles.length > 0;
+        if (name === 'kegiatan') item.status = computeKegiatanStatusServer(item);
+        changedAny = true;
+      }
+      if (Array.isArray(item.tlEvidenceFiles) && item.tlEvidenceFiles.some((f) => f.fileName === fileId)) {
+        item.tlEvidenceFiles = item.tlEvidenceFiles.filter((f) => f.fileName !== fileId);
+        item.hasTlEvidence = item.tlEvidenceFiles.length > 0;
+        changedAny = true;
+      }
+    }
+  }
+  if (changedAny) {
+    await saveDB();
+    broadcastChange('fra', 'update');
+    broadcastChange('kegiatan', 'update');
+    broadcastChange('tugas', 'update');
+    broadcastChange('iku', 'update');
+  }
+}
+
+// Sinkronisasi berkala: cek SEMUA berkas bukti dukung yang tercatat, hapus
+// referensinya kalau sudah tidak ada lagi di OneDrive (dihapus manual oleh siapa pun).
+async function syncEvidenceFilesWithOneDrive() {
+  if (!onedrive.isConnected()) return;
+  const collectionsToCheck = ['fra', 'kegiatan', 'tugas', 'iku'];
+  let totalRemoved = 0;
+  for (const name of collectionsToCheck) {
+    const items = DB[name] || [];
+    for (const item of items) {
+      let changed = false;
+      if (Array.isArray(item.evidenceFiles) && item.evidenceFiles.length) {
+        const kept = [];
+        for (const f of item.evidenceFiles) {
+          const exists = await fileExistsOnOneDrive(f.fileName);
+          if (exists) kept.push(f); else { changed = true; totalRemoved++; }
+        }
+        if (changed) {
+          item.evidenceFiles = kept;
+          item.hasEvidence = kept.length > 0;
+        }
+      }
+      if (Array.isArray(item.tlEvidenceFiles) && item.tlEvidenceFiles.length) {
+        const kept = [];
+        for (const f of item.tlEvidenceFiles) {
+          const exists = await fileExistsOnOneDrive(f.fileName);
+          if (exists) kept.push(f); else { changed = true; totalRemoved++; }
+        }
+        if (changed) {
+          item.tlEvidenceFiles = kept;
+          item.hasTlEvidence = kept.length > 0;
+        }
+      }
+      if (changed && name === 'kegiatan') item.status = computeKegiatanStatusServer(item);
+    }
+  }
+  if (totalRemoved > 0) {
+    await saveDB();
+    console.log(`[Sync OneDrive] ${totalRemoved} referensi berkas dihapus otomatis (sudah tidak ada di OneDrive).`);
+    broadcastChange('fra', 'update');
+    broadcastChange('kegiatan', 'update');
+    broadcastChange('tugas', 'update');
+    broadcastChange('iku', 'update');
+  }
+}
 function hasIsiTeksServer(str) {
   return typeof str === 'string' && /[a-zA-Z]/.test(str);
 }
@@ -1423,10 +1515,18 @@ app.get('/api/files/:filename/info', requireLogin, async (req, res) => {
   try {
     const itemId = req.params.filename;
     const info = await onedrive.getDownloadUrl(itemId);
-    if (!info) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
+    if (!info) {
+      pruneMissingFileReference(itemId); // hapus referensi karena sudah tidak ada di OneDrive
+      return res.status(404).json({ error: 'Berkas tidak ditemukan (mungkin sudah dihapus di OneDrive)' });
+    }
     res.json({ downloadUrl: info.downloadUrl, webUrl: info.webUrl, name: info.name, mimeType: info.mimeType });
   } catch (err) {
     console.error('Gagal mengambil info berkas dari OneDrive:', err.message);
+    const msg = String(err.message || '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('itemnotfound')) {
+      pruneMissingFileReference(req.params.filename);
+      return res.status(404).json({ error: 'Berkas tidak ditemukan (mungkin sudah dihapus di OneDrive)' });
+    }
     res.status(502).json({ error: `Gagal mengambil info berkas dari OneDrive: ${err.message}` });
   }
 });
@@ -1436,12 +1536,20 @@ app.get('/api/files/:filename', requireLogin, async (req, res) => {
   try {
     const itemId = req.params.filename;
     const info = await onedrive.getDownloadUrl(itemId);
-    if (!info) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
+    if (!info) {
+      pruneMissingFileReference(itemId);
+      return res.status(404).json({ error: 'Berkas tidak ditemukan (mungkin sudah dihapus di OneDrive)' });
+    }
     if (info.webUrl) return res.redirect(info.webUrl);
     if (info.downloadUrl) return res.redirect(info.downloadUrl);
     return res.status(404).json({ error: 'Berkas tidak ditemukan' });
   } catch (err) {
     console.error('Gagal mengambil berkas dari OneDrive:', err.message);
+    const msg = String(err.message || '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('itemnotfound')) {
+      pruneMissingFileReference(req.params.filename);
+      return res.status(404).json({ error: 'Berkas tidak ditemukan (mungkin sudah dihapus di OneDrive)' });
+    }
     res.status(502).json({ error: `Gagal mengambil berkas dari OneDrive: ${err.message}` });
   }
 });
