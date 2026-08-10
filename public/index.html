@@ -534,6 +534,23 @@ function fraIkuNamaByNo(no){
   const item = FRA_IKU_LIST.find(x=>x.no===no);
   return item ? item.nama : '';
 }
+function ikuNamaByNoAny(no){
+  const known = fraIkuNamaByNo(no);
+  if(known) return known;
+  const custom = (DB.ikuTargets||[]).find(t=>t.ikuNomor===no && t.ikuNama);
+  return custom ? custom.ikuNama : '';
+}
+function compareIkuNomor(a, b){
+  const pa = String(a||'').split('.').map(n=>parseInt(n,10));
+  const pb = String(b||'').split('.').map(n=>parseInt(n,10));
+  const len = Math.max(pa.length, pb.length);
+  for(let i=0;i<len;i++){
+    const va = isNaN(pa[i]) ? 0 : pa[i];
+    const vb = isNaN(pb[i]) ? 0 : pb[i];
+    if(va !== vb) return va - vb;
+  }
+  return 0;
+}
 const MAX_FILE_MB = 10;
 
 const CREDENTIALS = { username: 'admin', password: 'admin123' };
@@ -2074,7 +2091,7 @@ function renderFraPage(){
   if(PAGE_FILTERS.status){
     groups = groups.filter(g=>groupFraStatus(g).label.toLowerCase()===PAGE_FILTERS.status.toLowerCase());
   }
-  groups.sort((a,b)=> ikuOrderIndex(a.ikuNomor) - ikuOrderIndex(b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)));
+  groups.sort((a,b)=> compareIkuNomor(a.ikuNomor,b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)));
 
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>FRA</b> mencatat <b>Target Tahunan</b> per IKU serta realisasi &amp; capaian tiap triwulan (TW I–IV).</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('fra')}${exportButtons('fra')}</div>`;
@@ -2113,7 +2130,7 @@ const quarterCells = targetCells + realisasiCells + capaianCells;
 
     return `<tr>
       <td class="mono">${g.ikuNomor || '—'}</td>
-      <td style="min-width:200px;">${escapeHtml(fraIkuNamaByNo(g.ikuNomor) || '—')}</td>
+      <td style="min-width:200px;">${escapeHtml(ikuNamaByNoAny(g.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(g.timId))}</span></td>
       <td class="mono">${fmtNum(g.target)}</td>
       <td class="mono">${fmtNum(totalRealisasi)}</td>
@@ -2246,7 +2263,7 @@ function buildKegiatanGridItems(tahun){
 function renderKegiatanListPage(){
   let items = buildKegiatanGridItems(FILTER_YEAR);
   items = applyPageFilters(items, 'kegiatan');
-  items.sort((a,b)=> ikuOrderIndex(a.ikuNomor)-ikuOrderIndex(b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
+  items.sort((a,b)=> compareIkuNomor(a.ikuNomor,b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
   const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada Target IKU untuk tahun ini','Atur dulu Target IKU di menu Kelola Target IKU agar daftar No IKU & Tim muncul di sini.');
@@ -2254,7 +2271,7 @@ function renderKegiatanListPage(){
     const isVirtual = !!k.__virtual;
     return `<tr>
       <td class="mono">${k.ikuNomor || '—'}</td>
-      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(k.ikuNomor) || '—')}</td>
+      <td style="min-width:220px;">${escapeHtml(ikuNamaByNoAny(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td style="min-width:160px;">
         <div class="cell-title" style="white-space:pre-wrap;">${escapeHtml(k.nama || '—')}</div>
@@ -2280,7 +2297,7 @@ function renderKegiatanListPage(){
 function renderPencapaianPage(){
   let items = buildKegiatanGridItems(FILTER_YEAR);
   items = applyPageFilters(items, 'kegiatan');
-  items.sort((a,b)=> ikuOrderIndex(a.ikuNomor)-ikuOrderIndex(b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
+  items.sort((a,b)=> compareIkuNomor(a.ikuNomor,b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>TL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
   const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada Target IKU untuk tahun ini','Atur dulu Target IKU di menu Kelola Target IKU agar daftar No IKU & Tim muncul di sini.');
@@ -2288,7 +2305,7 @@ function renderPencapaianPage(){
     const isVirtual = !!k.__virtual;
     return `<tr>
       <td class="mono">${k.ikuNomor || '—'}</td>
-      <td style="min-width:220px;">${escapeHtml(fraIkuNamaByNo(k.ikuNomor) || '—')}</td>
+      <td style="min-width:220px;">${escapeHtml(ikuNamaByNoAny(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
       <td style="min-width:190px;">${escapeHtml(k.rtl || '—')}</td>
