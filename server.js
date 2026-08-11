@@ -310,6 +310,19 @@ const PDF_TITLES = {
   iku: 'Laporan Indikator Kinerja Utama (IKU)',
   teams: 'Laporan Data Tim',
 };
+const EXPORT_VIEW_META = {
+  pencapaian: {
+    filename: 'simora-tl-tw-sebelumnya',
+    title: 'Laporan TL TW Sebelumnya — Bukti Tindak Lanjut',
+  },
+};
+function resolveExportMeta(collection, view) {
+  if (view && EXPORT_VIEW_META[view]) return EXPORT_VIEW_META[view];
+  return {
+    filename: collection ? `simora-${collection}` : 'simora-all',
+    title: PDF_TITLES[collection] || `Laporan ${String(collection || '').toUpperCase()}`,
+  };
+}
 
 const PDF_COLUMNS = {
   teams: [{ key: 'name', label: 'Nama Tim', width: 480 }],
@@ -1320,67 +1333,93 @@ app.delete('/api/notifications/:id', requireLogin, async (req, res) => {
 app.get('/api/export/json', requireLogin, (req, res) => {
   const user = req.session.user;
   const collection = req.query.collection;
+  const view = req.query.view;
   const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
   const payload = {};
   targetCollections.forEach((name) => {
-  if (!DB[name]) return;
-  let items = filterItems(DB[name], user, name, req.query);
-  if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
-  payload[name] = items;
-});
-  const filename = collection ? `simora-${collection}.json` : 'simora-all.json';
-  res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    if (!DB[name]) return;
+    let items = filterItems(DB[name], user, name, req.query);
+    if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
+    payload[name] = items;
+  });
+  const { filename } = resolveExportMeta(collection, view);
+  res.setHeader('Content-Disposition', `attachment; filename=${filename}.json`);
   res.setHeader('Content-Type', 'application/json');
   res.send(JSON.stringify(payload, null, 2));
 });
 
 app.get('/api/export/excel', requireLogin, async (req, res) => {
-  const user = req.session.user;
-  const collection = req.query.collection;
-  const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
-  const workbook = new ExcelJS.Workbook();
-  for (const name of targetCollections) {
-  if (!DB[name]) continue;
-  let items = filterItems(DB[name], user, name, req.query);
-  if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
-  if (!items.length) continue;
-    const columns = PDF_COLUMNS[name] || PDF_COLUMNS.teams;
-    const sheet = workbook.addWorksheet(name);
-    sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
-    sheet.getRow(1).font = { bold: true };
-    items.forEach((item) => sheet.addRow(sanitizeExcelRow(buildPdfRow(name, item))));
+  try {
+    const user = req.session.user;
+    const collection = req.query.collection;
+    const view = req.query.view;
+    const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
+    const workbook = new ExcelJS.Workbook();
+
+    for (const name of targetCollections) {
+      if (!DB[name]) continue;
+      let items = filterItems(DB[name], user, name, req.query);
+      if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
+      const columns = PDF_COLUMNS[name] || PDF_COLUMNS.teams;
+      const sheet = workbook.addWorksheet(name);
+      sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
+      sheet.getRow(1).font = { bold: true };
+      items.forEach((item) => sheet.addRow(sanitizeExcelRow(buildPdfRow(name, item))));
+      // sengaja TIDAK "continue" saat items kosong — sheet tetap dibuat
+      // (hanya header) supaya workbook tidak pernah 0 sheet (itu membuat
+      // file .xlsx tidak valid dan memicu "recover" di Excel).
+    }
+    if (!workbook.worksheets.length) {
+      workbook.addWorksheet('Data').addRow(['Tidak ada data untuk laporan ini']);
+    }
+
+    const { filename } = resolveExportMeta(collection, view);
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    await workbook.xlsx.write(res);
+    // TIDAK memanggil res.end() lagi di sini — workbook.xlsx.write(res)
+    // sudah menutup stream-nya sendiri. Memanggil end() kedua kali bisa
+    // memutus koneksi sebelum byte penutup ZIP selesai terkirim, yang
+    // menyebabkan Excel menganggap file rusak.
+  } catch (err) {
+    console.error('Gagal membuat file Excel:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Gagal membuat file Excel: ' + err.message });
+    } else {
+      res.destroy(); // jangan kirim file setengah jadi
+    }
   }
-  const filename = collection ? `simora-${collection}.xlsx` : 'simora-all.xlsx';
-  res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  await workbook.xlsx.write(res);
-  res.end();
 });
 
 app.get('/api/export/pdf', requireLogin, (req, res) => {
-  const user = req.session.user;
-  const collection = req.query.collection || 'tugas';
-  let items = filterItems(DB[collection] || [], user, collection, req.query);
-  if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
+  try {
+    const user = req.session.user;
+    const collection = req.query.collection || 'tugas';
+    const view = req.query.view;
+    let items = filterItems(DB[collection] || [], user, collection, req.query);
+    if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 40 });
-  res.setHeader('Content-Disposition', `attachment; filename=simora-${collection}.pdf`);
-  res.setHeader('Content-Type', 'application/pdf');
-  doc.pipe(res);
+    const { filename, title } = resolveExportMeta(collection, view);
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
+    res.setHeader('Content-Type', 'application/pdf');
+    doc.pipe(res);
 
-  drawPdfCover(doc, PDF_TITLES[collection] || `Laporan ${collection.toUpperCase()}`);
-
-  const columns = PDF_COLUMNS[collection] || PDF_COLUMNS.teams;
-  const rows = items.map((item) => buildPdfRow(collection, item));
-
-  if (!rows.length) {
-    doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
-      .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
-  } else {
-    drawPdfTable(doc, columns, rows);
+    drawPdfCover(doc, title);
+    const columns = PDF_COLUMNS[collection] || PDF_COLUMNS.teams;
+    const rows = items.map((item) => buildPdfRow(collection, item));
+    if (!rows.length) {
+      doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
+        .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
+    } else {
+      drawPdfTable(doc, columns, rows);
+    }
+    doc.end();
+  } catch (err) {
+    console.error('Gagal membuat file PDF:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Gagal membuat file PDF: ' + err.message });
+    else res.destroy();
   }
-
-  doc.end();
 });
 
 app.get('/api/onedrive/status', requireLogin, requireAdmin, (req, res) => {
