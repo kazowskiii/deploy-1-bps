@@ -502,7 +502,36 @@ const FRA_EXPORT_COLUMNS = [
   { key: 'capaianTw4', label: 'Cap. TW IV', width: 32 },
   { key: 'status', label: 'Status', width: 32 },
 ];
-
+// Struktur khusus untuk render PDF FRA (header 2 baris berkelompok, meniru
+// tampilan tabel di halaman web). TIDAK dipakai untuk Excel — Excel tetap
+// pakai FRA_EXPORT_COLUMNS yang sudah benar, jangan diubah.
+const FRA_PDF_GROUPS = [
+  { label: 'No IKU', key: 'ikuNomor', width: 34 },
+  { label: 'IKU', key: 'iku', width: 118 },
+  { label: 'Tim', key: 'team', width: 46 },
+  { label: 'Target\nTahunan', key: 'targetTahunan', width: 38 },
+  { label: 'Realisasi\nTahunan', key: 'realisasiTahunan', width: 38 },
+  { label: 'Capaian\nTahunan', key: 'capaianTahunan', width: 36 },
+  { label: 'TARGET', children: [
+    { label: 'TW I', key: 'targetTw1', width: 26 },
+    { label: 'TW II', key: 'targetTw2', width: 26 },
+    { label: 'TW III', key: 'targetTw3', width: 26 },
+    { label: 'TW IV', key: 'targetTw4', width: 26 },
+  ]},
+  { label: 'REALISASI', children: [
+    { label: 'TW I', key: 'realisasiTw1', width: 26 },
+    { label: 'TW II', key: 'realisasiTw2', width: 26 },
+    { label: 'TW III', key: 'realisasiTw3', width: 26 },
+    { label: 'TW IV', key: 'realisasiTw4', width: 26 },
+  ]},
+  { label: 'CAPAIAN', children: [
+    { label: 'TW I', key: 'capaianTw1', width: 26 },
+    { label: 'TW II', key: 'capaianTw2', width: 26 },
+    { label: 'TW III', key: 'capaianTw3', width: 26 },
+    { label: 'TW IV', key: 'capaianTw4', width: 26 },
+  ]},
+  { label: 'Status', key: 'status', width: 34 },
+];
 /* ---------- Kegiatan & TL TW Sebelumnya: grid No IKU x Tim x Triwulan, sama seperti halaman web ---------- */
 const KEGIATAN_PERIODE_LABEL = { 1: 'Triwulan I', 2: 'Triwulan II', 3: 'Triwulan III', 4: 'Triwulan IV' };
 function buildKegiatanGridServer(tahun, triwulanFilter) {
@@ -732,30 +761,39 @@ function drawPdfCover(doc, title) {
 function drawPdfTable(doc, columns, rows) {
   const startX = doc.page.margins.left;
   const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-
-  // BARU: skalakan lebar tiap kolom secara proporsional supaya tabel selalu
-  // mengisi penuh lebar halaman (usableWidth) — tidak lagi dipatok angka
-  // fixed yang bisa menyisakan ruang kosong di kanan, dan tidak overflow
-  // kalau totalnya lebih besar dari halaman.
   const definedTotal = columns.reduce((s, c) => s + c.width, 0);
   const scale = usableWidth / definedTotal;
   const scaledColumns = columns.map((c) => ({ ...c, width: c.width * scale }));
 
-  const padX = 5, padY = 4, headerH = 22;
+  const padX = 5, padY = 5;
+
+  // BARU: tinggi header dihitung dari teks label yang paling butuh ruang,
+  // bukan angka tetap — supaya label panjang (mis. "Target Tahunan") tidak
+  // lagi terpotong di kolom sempit manapun.
+  function computeHeaderHeight() {
+    doc.font('Helvetica-Bold').fontSize(8);
+    let maxH = 20;
+    scaledColumns.forEach((col) => {
+      const h = doc.heightOfString(col.label, { width: col.width - padX * 2, align: 'left' });
+      if (h + padY * 2 > maxH) maxH = h + padY * 2;
+    });
+    return maxH;
+  }
+  const headerH = computeHeaderHeight();
 
   function drawHeader(y) {
     doc.rect(startX, y, usableWidth, headerH).fill('#163B5C');
     let x = startX;
-    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff');
+    doc.font('Helvetica-Bold').fontSize(8).fillColor('#ffffff');
     scaledColumns.forEach((col) => {
-      doc.text(col.label, x + padX, y + 7, { width: col.width - padX * 2 });
+      doc.text(col.label, x + padX, y + padY - 1, { width: col.width - padX * 2 });
       x += col.width;
     });
     return y + headerH;
   }
 
   function rowHeight(row) {
-    doc.font('Helvetica').fontSize(8.5);
+    doc.font('Helvetica').fontSize(8);
     let maxH = 18;
     scaledColumns.forEach((col) => {
       const text = String(row[col.key] ?? '-');
@@ -775,10 +813,10 @@ function drawPdfTable(doc, columns, rows) {
     if (idx % 2 === 1) doc.rect(startX, y, usableWidth, h).fill('#F7F8F5');
     doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, usableWidth, h).stroke();
     let x = startX;
-    doc.font('Helvetica').fontSize(8.5).fillColor('#16232E');
+    doc.font('Helvetica').fontSize(8).fillColor('#16232E');
     scaledColumns.forEach((col) => {
       const text = String(row[col.key] ?? '-');
-      doc.text(text, x + padX, y + padY, { width: col.width - padX * 2 });
+      doc.text(text, x + padX, y + padY - 1, { width: col.width - padX * 2 });
       doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
       x += col.width;
     });
@@ -787,7 +825,89 @@ function drawPdfTable(doc, columns, rows) {
   });
   doc.y = y + 10;
 }
+// Khusus FRA — header 2 baris berkelompok (TARGET/REALISASI/CAPAIAN masing-masing
+// membawahi TW I–IV), meniru struktur tabel FRA di halaman web.
+function drawPdfTableGrouped(doc, groups, rows) {
+  const startX = doc.page.margins.left;
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
 
+  const leafColumns = [];
+  groups.forEach((g) => {
+    if (g.children) g.children.forEach((c) => leafColumns.push({ ...c }));
+    else leafColumns.push({ ...g });
+  });
+  const definedTotal = leafColumns.reduce((s, c) => s + c.width, 0);
+  const scale = usableWidth / definedTotal;
+  leafColumns.forEach((c) => (c.width = c.width * scale));
+  const widthOf = (key) => leafColumns.find((c) => c.key === key).width;
+
+  const padX = 4, padY = 4;
+  const rowH1 = 22; // baris header teratas (grup + kolom rowspan)
+  const rowH2 = 13; // baris header kedua (sub-kolom TW I..IV)
+  const totalHeaderH = rowH1 + rowH2;
+
+  function drawHeader(y) {
+    doc.rect(startX, y, usableWidth, totalHeaderH).fill('#163B5C');
+    doc.strokeColor('#2C4F6E').lineWidth(0.5);
+    let x = startX;
+    groups.forEach((g) => {
+      const groupWidth = g.children
+        ? g.children.reduce((s, c) => s + widthOf(c.key), 0)
+        : widthOf(g.key);
+      doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#ffffff');
+      if (g.children) {
+        doc.text(g.label, x + padX, y + 6, { width: groupWidth - padX * 2, align: 'center' });
+        doc.moveTo(x, y + rowH1).lineTo(x + groupWidth, y + rowH1).stroke();
+        let cx = x;
+        g.children.forEach((c, idx) => {
+          const cw = widthOf(c.key);
+          doc.font('Helvetica-Bold').fontSize(6.8).fillColor('#ffffff')
+            .text(c.label, cx + padX, y + rowH1 + 3, { width: cw - padX * 2, align: 'center' });
+          cx += cw;
+          if (idx < g.children.length - 1) doc.moveTo(cx, y + rowH1).lineTo(cx, y + totalHeaderH).stroke();
+        });
+      } else {
+        doc.text(g.label, x + padX, y + (totalHeaderH / 2) - 8, { width: groupWidth - padX * 2, align: 'left' });
+      }
+      x += groupWidth;
+      doc.moveTo(x, y).lineTo(x, y + totalHeaderH).stroke();
+    });
+    return y + totalHeaderH;
+  }
+
+  function rowHeight(row) {
+    doc.font('Helvetica').fontSize(7.5);
+    let maxH = 16;
+    leafColumns.forEach((col) => {
+      const text = String(row[col.key] ?? '-');
+      const h = doc.heightOfString(text, { width: col.width - padX * 2 });
+      if (h + padY * 2 > maxH) maxH = h + padY * 2;
+    });
+    return maxH;
+  }
+
+  let y = drawHeader(doc.y);
+  rows.forEach((row, idx) => {
+    const h = rowHeight(row);
+    if (y + h > doc.page.height - doc.page.margins.bottom) {
+      doc.addPage();
+      y = drawHeader(doc.page.margins.top);
+    }
+    if (idx % 2 === 1) doc.rect(startX, y, usableWidth, h).fill('#F7F8F5');
+    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, usableWidth, h).stroke();
+    let x = startX;
+    doc.font('Helvetica').fontSize(7.5).fillColor('#16232E');
+    leafColumns.forEach((col) => {
+      const text = String(row[col.key] ?? '-');
+      doc.text(text, x + padX, y + padY - 1, { width: col.width - padX * 2, align: col.key === 'iku' ? 'left' : 'center' });
+      doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
+      x += col.width;
+    });
+    doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
+    y += h;
+  });
+  doc.y = y + 10;
+}
 function currentQuarterInfo() {
   const now = new Date();
   const q = Math.floor(now.getMonth() / 3); // 0..3
@@ -1676,6 +1796,8 @@ app.get('/api/export/pdf', requireLogin, (req, res) => {
     if (!rows.length) {
       doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
         .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
+    } else if (collection === 'fra') {
+      drawPdfTableGrouped(doc, FRA_PDF_GROUPS, rows); // header 2 baris khusus FRA
     } else {
       drawPdfTable(doc, columns, rows);
     }
