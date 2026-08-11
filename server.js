@@ -1649,15 +1649,21 @@ app.get('/api/export/pdf', requireLogin, (req, res) => {
     const user = req.session.user;
     const collection = req.query.collection || 'kegiatan';
     const view = req.query.view;
+
+    // pakai dataset builder yang SAMA dengan Excel — jangan bikin ulang di sini
     const { columns, rows } = buildExportDataset(user, { ...req.query, collection });
     const { filename, title } = resolveExportMeta(collection, view);
-    const isWide = collection === 'fra' || collection === 'kegiatan'; // termasuk view=pencapaian, sama-sama collection 'kegiatan'
+
+    // FRA & Kegiatan/TL TW Sebelumnya kolomnya banyak -> landscape biar muat
+    const isWide = collection === 'fra' || collection === 'kegiatan';
     const doc = new PDFDocument({ size: 'A4', margin: 30, layout: isWide ? 'landscape' : 'portrait' });
+
     res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
     res.setHeader('Content-Type', 'application/pdf');
     doc.pipe(res);
 
     drawPdfCover(doc, title);
+
     if (!rows.length) {
       doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
         .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
