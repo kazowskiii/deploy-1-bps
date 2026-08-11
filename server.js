@@ -368,7 +368,263 @@ function teamNameServer(id) {
   const t = DB.teams.find((x) => x.id === id);
   return t ? t.name : '—';
 }
+/* ===================== Export sesuai tampilan per-navbar ===================== */
+const FRA_IKU_LIST = [
+  { no: '1.1.1.1', nama: 'Persentase Publikasi/Laporan Statistik Kependudukan dan Ketenagakerjaan yang Berkualitas' },
+  { no: '1.1.3.1', nama: 'Persentase Publikasi/Laporan Statistik Kesejahteraan Rakyat yang Berkualitas' },
+  { no: '1.1.5.1', nama: 'Persentase Publikasi/Laporan Statistik Ketahanan Sosial yang Berkualitas' },
+  { no: '1.2.1.1', nama: 'Persentase Publikasi/Laporan Statistik Tanaman Pangan, Hortikultura, dan Perkebunan yang Berkualitas' },
+  { no: '1.2.2.1', nama: 'Persentase Publikasi/Laporan Statistik Peternakan, Perikanan, dan Kehutanan yang Berkualitas' },
+  { no: '1.2.3.1', nama: 'Persentase Publikasi/Laporan Statistik Industri yang Berkualitas' },
+  { no: '1.3.1.1', nama: 'Persentase Publikasi/Laporan Statistik Distribusi yang Berkualitas' },
+  { no: '1.3.3.1', nama: 'Persentase Publikasi/Laporan Statistik Harga yang Berkualitas' },
+  { no: '1.3.5.1', nama: 'Persentase Publikasi/Laporan Statistik Keuangan, Teknologi Informasi, dan Pariwisata yang Berkualitas' },
+  { no: '1.4.1.1', nama: 'Persentase Publikasi/Laporan Neraca Produksi yang Berkualitas' },
+  { no: '1.4.1.2', nama: 'Persentase Publikasi/Laporan Neraca Pengeluaran yang Berkualitas' },
+  { no: '1.4.1.3', nama: 'Persentase Publikasi/Laporan Analisis Statistik dan Neraca Satelit yang Berkualitas' },
+  { no: '2.1.4.1', nama: 'Persentase Kumulatif Desa Yang Berpredikat Desa Cinta Statistik' },
+  { no: '2.5.1.1', nama: 'Tingkat Penyelenggaraan Pembinaan Statistik Sektoral sesuai standar' },
+  { no: '2.7.1.1', nama: 'Indeks Pelayanan Publik - Penilaian mandiri' },
+  { no: '3.2.4.1', nama: 'Nilai SAKIP oleh Inspektorat' },
+  { no: '3.2.4.2', nama: 'Indeks Implementasi BerAKHLAK' },
+];
+function fraIkuNamaByNoServer(no) {
+  const item = FRA_IKU_LIST.find(x => x.no === no);
+  return item ? item.nama : '';
+}
+function ikuNamaByNoAnyServer(no) {
+  const known = fraIkuNamaByNoServer(no);
+  if (known) return known;
+  const custom = (DB.ikuTargets || []).find(t => t.ikuNomor === no && t.ikuNama);
+  return custom ? custom.ikuNama : '';
+}
+function compareIkuNomorServer(a, b) {
+  const pa = String(a || '').split('.').map(n => parseInt(n, 10));
+  const pb = String(b || '').split('.').map(n => parseInt(n, 10));
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const va = isNaN(pa[i]) ? 0 : pa[i];
+    const vb = isNaN(pb[i]) ? 0 : pb[i];
+    if (va !== vb) return va - vb;
+  }
+  return 0;
+}
 
+/* ---------- FRA: grouping per Tim + No IKU, sama seperti tabel di halaman FRA ---------- */
+function groupFraByTeamIkuServer(items) {
+  const map = {};
+  items.forEach((f) => {
+    const key = f.timId + '|' + f.ikuNomor;
+    if (!map[key]) map[key] = { timId: f.timId, ikuNomor: f.ikuNomor, target: Number(f.target) || 0, quarters: { 1: null, 2: null, 3: null, 4: null } };
+    const q = periodeToQuarterNum(f.periode);
+    if (q) {
+      map[key].quarters[q] = f;
+      if (Number(f.target)) map[key].target = Number(f.target);
+    }
+  });
+  return Object.values(map);
+}
+function fraStatusLabelServer(pct) {
+  if (pct >= 100) return 'Tercapai';
+  if (pct >= 60) return 'Perlu Perhatian';
+  return 'Tertinggal';
+}
+function groupFraStatusServer(g) {
+  const filled = [1, 2, 3, 4].map((q) => g.quarters[q]).filter(Boolean);
+  if (!filled.length) return '—';
+  const avg = Math.round(filled.reduce((s, f) => s + (Number(f.persentase) || 0), 0) / filled.length);
+  return fraStatusLabelServer(avg);
+}
+function buildFraExportRows(user, query) {
+  const tahun = query.tahun ? Number(query.tahun) : null;
+  let fraItems = filterItems(DB.fra, user, 'fra', query).map(enrichFraWithLiveTarget);
+  if (query.teamId) fraItems = fraItems.filter((f) => f.timId === query.teamId);
+  let groups = groupFraByTeamIkuServer(fraItems);
+
+  // baris "kosong" untuk Target IKU yang sudah diatur tapi belum ada capaian sama sekali —
+  // supaya ikut tampil di export, sama seperti di halaman web (bukan hilang).
+  const targetsYear = (DB.ikuTargets || []).filter(
+    (t) => (!tahun || Number(t.tahun) === tahun) && (!query.teamId || t.timId === query.teamId)
+  );
+  targetsYear.forEach((t) => {
+    const existing = groups.find((g) => g.timId === t.timId && g.ikuNomor === t.ikuNomor);
+    if (!existing) groups.push({ timId: t.timId, ikuNomor: t.ikuNomor, target: Number(t.target) || 0, quarters: { 1: null, 2: null, 3: null, 4: null } });
+    else if (!existing.target) existing.target = Number(t.target) || 0;
+  });
+
+  if (query.status) {
+    groups = groups.filter((g) => groupFraStatusServer(g).toLowerCase() === String(query.status).toLowerCase());
+  }
+  groups.sort((a, b) => compareIkuNomorServer(a.ikuNomor, b.ikuNomor) || teamNameServer(a.timId).localeCompare(teamNameServer(b.timId)));
+
+  const qLabels = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' };
+  return groups.map((g) => {
+    const totalRealisasi = [1, 2, 3, 4].reduce((s, q) => s + (g.quarters[q] ? Number(g.quarters[q].realisasi) || 0 : 0), 0);
+    const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi / g.target) * 10000) / 100) : 0;
+    const row = {
+      ikuNomor: g.ikuNomor || '-',
+      iku: ikuNamaByNoAnyServer(g.ikuNomor) || '-',
+      team: teamNameServer(g.timId),
+      targetTahunan: String(g.target || 0),
+      realisasiTahunan: String(totalRealisasi),
+      capaianTahunan: `${totalCapaian}%`,
+      status: groupFraStatusServer(g),
+    };
+    [1, 2, 3, 4].forEach((q) => {
+      const entry = g.quarters[q];
+      const record = findIkuTargetRecord(g.ikuNomor, tahun || (entry ? entry.tahun : new Date().getFullYear()), g.timId);
+      const qTarget = entry ? Number(entry.target) || 0 : (record ? Number(record['targetTw' + q]) || 0 : 0);
+      row['targetTw' + q] = qTarget ? String(qTarget) : '-';
+      row['realisasiTw' + q] = entry ? String(Number(entry.realisasi) || 0) : '-';
+      row['capaianTw' + q] = entry ? `${Number(entry.persentase) || 0}%` : '-';
+    });
+    return row;
+  });
+}
+const FRA_EXPORT_COLUMNS = [
+  { key: 'ikuNomor', label: 'No IKU', width: 38 },
+  { key: 'iku', label: 'IKU', width: 100 },
+  { key: 'team', label: 'Tim', width: 50 },
+  { key: 'targetTahunan', label: 'Target Th.', width: 36 },
+  { key: 'realisasiTahunan', label: 'Realisasi Th.', width: 36 },
+  { key: 'capaianTahunan', label: 'Capaian Th.', width: 34 },
+  { key: 'targetTw1', label: 'Target TW I', width: 32 },
+  { key: 'targetTw2', label: 'Target TW II', width: 32 },
+  { key: 'targetTw3', label: 'Target TW III', width: 32 },
+  { key: 'targetTw4', label: 'Target TW IV', width: 32 },
+  { key: 'realisasiTw1', label: 'Real. TW I', width: 32 },
+  { key: 'realisasiTw2', label: 'Real. TW II', width: 32 },
+  { key: 'realisasiTw3', label: 'Real. TW III', width: 32 },
+  { key: 'realisasiTw4', label: 'Real. TW IV', width: 32 },
+  { key: 'capaianTw1', label: 'Cap. TW I', width: 32 },
+  { key: 'capaianTw2', label: 'Cap. TW II', width: 32 },
+  { key: 'capaianTw3', label: 'Cap. TW III', width: 32 },
+  { key: 'capaianTw4', label: 'Cap. TW IV', width: 32 },
+  { key: 'status', label: 'Status', width: 32 },
+];
+
+/* ---------- Kegiatan & TL TW Sebelumnya: grid No IKU x Tim x Triwulan, sama seperti halaman web ---------- */
+const KEGIATAN_PERIODE_LABEL = { 1: 'Triwulan I', 2: 'Triwulan II', 3: 'Triwulan III', 4: 'Triwulan IV' };
+function buildKegiatanGridServer(tahun, triwulanFilter) {
+  const quarters = triwulanFilter ? [Number(triwulanFilter)] : [1, 2, 3, 4];
+  let targets = (DB.ikuTargets || []).filter((t) => Number(t.tahun) === tahun);
+  const items = [];
+  const usedIds = new Set();
+  targets.forEach((t) => {
+    quarters.forEach((q) => {
+      const periode = KEGIATAN_PERIODE_LABEL[q];
+      const match = DB.kegiatan.find(
+        (k) => k.timId === t.timId && k.ikuNomor === t.ikuNomor && (!k.tahun || Number(k.tahun) === tahun) && k.periode === periode
+      );
+      if (match) {
+        usedIds.add(match.id);
+        items.push(match);
+      } else {
+        items.push({
+          __virtual: true, timId: t.timId, ikuNomor: t.ikuNomor, tahun, periode,
+          nama: '', kendala: '', solusi: '', rtl: '', catatan: '', catatanTl: '',
+          picTindakLanjut: '', batasWaktuTindakLanjut: '', status: 'Belum Ditindaklanjuti',
+          hasEvidence: false, evidenceFiles: [], hasTlEvidence: false, tlEvidenceFiles: [],
+        });
+      }
+    });
+  });
+  // data lama yang No IKU/Tim-nya belum terdaftar di Kelola Target IKU tetap ikut tampil
+  DB.kegiatan.forEach((k) => {
+    if (usedIds.has(k.id)) return;
+    if (k.tahun && Number(k.tahun) !== tahun) return;
+    items.push(k);
+  });
+  return items;
+}
+function baseKegiatanExportItems(query) {
+  const tahun = query.tahun ? Number(query.tahun) : new Date().getFullYear();
+  let items = buildKegiatanGridServer(tahun, query.triwulan);
+  if (query.teamId) items = items.filter((k) => k.timId === query.teamId);
+  if (query.status) items = items.filter((k) => String(k.status || 'Belum Ditindaklanjuti').toLowerCase() === String(query.status).toLowerCase());
+  items.sort(
+    (a, b) =>
+      compareIkuNomorServer(a.ikuNomor, b.ikuNomor) ||
+      teamNameServer(a.timId).localeCompare(teamNameServer(b.timId)) ||
+      (periodeToQuarterNum(a.periode) || 0) - (periodeToQuarterNum(b.periode) || 0)
+  );
+  return items;
+}
+function buildKegiatanExportRows(user, query) {
+  return baseKegiatanExportItems(query).map((k) => {
+    const hasEv = !!(k.hasEvidence || (k.evidenceFiles && k.evidenceFiles.length));
+    return {
+      ikuNomor: k.ikuNomor || '-',
+      iku: ikuNamaByNoAnyServer(k.ikuNomor) || '-',
+      team: teamNameServer(k.timId),
+      nama: k.nama || '-',
+      periode: k.periode || '-',
+      kendala: k.kendala || '-',
+      solusi: k.solusi || '-',
+      rtl: k.rtl || '-',
+      pic: k.picTindakLanjut || '-',
+      batasWaktu: k.batasWaktuTindakLanjut ? formatDateIndo(k.batasWaktuTindakLanjut) : '-',
+      buktiDukung: hasEv ? 'Ada' : 'Belum ada',
+      status: k.status || 'Belum Ditindaklanjuti',
+      catatan: k.catatan || '-',
+    };
+  });
+}
+const KEGIATAN_EXPORT_COLUMNS = [
+  { key: 'ikuNomor', label: 'No IKU', width: 38 },
+  { key: 'iku', label: 'IKU', width: 82 },
+  { key: 'team', label: 'Tim', width: 48 },
+  { key: 'nama', label: 'Kegiatan', width: 72 },
+  { key: 'periode', label: 'Triwulan', width: 40 },
+  { key: 'kendala', label: 'Kendala', width: 65 },
+  { key: 'solusi', label: 'Solusi', width: 65 },
+  { key: 'rtl', label: 'RTL', width: 55 },
+  { key: 'pic', label: 'PIC TL', width: 40 },
+  { key: 'batasWaktu', label: 'Batas Waktu TL', width: 42 },
+  { key: 'buktiDukung', label: 'Bukti Dukung', width: 38 },
+  { key: 'status', label: 'Status', width: 42 },
+  { key: 'catatan', label: 'Catatan', width: 55 },
+];
+
+function buildPencapaianExportRows(user, query) {
+  return baseKegiatanExportItems(query).map((k) => {
+    const hasTl = !!(k.hasTlEvidence || (k.tlEvidenceFiles && k.tlEvidenceFiles.length));
+    return {
+      ikuNomor: k.ikuNomor || '-',
+      iku: ikuNamaByNoAnyServer(k.ikuNomor) || '-',
+      team: teamNameServer(k.timId),
+      periode: k.periode || '-',
+      rtl: k.rtl || '-',
+      status: k.status || 'Belum Ditindaklanjuti',
+      buktiDukung: hasTl ? 'Ada' : 'Belum ada',
+      catatan: k.catatanTl || '-',
+    };
+  });
+}
+const PENCAPAIAN_EXPORT_COLUMNS = [
+  { key: 'ikuNomor', label: 'No IKU', width: 40 },
+  { key: 'iku', label: 'IKU', width: 140 },
+  { key: 'team', label: 'Tim', width: 60 },
+  { key: 'periode', label: 'Triwulan', width: 50 },
+  { key: 'rtl', label: 'RTL', width: 150 },
+  { key: 'status', label: 'Status', width: 55 },
+  { key: 'buktiDukung', label: 'Bukti Dukung', width: 50 },
+  { key: 'catatan', label: 'Catatan', width: 100 },
+];
+
+function buildExportDataset(user, query) {
+  const collection = query.collection;
+  const view = query.view;
+  if (collection === 'fra') return { columns: FRA_EXPORT_COLUMNS, rows: buildFraExportRows(user, query) };
+  if (collection === 'kegiatan' && view === 'pencapaian') return { columns: PENCAPAIAN_EXPORT_COLUMNS, rows: buildPencapaianExportRows(user, query) };
+  if (collection === 'kegiatan') return { columns: KEGIATAN_EXPORT_COLUMNS, rows: buildKegiatanExportRows(user, query) };
+  // fallback untuk koleksi lain (tugas/iku/teams) — pakai builder lama
+  let items = filterItems(DB[collection] || [], user, collection, query);
+  if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
+  const columns = PDF_COLUMNS[collection] || PDF_COLUMNS.teams;
+  const rows = items.map((item) => buildPdfRow(collection, item));
+  return { columns, rows };
+}
 function formatDateIndo(dateStr) {
   if (!dateStr) return '-';
   const d = /T/.test(dateStr) ? new Date(dateStr) : new Date(`${dateStr}T00:00:00`);
@@ -1353,61 +1609,55 @@ app.get('/api/export/excel', requireLogin, async (req, res) => {
     const user = req.session.user;
     const collection = req.query.collection;
     const view = req.query.view;
-    const targetCollections = collection ? [collection] : ['teams', 'fra', 'kegiatan', 'tugas', 'iku'];
     const workbook = new ExcelJS.Workbook();
 
-    for (const name of targetCollections) {
-      if (!DB[name]) continue;
-      let items = filterItems(DB[name], user, name, req.query);
-      if (name === 'fra') items = items.map(enrichFraWithLiveTarget);
-      const columns = PDF_COLUMNS[name] || PDF_COLUMNS.teams;
-      const sheet = workbook.addWorksheet(name);
-      sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(14, Math.round(col.width / 6)) }));
+    if (collection) {
+      const { columns, rows } = buildExportDataset(user, req.query);
+      const sheetName = (view === 'pencapaian' ? 'TL TW Sebelumnya' : collection).slice(0, 31);
+      const sheet = workbook.addWorksheet(sheetName);
+      sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(12, Math.round(col.width / 5)) }));
       sheet.getRow(1).font = { bold: true };
-      items.forEach((item) => sheet.addRow(sanitizeExcelRow(buildPdfRow(name, item))));
-      // sengaja TIDAK "continue" saat items kosong — sheet tetap dibuat
-      // (hanya header) supaya workbook tidak pernah 0 sheet (itu membuat
-      // file .xlsx tidak valid dan memicu "recover" di Excel).
-    }
-    if (!workbook.worksheets.length) {
-      workbook.addWorksheet('Data').addRow(['Tidak ada data untuk laporan ini']);
+      if (rows.length) {
+        rows.forEach((row) => sheet.addRow(sanitizeExcelRow(row)));
+      } else {
+        sheet.addRow(columns.reduce((acc, c) => ((acc[c.key] = '-'), acc), {}));
+      }
+    } else {
+      for (const name of ['teams', 'fra', 'kegiatan', 'tugas', 'iku']) {
+        const { columns, rows } = buildExportDataset(user, { ...req.query, collection: name });
+        const sheet = workbook.addWorksheet(name);
+        sheet.columns = columns.map((col) => ({ header: col.label, key: col.key, width: Math.max(12, Math.round(col.width / 5)) }));
+        sheet.getRow(1).font = { bold: true };
+        rows.forEach((row) => sheet.addRow(sanitizeExcelRow(row)));
+      }
+      if (!workbook.worksheets.length) workbook.addWorksheet('Data').addRow(['Tidak ada data']);
     }
 
     const { filename } = resolveExportMeta(collection, view);
     res.setHeader('Content-Disposition', `attachment; filename=${filename}.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     await workbook.xlsx.write(res);
-    // TIDAK memanggil res.end() lagi di sini — workbook.xlsx.write(res)
-    // sudah menutup stream-nya sendiri. Memanggil end() kedua kali bisa
-    // memutus koneksi sebelum byte penutup ZIP selesai terkirim, yang
-    // menyebabkan Excel menganggap file rusak.
   } catch (err) {
     console.error('Gagal membuat file Excel:', err.message);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Gagal membuat file Excel: ' + err.message });
-    } else {
-      res.destroy(); // jangan kirim file setengah jadi
-    }
+    if (!res.headersSent) res.status(500).json({ error: 'Gagal membuat file Excel: ' + err.message });
+    else res.destroy();
   }
 });
 
 app.get('/api/export/pdf', requireLogin, (req, res) => {
   try {
     const user = req.session.user;
-    const collection = req.query.collection || 'tugas';
+    const collection = req.query.collection || 'kegiatan';
     const view = req.query.view;
-    let items = filterItems(DB[collection] || [], user, collection, req.query);
-    if (collection === 'fra') items = items.map(enrichFraWithLiveTarget);
-
+    const { columns, rows } = buildExportDataset(user, { ...req.query, collection });
     const { filename, title } = resolveExportMeta(collection, view);
-    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    const isWide = collection === 'fra' || collection === 'kegiatan'; // termasuk view=pencapaian, sama-sama collection 'kegiatan'
+    const doc = new PDFDocument({ size: 'A4', margin: 30, layout: isWide ? 'landscape' : 'portrait' });
     res.setHeader('Content-Disposition', `attachment; filename=${filename}.pdf`);
     res.setHeader('Content-Type', 'application/pdf');
     doc.pipe(res);
 
     drawPdfCover(doc, title);
-    const columns = PDF_COLUMNS[collection] || PDF_COLUMNS.teams;
-    const rows = items.map((item) => buildPdfRow(collection, item));
     if (!rows.length) {
       doc.font('Helvetica').fontSize(11).fillColor('#5B6B78')
         .text('Belum ada data untuk ditampilkan pada laporan ini.', { align: 'center' });
