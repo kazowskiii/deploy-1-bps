@@ -2268,7 +2268,7 @@ function renderKegiatanListPage(){
   items = applyPageFilters(items, 'kegiatan');
   items.sort((a,b)=> compareIkuNomor(a.ikuNomor,b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
   const note = `<div class="section-note">${ICONS.info}<div>Catat kendala, solusi, dan rencana tindak lanjut kegiatan agar pelaporan tim selalu jelas dan terdokumentasi.</div></div>`;
-  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan', {label:'TL TW Sebelumnya', view:'pencapaian'})}</div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada Target IKU untuk tahun ini','Atur dulu Target IKU di menu Kelola Target IKU agar daftar No IKU & Tim muncul di sini.');
   const rows = items.map(k=>{
     const isVirtual = !!k.__virtual;
@@ -2302,7 +2302,7 @@ function renderPencapaianPage(){
   items = applyPageFilters(items, 'kegiatan');
   items.sort((a,b)=> compareIkuNomor(a.ikuNomor,b.ikuNomor) || teamName(a.timId).localeCompare(teamName(b.timId)) || (periodeToArabic(a.periode)||0)-(periodeToArabic(b.periode)||0));
   const note = `<div class="section-note">${ICONS.info}<div>Modul <b>TL TW Sebelumnya</b> menampilkan data dari Analisis Kegiatan, dilengkapi bukti dukung tindak lanjut triwulan sebelumnya.</div></div>`;
-  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan')}</div>`;
+  const header = `<div class="page-actions-bar">${filterOptions('kegiatan')}${exportButtons('kegiatan', {label:'TL TW Sebelumnya', view:'pencapaian'})}</div>`;
   if(!items.length) return header + note + emptyState('kegiatan','Belum ada Target IKU untuk tahun ini','Atur dulu Target IKU di menu Kelola Target IKU agar daftar No IKU & Tim muncul di sini.');
   const rows = items.map(k=>{
     const isVirtual = !!k.__virtual;
