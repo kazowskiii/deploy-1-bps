@@ -732,14 +732,22 @@ function drawPdfCover(doc, title) {
 function drawPdfTable(doc, columns, rows) {
   const startX = doc.page.margins.left;
   const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const tableWidth = Math.min(usableWidth, columns.reduce((s, c) => s + c.width, 0)); // BARU: lebar tabel = total lebar kolom, bukan lebar halaman penuh
+
+  // BARU: skalakan lebar tiap kolom secara proporsional supaya tabel selalu
+  // mengisi penuh lebar halaman (usableWidth) — tidak lagi dipatok angka
+  // fixed yang bisa menyisakan ruang kosong di kanan, dan tidak overflow
+  // kalau totalnya lebih besar dari halaman.
+  const definedTotal = columns.reduce((s, c) => s + c.width, 0);
+  const scale = usableWidth / definedTotal;
+  const scaledColumns = columns.map((c) => ({ ...c, width: c.width * scale }));
+
   const padX = 5, padY = 4, headerH = 22;
 
   function drawHeader(y) {
-    doc.rect(startX, y, tableWidth, headerH).fill('#163B5C'); // pakai tableWidth
+    doc.rect(startX, y, usableWidth, headerH).fill('#163B5C');
     let x = startX;
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff');
-    columns.forEach((col) => {
+    scaledColumns.forEach((col) => {
       doc.text(col.label, x + padX, y + 7, { width: col.width - padX * 2 });
       x += col.width;
     });
@@ -749,7 +757,7 @@ function drawPdfTable(doc, columns, rows) {
   function rowHeight(row) {
     doc.font('Helvetica').fontSize(8.5);
     let maxH = 18;
-    columns.forEach((col) => {
+    scaledColumns.forEach((col) => {
       const text = String(row[col.key] ?? '-');
       const h = doc.heightOfString(text, { width: col.width - padX * 2 });
       if (h + padY * 2 > maxH) maxH = h + padY * 2;
@@ -764,11 +772,11 @@ function drawPdfTable(doc, columns, rows) {
       doc.addPage();
       y = drawHeader(doc.page.margins.top);
     }
-    if (idx % 2 === 1) doc.rect(startX, y, tableWidth, h).fill('#F7F8F5'); // pakai tableWidth
-    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, tableWidth, h).stroke(); // pakai tableWidth
+    if (idx % 2 === 1) doc.rect(startX, y, usableWidth, h).fill('#F7F8F5');
+    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, usableWidth, h).stroke();
     let x = startX;
     doc.font('Helvetica').fontSize(8.5).fillColor('#16232E');
-    columns.forEach((col) => {
+    scaledColumns.forEach((col) => {
       const text = String(row[col.key] ?? '-');
       doc.text(text, x + padX, y + padY, { width: col.width - padX * 2 });
       doc.moveTo(x, y).lineTo(x, y + h).strokeColor('#DFE3E0').lineWidth(0.5).stroke();
