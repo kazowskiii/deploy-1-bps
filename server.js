@@ -732,10 +732,11 @@ function drawPdfCover(doc, title) {
 function drawPdfTable(doc, columns, rows) {
   const startX = doc.page.margins.left;
   const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const tableWidth = Math.min(usableWidth, columns.reduce((s, c) => s + c.width, 0)); // BARU: lebar tabel = total lebar kolom, bukan lebar halaman penuh
   const padX = 5, padY = 4, headerH = 22;
 
   function drawHeader(y) {
-    doc.rect(startX, y, usableWidth, headerH).fill('#163B5C');
+    doc.rect(startX, y, tableWidth, headerH).fill('#163B5C'); // pakai tableWidth
     let x = startX;
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff');
     columns.forEach((col) => {
@@ -763,8 +764,8 @@ function drawPdfTable(doc, columns, rows) {
       doc.addPage();
       y = drawHeader(doc.page.margins.top);
     }
-    if (idx % 2 === 1) doc.rect(startX, y, usableWidth, h).fill('#F7F8F5');
-    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, usableWidth, h).stroke();
+    if (idx % 2 === 1) doc.rect(startX, y, tableWidth, h).fill('#F7F8F5'); // pakai tableWidth
+    doc.strokeColor('#DFE3E0').lineWidth(0.5).rect(startX, y, tableWidth, h).stroke(); // pakai tableWidth
     let x = startX;
     doc.font('Helvetica').fontSize(8.5).fillColor('#16232E');
     columns.forEach((col) => {
