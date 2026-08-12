@@ -94,8 +94,28 @@ button{font-family:inherit;cursor:pointer;}
   background:rgba(255,255,255,.12);padding:1px 6px;border-radius:20px;color:#CFE0EA;
 }
 .sidebar-foot{
-  padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.12);
+  position:relative;
+  isolation:isolate;
+  padding:14px 20px 18px;
+  border-top:1px solid rgba(255,255,255,.12);
   font-size:11px;color:#8FA6B8;line-height:1.5;
+  overflow:hidden;
+}
+.sidebar-foot::before{
+  content:'BPS';
+  position:absolute;
+  z-index:-1;
+  right:-8px; bottom:-22px;
+  font-family:'Fraunces',serif;
+  font-weight:700;
+  font-size:60px;
+  letter-spacing:1px;
+  color:#ffffff;
+  opacity:.05;
+  transform:rotate(-6deg);
+  line-height:1;
+  pointer-events:none;
+  user-select:none;
 }
 
 .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
