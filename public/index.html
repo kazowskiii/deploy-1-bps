@@ -433,6 +433,20 @@ tbody tr:last-child td{border-bottom:none;}
   .login-visual{padding:40px 28px;}
   .login-visual h1{font-size:32px;}
 }
+.login-credit{
+  margin-top:10px;
+  text-align:center;
+  font-size:10.5px;
+  color:var(--ink-faint);
+  opacity:.75;
+}
+.login-credit a{
+  color:var(--ink-faint);
+  text-decoration:none;
+}
+.login-credit a:hover{
+  text-decoration:underline;
+}
 
 /* ===== Profile dropdown ===== */
 .profile-wrap{position:relative;}
@@ -968,6 +982,7 @@ function renderLoginPage(){
           </form>
           <div class="login-note">Akses hanya untuk pegawai berwenang.</div>
           <div class="login-note">Belum punya akun? <a href="#" onclick="showRegisterView();return false;" style="color:#1f8f7d;font-weight:600;">Daftar di sini</a></div>
+<div class="login-credit">Dikembangkan oleh <a href="rifkiaditia1629@gmail.com">nama@contoh.com</a></div>
         </div>
       </div>
     </div>`;
