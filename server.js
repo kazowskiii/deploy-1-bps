@@ -870,7 +870,7 @@ function drawPdfTableGrouped(doc, groups, rows) {
           if (idx < g.children.length - 1) doc.moveTo(cx, y + rowH1).lineTo(cx, y + totalHeaderH).stroke();
         });
       } else {
-        doc.text(g.label, x + padX, y + (totalHeaderH / 2) - 8, { width: groupWidth - padX * 2, align: 'left' });
+        doc.text(g.label, x + padX, y + (totalHeaderH / 2) - 8, { width: groupWidth - padX * 2, align: 'center' });
       }
       x += groupWidth;
       doc.moveTo(x, y).lineTo(x, y + totalHeaderH).stroke();

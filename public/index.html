@@ -2391,7 +2391,7 @@ function renderPencapaianPage(){
     const isVirtual = !!k.__virtual;
     return `<tr>
       <td class="mono">${k.ikuNomor || '—'}</td>
-      <td style="min-width:220px;">${escapeHtml(ikuNamaByNoAny(k.ikuNomor) || '—')}</td>
+      <td style="min-width:190px; text-align:${k.rtl?'left':'center'};">${escapeHtml(k.rtl || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
       <td style="min-width:190px; text-align:left;">${escapeHtml(k.rtl || '—')}</td>
