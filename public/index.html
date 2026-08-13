@@ -2193,9 +2193,12 @@ const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi/g.targe
 const qData = [1,2,3,4].map(q=>{
   const entry = g.quarters[q];
   const qTargetLive = findIkuTargetForQuarter(g.ikuNomor, FILTER_YEAR, g.timId, 'Triwulan '+qLabels[q]);
-  const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
+  const qTarget = entry ? (Number(entry.target)||0) : qTargetLive;
   if(!entry){
-    return { target: qTarget?fmtNum(qTarget):'—', realisasi:'—', capaianHtml:'—', muted:true };
+    // qTargetLive null = belum ada Target IKU sama sekali untuk kombinasi ini -> "—"
+    // qTargetLive 0/angka = sudah diatur Admin (walau nilainya 0) -> tampilkan angkanya
+    const targetDisplay = (qTarget===null || qTarget===undefined) ? '—' : fmtNum(qTarget);
+    return { target: targetDisplay, realisasi:'—', capaianHtml:'—', muted:true };
   }
   const pct = Number(entry.persentase)||0;
   const qst = fraStatusFor(pct);
