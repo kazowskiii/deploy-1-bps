@@ -2359,13 +2359,13 @@ function renderKegiatanListPage(){
       <td class="mono">${k.ikuNomor || '—'}</td>
       <td style="min-width:220px;">${escapeHtml(ikuNamaByNoAny(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
-      <td style="min-width:160px; text-align:left;">
+      <td style="min-width:160px; text-align:${k.nama?'left':'center'};">
         <div class="cell-title" style="white-space:pre-wrap;">${escapeHtml(k.nama || '—')}</div>
       </td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
-      <td style="min-width:190px; color:var(--danger); white-space:pre-wrap; text-align:left;">${escapeHtml(k.kendala || '—')}</td>
-      <td style="min-width:190px; color:var(--success); white-space:pre-wrap; text-align:left;">${escapeHtml(k.solusi || '—')}</td>
-      <td style="min-width:190px; white-space:pre-wrap; text-align:left;">${escapeHtml(k.rtl || '—')}</td>
+      <td style="min-width:190px; color:var(--danger); white-space:pre-wrap; text-align:${k.kendala?'left':'center'};">${escapeHtml(k.kendala || '—')}</td>
+      <td style="min-width:190px; color:var(--success); white-space:pre-wrap; text-align:${k.solusi?'left':'center'};">${escapeHtml(k.solusi || '—')}</td>
+      <td style="min-width:190px; white-space:pre-wrap; text-align:${k.rtl?'left':'center'};">${escapeHtml(k.rtl || '—')}</td>
       <td style="min-width:120px;">${escapeHtml(k.picTindakLanjut||'—')}</td>
       <td style="min-width:130px;">${k.batasWaktuTindakLanjut ? `<span class="mono">${fmtDate(k.batasWaktuTindakLanjut)}</span>` : '—'}</td>
       <td>${isVirtual ? `<span class="tag tag-danger">Belum ada bukti</span>` : evidenceCell(k,'kegiatan')}</td>
