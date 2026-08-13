@@ -2186,6 +2186,8 @@ function renderFraPage(){
     return Number(rec.realisasiTahunan)||0;
   return [1,2,3,4].reduce((s,q)=> s + (g.quarters[q] ? (Number(g.quarters[q].realisasi)||0) : 0), 0);
 })();
+const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi/g.target)*10000)/100) : 0;
+    const totalSt = fraStatusFor(totalCapaian);
 
     // SEKARANG (grouping per Target / Realisasi / Capaian)
 const qData = [1,2,3,4].map(q=>{
