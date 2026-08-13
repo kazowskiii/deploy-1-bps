@@ -2999,8 +2999,9 @@ async function saveIkuTarget(id){
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
   if(!ikuNomor){ toast('No IKU wajib diisi','err'); return; }
   if(!timId){ toast('Tim wajib dipilih','err'); return; }
-  const payload = { ikuNomor, ikuNama, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4,
-  realisasiTahunan: id ? (t.realisasiTahunan||0) : 0 };
+  const existing = id ? (DB.ikuTargets||[]).find(x=>x.id===id) : null;
+  const realisasiTahunan = existing ? (existing.realisasiTahunan || 0) : 0;
+  const payload = { ikuNomor, ikuNama, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4, realisasiTahunan };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
