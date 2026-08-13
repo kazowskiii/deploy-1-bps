@@ -1757,7 +1757,7 @@ function routeAddButton(){
     return `<button class="btn btn-primary" onclick="openPencapaianModal()">${ICONS.plus} Tambah Bukti Tindak Lanjut</button>`;
   }
   const map = {
-    fra: ['openFraModal()','Tambah Capaian'],
+    fra: ['openFraGroupModal()','Tambah Capaian'],
     kegiatan: ['openKegiatanModal()','Tambah Analisis'],
     tim: ['openTimModal()','Tambah Tim'],
     users: ['openUserModal()','Tambah User'],
@@ -2180,9 +2180,12 @@ function renderFraPage(){
   const qLabels = {1:'I',2:'II',3:'III',4:'IV'};
   const rows = groups.map(g=>{
     const st = groupFraStatus(g);
-    const totalRealisasi = [1,2,3,4].reduce((s,q)=> s + (g.quarters[q] ? (Number(g.quarters[q].realisasi)||0) : 0), 0);
-    const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi/g.target)*10000)/100) : 0;
-    const totalSt = fraStatusFor(totalCapaian);
+    const totalRealisasi = (() => {
+  const rec = findIkuTargetRecord(g.ikuNomor, FILTER_YEAR, g.timId);
+  if(rec && rec.realisasiTahunan !== undefined && rec.realisasiTahunan !== null && rec.realisasiTahunan !== '')
+    return Number(rec.realisasiTahunan)||0;
+  return [1,2,3,4].reduce((s,q)=> s + (g.quarters[q] ? (Number(g.quarters[q].realisasi)||0) : 0), 0);
+})();
 
     // SEKARANG (grouping per Target / Realisasi / Capaian)
 const qData = [1,2,3,4].map(q=>{
@@ -2994,7 +2997,8 @@ async function saveIkuTarget(id){
   const targetTw4 = Number(document.getElementById('f_targetTw4').value)||0;
   if(!ikuNomor){ toast('No IKU wajib diisi','err'); return; }
   if(!timId){ toast('Tim wajib dipilih','err'); return; }
-  const payload = { ikuNomor, ikuNama, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4 };
+  const payload = { ikuNomor, ikuNama, timId, tahun, target, targetTw1, targetTw2, targetTw3, targetTw4,
+  realisasiTahunan: id ? (t.realisasiTahunan||0) : 0 };
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
@@ -3030,11 +3034,67 @@ async function clearIkuTargetValues(id){
     toast(e.message || 'Gagal mengosongkan nilai target','err');
   }
 }
+let FRA_GROUP_MODAL_FIXED = null;
+
 function openFraGroupModal(timId, ikuNomor){
   if(!isAdmin()){ toast('Hanya admin yang dapat mengelola data FRA','err'); return; }
+  const isNew = !timId || !ikuNomor;
+  FRA_GROUP_MODAL_FIXED = isNew ? null : {timId, ikuNomor};
+
+  const body = `
+    <div class="field-row">
+      <div class="field"><label>Tim</label>
+        ${isNew
+          ? `<select id="fg_tim" onchange="renderFraGroupBody()">${teamOptions(null)}</select>`
+          : `<input type="text" value="${escapeHtml(teamName(timId))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">`}
+      </div>
+      <div class="field"><label>No IKU</label>
+        ${isNew
+          ? `<select id="fg_iku" onchange="renderFraGroupBody()"></select>`
+          : `<input type="text" value="${ikuNomor} — ${escapeHtml(fraIkuNamaByNo(ikuNomor))}" disabled style="background:var(--surface-2);color:var(--ink-muted);">`}
+      </div>
+    </div>
+    <div id="fgBody"></div>
+  `;
+  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFraGroup()">Simpan Semua Triwulan</button>`;
+  openModal(modalShell(isNew ? 'Tambah Capaian Tim (FRA)' : 'Ubah Capaian — TW I s/d IV', body, foot));
+
+  if(isNew){
+    const timEl = document.getElementById('fg_tim');
+    const refreshIkuOptions = ()=>{
+      const opts = ikuOptionsForTeamYear(timEl.value, FILTER_YEAR);
+      document.getElementById('fg_iku').innerHTML = opts.length
+        ? opts.map(no=>`<option value="${no}">${no} — ${escapeHtml(ikuNamaByNoAny(no))}</option>`).join('')
+        : `<option value="">Belum ada Target IKU untuk tim & tahun ini</option>`;
+      renderFraGroupBody();
+    };
+    timEl.addEventListener('change', refreshIkuOptions);
+    refreshIkuOptions();
+  } else {
+    renderFraGroupBody();
+  }
+}
+
+function currentFraGroupSelection(){
+  if(FRA_GROUP_MODAL_FIXED) return FRA_GROUP_MODAL_FIXED;
+  const timEl = document.getElementById('fg_tim');
+  const ikuEl = document.getElementById('fg_iku');
+  return { timId: timEl ? timEl.value : '', ikuNomor: ikuEl ? ikuEl.value : '' };
+}
+
+function renderFraGroupBody(){
+  const { timId, ikuNomor } = currentFraGroupSelection();
+  const wrap = document.getElementById('fgBody');
+  if(!wrap) return;
+  if(!timId || !ikuNomor){
+    wrap.innerHTML = `<div class="text-xs text-muted" style="padding:10px 0;">Pilih Tim & No IKU terlebih dahulu.</div>`;
+    return;
+  }
   const qLabels = {1:'I',2:'II',3:'III',4:'IV'};
-  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR));
-  const g = groups.find(x=>x.timId===timId && x.ikuNomor===ikuNomor) || {timId, ikuNomor, target:0, quarters:{1:null,2:null,3:null,4:null}};
+  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR), FILTER_YEAR);
+  const g = groups.find(x=>x.timId===timId && x.ikuNomor===ikuNomor) || { timId, ikuNomor, quarters:{1:null,2:null,3:null,4:null} };
+  const rec = findIkuTargetRecord(ikuNomor, FILTER_YEAR, timId);
+  const realisasiTahunanAwal = rec ? (rec.realisasiTahunan ?? '') : '';
 
   const rowsHtml = [1,2,3,4].map(q=>{
     const entry = g.quarters[q];
@@ -3046,15 +3106,18 @@ function openFraGroupModal(timId, ikuNomor){
     </div>`;
   }).join('');
 
-  const body = `
-    <div class="field"><label>Tim</label><input type="text" value="${escapeHtml(teamName(timId))}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
-    <div class="field"><label>No IKU</label><input type="text" value="${ikuNomor} — ${escapeHtml(fraIkuNamaByNo(ikuNomor))}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+  wrap.innerHTML = `
     ${rowsHtml}
+    <div class="field" style="margin-top:6px;border-top:1px solid var(--line);padding-top:14px;">
+      <label>Realisasi Tahunan (manual)</label>
+      <input type="number" id="fg_realisasiTahunan" value="${realisasiTahunanAwal}" min="0" step="0.00001" placeholder="mis. 596">
+      <div class="text-xs text-muted mt-8">Diisi manual, terpisah dari Realisasi TW I–IV. Menentukan Capaian Tahunan.</div>
+    </div>
   `;
-  const foot = `<button class="btn btn-outline" onclick="closeModal()">Batal</button><button class="btn btn-primary" onclick="saveFraGroup('${timId}','${ikuNomor}')">Simpan Semua Triwulan</button>`;
-  openModal(modalShell('Ubah Capaian — TW I s/d IV', body, foot));
 }
-async function saveFraGroup(timId, ikuNomor){
+async function saveFraGroup(){
+  const { timId, ikuNomor } = currentFraGroupSelection();
+  if(!timId || !ikuNomor){ toast('Pilih Tim & No IKU terlebih dahulu','err'); return; }
   const qLabels = {1:'I',2:'II',3:'III',4:'IV'};
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
@@ -3065,7 +3128,7 @@ async function saveFraGroup(timId, ikuNomor){
       const target = Number(input.dataset.target)||0;
       const entryId = input.dataset.entryid;
       const raw = input.value;
-      if(raw === '' && !entryId) continue; // TW ini tidak diisi & belum ada data -> lewati
+      if(raw === '' && !entryId) continue;
       if(!target){
         if(raw !== '') toast(`Target TW ${qLabels[q]} belum diatur Admin, TW ini dilewati`, 'err');
         continue;
@@ -3076,6 +3139,20 @@ async function saveFraGroup(timId, ikuNomor){
       if(entryId) await apiPut('fra', entryId, payload);
       else await apiPost('fra', payload);
     }
+
+    const realEl = document.getElementById('fg_realisasiTahunan');
+    const realisasiTahunan = realEl ? (Number(realEl.value)||0) : 0;
+    const rec = findIkuTargetRecord(ikuNomor, FILTER_YEAR, timId);
+    if(rec){
+      await apiPut('iku-targets', rec.id, {
+        ikuNomor: rec.ikuNomor, ikuNama: rec.ikuNama, tahun: rec.tahun, timId: rec.timId,
+        target: rec.target, targetTw1: rec.targetTw1, targetTw2: rec.targetTw2,
+        targetTw3: rec.targetTw3, targetTw4: rec.targetTw4, realisasiTahunan,
+      });
+    } else if(realEl && realEl.value !== ''){
+      toast('Realisasi Tahunan tidak tersimpan: Target IKU untuk kombinasi ini belum diatur di Kelola Target IKU','err');
+    }
+
     await loadAll();
     closeModal(); toast('Capaian tim disimpan','ok'); renderShell();
   }catch(e){
@@ -3084,7 +3161,7 @@ async function saveFraGroup(timId, ikuNomor){
   }
 }
 async function deleteFraGroup(timId, ikuNomor){
-  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR));
+  const groups = groupFraByTeamIku(DB.fra.filter(f=>!f.tahun || Number(f.tahun)===FILTER_YEAR), FILTER_YEAR);
   const g = groups.find(x=>x.timId===timId && x.ikuNomor===ikuNomor);
   const ids = g ? [1,2,3,4].map(q=>g.quarters[q]).filter(Boolean).map(e=>e.id) : [];
   if(!ids.length){ toast('Tidak ada data untuk dihapus','err'); return; }

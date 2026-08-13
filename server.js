@@ -459,7 +459,10 @@ function buildFraExportRows(user, query) {
 
   const qLabels = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' };
   return groups.map((g) => {
-    const totalRealisasi = [1, 2, 3, 4].reduce((s, q) => s + (g.quarters[q] ? Number(g.quarters[q].realisasi) || 0 : 0), 0);
+    const rec = findIkuTargetRecord(g.ikuNomor, tahun, g.timId);
+const totalRealisasi = (rec && rec.realisasiTahunan !== undefined && rec.realisasiTahunan !== null && rec.realisasiTahunan !== '')
+  ? (Number(rec.realisasiTahunan) || 0)
+  : [1, 2, 3, 4].reduce((s, q) => s + (g.quarters[q] ? Number(g.quarters[q].realisasi) || 0 : 0), 0);
     const totalCapaian = g.target ? Math.min(120, Math.round((totalRealisasi / g.target) * 10000) / 100) : 0;
     const row = {
       ikuNomor: g.ikuNomor || '-',
@@ -1087,7 +1090,7 @@ const ikuSchema = Joi.object({
 
 const ikuTargetSchema = Joi.object({
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
-  ikuNama: Joi.string().trim().max(250).allow('', null).default(''),   // BARU
+  ikuNama: Joi.string().trim().max(250).allow('', null).default(''),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
   timId: Joi.string().required(),
   target: Joi.number().min(0).required(),
@@ -1095,6 +1098,7 @@ const ikuTargetSchema = Joi.object({
   targetTw2: Joi.number().min(0).required(),
   targetTw3: Joi.number().min(0).required(),
   targetTw4: Joi.number().min(0).required(),
+  realisasiTahunan: Joi.number().min(0).default(0),
 });
 
 const userCreateSchema = Joi.object({
