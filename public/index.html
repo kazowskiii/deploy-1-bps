@@ -2391,10 +2391,10 @@ function renderPencapaianPage(){
     const isVirtual = !!k.__virtual;
     return `<tr>
       <td class="mono">${k.ikuNomor || '—'}</td>
-      <td style="min-width:190px; text-align:${k.rtl?'left':'center'};">${escapeHtml(k.rtl || '—')}</td>
+      <td style="min-width:220px; text-align:left;">${escapeHtml(ikuNamaByNoAny(k.ikuNomor) || '—')}</td>
       <td><span class="team-pill">${escapeHtml(teamName(k.timId))}</span></td>
       <td class="mono">${escapeHtml(k.periode||'—')}</td>
-      <td style="min-width:190px; text-align:left;">${escapeHtml(k.rtl || '—')}</td>
+      <td style="min-width:190px; text-align:${k.rtl?'left':'center'};">${escapeHtml(k.rtl || '—')}</td>
       <td>${statusPill(k.status)}</td>
       <td>${isVirtual ? `<span class="tag tag-danger">Belum ada bukti</span>` : evidenceCell(k,'kegiatan',null,'tl')}</td>
       <td style="min-width:170px;">${catatanTlCell(k)}</td>
