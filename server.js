@@ -34,6 +34,7 @@ const pool = new Pool({
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'simora-session-secret';
+const DB_FILE = 'Postgres (Neon) - tidak lagi memakai file JSON lokal'; // tambahan: cegah crash dari log lama
 
 const MAX_FILE_MB = 10;
 
@@ -136,14 +137,21 @@ async function startServer() {
   if (DB.settings.capaianGlobal === undefined || DB.settings.capaianGlobal === null) DB.settings.capaianGlobal = 120;
   await seedDefaultUsersIfEmpty();
 
+  backupDB();
+  setInterval(backupDB, 24 * 60 * 60 * 1000);
+
+  syncEvidenceFilesWithOneDrive();
+  setInterval(syncEvidenceFilesWithOneDrive, 20 * 60 * 1000);
+
+  sendReminderEmails();
+  setInterval(sendReminderEmails, 24 * 60 * 60 * 1000);
+
   app.listen(PORT, () => {
     console.log(`✓ SIMORA BPS berjalan di http://localhost:${PORT}`);
     console.log(`  Database    : Neon Postgres`);
     console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads'})`);
   });
 }
-
-startServer();
 let writeQueue = Promise.resolve();
 function saveDB() {
   writeQueue = writeQueue.then(() =>
@@ -175,13 +183,6 @@ async function backupDB() {
     console.error('Gagal membuat backup db:', err.message);
   }
 }
-
-backupDB();
-setInterval(backupDB, 24 * 60 * 60 * 1000);
-
-// BARU: cek berkas yang mungkin sudah dihapus manual di OneDrive, setiap 20 menit.
-syncEvidenceFilesWithOneDrive();
-setInterval(syncEvidenceFilesWithOneDrive, 20 * 60 * 1000);
 
 /**
  * Pengingat email (opsional).
@@ -246,10 +247,6 @@ async function sendReminderEmails() {
     }
   }
 }
-
-// Cek sekali saat start, lalu setiap hari sekali (fitur ini aman walau SMTP tidak diisi).
-sendReminderEmails();
-setInterval(sendReminderEmails, 24 * 60 * 60 * 1000);
 
 function findTeamIdByName(name) {
   const team = DB.teams.find((t) => t.name === name);
@@ -2088,8 +2085,18 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`✓ SIMORA BPS berjalan di http://localhost:${PORT}`);
-  console.log(`  Data JSON   : ${DB_FILE}`);
-  console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads'})`);
-});
+if (require.main === module) {
+  startServer();
+} else {
+  loadDB().then(async (loadedDB) => {
+    DB = loadedDB;
+    DB.users = DB.users || [];
+    DB.notifications = DB.notifications || [];
+    DB.ikuTargets = DB.ikuTargets || [];
+    DB.settings = DB.settings || { capaianGlobal: 120 };
+    if (DB.settings.capaianGlobal === undefined || DB.settings.capaianGlobal === null) DB.settings.capaianGlobal = 120;
+    await seedDefaultUsersIfEmpty();
+  });
+}
+
+module.exports = app;
