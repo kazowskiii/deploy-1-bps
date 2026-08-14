@@ -25,21 +25,17 @@ const PDFDocument = require('pdfkit');
 const onedrive = require('./onedrive');
 const bcrypt = require('bcryptjs');
 const { tanyaAI } = require('./groqService');
+const { Pool } = require('pg');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'simora-session-secret';
 
-const DATA_DIR = path.join(__dirname, 'data');
-const BACKUP_DIR = path.join(DATA_DIR, 'backup');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
 const MAX_FILE_MB = 10;
-
-function ensureDirectory(dir) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-ensureDirectory(DATA_DIR);
-ensureDirectory(BACKUP_DIR);
 
 function sanitizeText(value) {
   if (typeof value !== 'string') return value;
@@ -108,42 +104,73 @@ function backupCorruptedDb() {
   }
 }
 
-function loadDB() {
-  if (!fs.existsSync(DB_FILE)) {
-    const initial = createInitialDB();
-    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
-    return initial;
-  }
-  try {
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-  } catch (err) {
-    console.error('db.json rusak, membuat ulang dari kosong. Error:', err.message);
-    backupCorruptedDb();
-    const initial = createInitialDB();
-    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
-    return initial;
-  }
+async function ensureDbTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS simora_state (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+  `);
 }
 
-let DB = loadDB();
-DB.users = DB.users || [];
-DB.notifications = DB.notifications || [];
-DB.ikuTargets = DB.ikuTargets || [];
-DB.settings = DB.settings || { capaianGlobal: 120 };
-if (DB.settings.capaianGlobal === undefined || DB.settings.capaianGlobal === null) DB.settings.capaianGlobal = 120;
-seedDefaultUsersIfEmpty();
+async function loadDB() {
+  await ensureDbTable();
+  const { rows } = await pool.query('SELECT data FROM simora_state WHERE id = 1');
+  if (rows.length === 0) {
+    const initial = createInitialDB();
+    await pool.query('INSERT INTO simora_state (id, data) VALUES (1, $1)', [JSON.stringify(initial)]);
+    return initial;
+  }
+  return rows[0].data;
+}
+
+let DB;
+
+async function startServer() {
+  DB = await loadDB();
+  DB.users = DB.users || [];
+  DB.notifications = DB.notifications || [];
+  DB.ikuTargets = DB.ikuTargets || [];
+  DB.settings = DB.settings || { capaianGlobal: 120 };
+  if (DB.settings.capaianGlobal === undefined || DB.settings.capaianGlobal === null) DB.settings.capaianGlobal = 120;
+  await seedDefaultUsersIfEmpty();
+
+  app.listen(PORT, () => {
+    console.log(`✓ SIMORA BPS berjalan di http://localhost:${PORT}`);
+    console.log(`  Database    : Neon Postgres`);
+    console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads'})`);
+  });
+}
+
+startServer();
 let writeQueue = Promise.resolve();
 function saveDB() {
-  writeQueue = writeQueue.then(() => fs.promises.writeFile(DB_FILE, JSON.stringify(DB, null, 2)));
+  writeQueue = writeQueue.then(() =>
+    pool.query('UPDATE simora_state SET data = $1, updated_at = now() WHERE id = 1', [JSON.stringify(DB)])
+  );
   return writeQueue;
+}
+
+async function ensureBackupTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS simora_backups (
+      id SERIAL PRIMARY KEY,
+      data JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+  `);
 }
 
 async function backupDB() {
   try {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const backupFile = path.join(BACKUP_DIR, `db-backup-${timestamp}.json`);
-    await fs.promises.copyFile(DB_FILE, backupFile);
-    console.log('Backup db disimpan di', backupFile);
+    await ensureBackupTable();
+    await pool.query('INSERT INTO simora_backups (data) VALUES ($1)', [JSON.stringify(DB)]);
+    await pool.query(`
+      DELETE FROM simora_backups
+      WHERE id NOT IN (SELECT id FROM simora_backups ORDER BY created_at DESC LIMIT 30)
+    `);
+    console.log('Backup db disimpan di tabel simora_backups');
   } catch (err) {
     console.error('Gagal membuat backup db:', err.message);
   }
