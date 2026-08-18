@@ -3097,13 +3097,16 @@ function renderFraGroupBody(){
   const rec = findIkuTargetRecord(ikuNomor, FILTER_YEAR, timId);
   const realisasiTahunanAwal = rec ? (rec.realisasiTahunan ?? '') : '';
 
-  const rowsHtml = [1,2,3,4].map(q=>{
+    const rowsHtml = [1,2,3,4].map(q=>{
     const entry = g.quarters[q];
     const qTargetLive = findIkuTargetForQuarter(ikuNomor, FILTER_YEAR, timId, 'Triwulan '+qLabels[q]);
-    const qTarget = entry ? (Number(entry.target)||0) : (qTargetLive||0);
+    // qTargetLive null = Target IKU memang belum diatur Admin sama sekali.
+    // qTargetLive 0/angka = sudah diatur Admin (termasuk kalau nilainya sengaja 0).
+    const qTarget = entry ? (Number(entry.target)||0) : qTargetLive;
+    const qTargetSet = qTarget !== null && qTarget !== undefined;
     return `<div class="field-row" style="align-items:flex-end;">
-      <div class="field"><label>Target TW ${qLabels[q]}</label><input type="text" value="${qTarget?fmtNum(qTarget):'Belum diatur Admin'}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
-      <div class="field"><label>Realisasi TW ${qLabels[q]}</label><input type="number" id="fg_real_${q}" value="${entry?(entry.realisasi??''):''}" min="0" step="0.00001" placeholder="0" data-target="${qTarget}" data-entryid="${entry?entry.id:''}"></div>
+      <div class="field"><label>Target TW ${qLabels[q]}</label><input type="text" value="${qTargetSet?fmtNum(qTarget):'Belum diatur Admin'}" disabled style="background:var(--surface-2);color:var(--ink-muted);"></div>
+      <div class="field"><label>Realisasi TW ${qLabels[q]}</label><input type="number" id="fg_real_${q}" value="${entry?(entry.realisasi??''):''}" min="0" step="0.00001" placeholder="0" data-target="${qTargetSet?qTarget:''}" data-entryid="${entry?entry.id:''}"></div>
     </div>`;
   }).join('');
 
@@ -3123,19 +3126,21 @@ async function saveFraGroup(){
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }
   try{
-    for(const q of [1,2,3,4]){
+        for(const q of [1,2,3,4]){
       const input = document.getElementById('fg_real_'+q);
       if(!input) continue;
-      const target = Number(input.dataset.target)||0;
+      const targetRaw = input.dataset.target;
+      const targetSet = targetRaw !== ''; // '' berarti Target IKU memang belum diatur Admin
+      const target = targetSet ? (Number(targetRaw)||0) : 0;
       const entryId = input.dataset.entryid;
       const raw = input.value;
       if(raw === '' && !entryId) continue;
-      if(!target){
+      if(!targetSet){
         if(raw !== '') toast(`Target TW ${qLabels[q]} belum diatur Admin, TW ini dilewati`, 'err');
         continue;
       }
       const realisasi = Number(raw)||0;
-      const persentase = Math.min(120, Math.round((realisasi/target)*10000)/100);
+      const persentase = target ? Math.min(120, Math.round((realisasi/target)*10000)/100) : 0;
       const payload = { timId, periode:'Triwulan '+qLabels[q], ikuNomor, target, realisasi, persentase, tahun:FILTER_YEAR };
       if(entryId) await apiPut('fra', entryId, payload);
       else await apiPost('fra', payload);
@@ -3448,15 +3453,17 @@ function registerAutoAttachIfUploading(kind, collection, id){
   return false;
 }
 async function saveFra(id){
-  const timId = document.getElementById('f_tim').value;
+    const timId = document.getElementById('f_tim').value;
   const periode = document.getElementById('f_periode').value.trim();
   const ikuNomor = document.getElementById('f_ikuNomor').value;
-  const target = Number(document.getElementById('f_target').value)||0;
+  const targetRaw = document.getElementById('f_target').value;
+  const target = Number(targetRaw)||0;
   const realisasi = Number(document.getElementById('f_realisasi').value)||0;
   const persentase = Number(document.getElementById('f_persenPreview').value)||0;
   const tahun = Number(document.getElementById('f_tahun').value)||FILTER_YEAR;
   if(!periode || periode.length < 3){ toast('Periode wajib diisi, minimal 3 karakter (mis. Triwulan II 2026)','err'); return; }
-  if(!target){ toast('Target belum diatur Admin untuk No IKU & tahun ini. Hubungi Admin di menu Kelola Target IKU.','err'); return; }
+  // targetRaw === '' berarti Target IKU memang belum diatur Admin sama sekali.
+  if(targetRaw === ''){ toast('Target belum diatur Admin untuk No IKU & tahun ini. Hubungi Admin di menu Kelola Target IKU.','err'); return; }
   let payload = {timId, periode, ikuNomor, target, realisasi, persentase, tahun};
   const btn = document.querySelector('#modalOverlay .btn-primary');
   if(btn){ btn.disabled = true; btn.textContent = 'Menyimpan…'; }

@@ -1034,7 +1034,7 @@ const fraSchema = Joi.object({
   ikuNomor: Joi.string().trim().min(1).max(20).required(),
   namaKegiatan: Joi.string().trim().max(250).allow('', null),
   tanggalKegiatan: Joi.string().isoDate().allow('', null),
-  target: Joi.number().min(0.0001).required(),
+  target: Joi.number().min(0).required(),
   realisasi: Joi.number().min(0).required(),
   persentase: Joi.number().min(0).max(120).required(),
   tahun: Joi.number().integer().min(2020).max(2100).required(),
