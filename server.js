@@ -494,8 +494,8 @@ const totalRealisasi = (rec && rec.realisasiTahunan !== undefined && rec.realisa
     [1, 2, 3, 4].forEach((q) => {
       const entry = g.quarters[q];
       const record = findIkuTargetRecord(g.ikuNomor, tahun || (entry ? entry.tahun : new Date().getFullYear()), g.timId);
-      const qTarget = entry ? Number(entry.target) || 0 : (record ? Number(record['targetTw' + q]) || 0 : 0);
-      row['targetTw' + q] = qTarget ? String(qTarget) : '-';
+      const qTarget = entry ? (Number(entry.target) || 0) : (record ? (Number(record['targetTw' + q]) || 0) : null);
+      row['targetTw' + q] = (qTarget === null || qTarget === undefined) ? '-' : String(qTarget);
       row['realisasiTw' + q] = entry ? String(Number(entry.realisasi) || 0) : '-';
       row['capaianTw' + q] = entry ? `${Number(entry.persentase) || 0}%` : '-';
     });
