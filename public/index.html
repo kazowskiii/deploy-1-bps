@@ -1620,6 +1620,10 @@ function openProfileModal(){
     <div class="field"><label>Username</label><input type="text" id="pf_username" value="${escapeHtml(u.username)}"></div>
     <div class="field"><label>Email</label><input type="text" id="pf_email" value="${escapeHtml(u.email)}"></div>
     <div class="field">
+      <label>Role</label>
+      <div><span class="tag ${u.role==='admin'?'tag-primary':'tag-muted'}">${u.role==='admin'?'Admin':'Operator'}</span></div>
+    </div>
+    <div class="field">
       <label>Kata Sandi</label>
       <div class="flex gap-8 items-center">
         <input type="password" value="********" disabled style="background:var(--surface-2);color:var(--ink-muted);flex:1;">

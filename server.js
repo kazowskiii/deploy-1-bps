@@ -1,17 +1,4 @@
-﻿/**
- * SIMORA BPS — Sistem Monitoring & Evaluasi Kinerja
- * Backend server: Express + penyimpanan file lokal di server (folder /uploads)
- * Database sederhana disimpan sebagai JSON di /data/db.json
- * Autentikasi session, validasi input, backup harian, export JSON/Excel/PDF,
- * dan audit log.
- *
- * Menjalankan:
- *   npm install
- *   npm start
- * Lalu buka http://localhost:3000
- */
-
-require('dotenv').config();
+﻿require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const multer = require('multer');
