@@ -30,6 +30,13 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
+// PENTING: tanpa listener ini, error idle-client (mis. koneksi ke Neon
+// terputus/auto-suspend) akan jadi uncaught exception dan mematikan
+// seluruh proses Node. Dengan listener ini, error cukup dicatat di log
+// dan pool akan membuat koneksi baru saat dibutuhkan lagi.
+pool.on('error', (err) => {
+  console.error('[Postgres pool] Koneksi idle bermasalah (server tetap berjalan):', err.message);
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -1191,13 +1198,20 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: false, limit: '64kb' }));
 app.set('trust proxy', 1);
+// secure:true hanya aman/berfungsi kalau diakses lewat HTTPS (mis. di Railway).
+// Saat dijalankan lokal (http://localhost) cookie "Secure" bisa gagal
+// tersimpan/terkirim, sehingga sesi login tidak dikenali server (401 "Login
+// diperlukan") walau tampilan frontend masih menunjukkan status login lama.
+// IS_PRODUCTION otomatis true di Railway (NODE_ENV=production), dan false
+// saat dijalankan lokal — jadi tidak perlu diubah manual tiap ganti environment.
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { 
     maxAge: undefined,   // tidak ada masa berlaku tetap = "session cookie"
-    secure: true,         // wajib HTTPS (aman karena Railway sudah HTTPS)
+    secure: IS_PRODUCTION, // wajib HTTPS hanya di production (Railway); http://localhost tetap bisa login
     httpOnly: true        // cookie tidak bisa diakses lewat JavaScript (lebih aman)
   }
 }));
