@@ -27,7 +27,7 @@ pool.on('error', (err) => {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'simora-session-secret';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'simamora-session-secret';
 const DB_FILE = 'Postgres (Neon) - tidak lagi memakai file JSON lokal'; // tambahan: cegah crash dari log lama
 
 const MAX_FILE_MB = 10;
@@ -101,7 +101,7 @@ function backupCorruptedDb() {
 
 async function ensureDbTable() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS simora_state (
+    CREATE TABLE IF NOT EXISTS simamora_state (
       id INTEGER PRIMARY KEY DEFAULT 1,
       data JSONB NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
@@ -111,10 +111,10 @@ async function ensureDbTable() {
 
 async function loadDB() {
   await ensureDbTable();
-  const { rows } = await pool.query('SELECT data FROM simora_state WHERE id = 1');
+  const { rows } = await pool.query('SELECT data FROM simamora_state WHERE id = 1');
   if (rows.length === 0) {
     const initial = createInitialDB();
-    await pool.query('INSERT INTO simora_state (id, data) VALUES (1, $1)', [JSON.stringify(initial)]);
+    await pool.query('INSERT INTO simamora_state (id, data) VALUES (1, $1)', [JSON.stringify(initial)]);
     return initial;
   }
   return rows[0].data;
@@ -141,22 +141,22 @@ async function startServer() {
   setInterval(sendReminderEmails, 24 * 60 * 60 * 1000);
 
   app.listen(PORT, () => {
-    console.log(`✓ SIMORA BPS berjalan di http://localhost:${PORT}`);
+    console.log(`✓ SIMAMORA BPS berjalan di http://localhost:${PORT}`);
     console.log(`  Database    : Neon Postgres`);
-    console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads'})`);
+    console.log(`  Berkas bukti: OneDrive (${process.env.ONEDRIVE_USER || 'ONEDRIVE_USER belum diisi di .env'} / ${process.env.ONEDRIVE_FOLDER || 'SIMAMORA-Uploads'})`);
   });
 }
 let writeQueue = Promise.resolve();
 function saveDB() {
   writeQueue = writeQueue.then(() =>
-    pool.query('UPDATE simora_state SET data = $1, updated_at = now() WHERE id = 1', [JSON.stringify(DB)])
+    pool.query('UPDATE simamora_state SET data = $1, updated_at = now() WHERE id = 1', [JSON.stringify(DB)])
   );
   return writeQueue;
 }
 
 async function ensureBackupTable() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS simora_backups (
+    CREATE TABLE IF NOT EXISTS simamora_backups (
       id SERIAL PRIMARY KEY,
       data JSONB NOT NULL,
       created_at TIMESTAMPTZ DEFAULT now()
@@ -167,12 +167,12 @@ async function ensureBackupTable() {
 async function backupDB() {
   try {
     await ensureBackupTable();
-    await pool.query('INSERT INTO simora_backups (data) VALUES ($1)', [JSON.stringify(DB)]);
+    await pool.query('INSERT INTO simamora_backups (data) VALUES ($1)', [JSON.stringify(DB)]);
     await pool.query(`
-      DELETE FROM simora_backups
-      WHERE id NOT IN (SELECT id FROM simora_backups ORDER BY created_at DESC LIMIT 30)
+      DELETE FROM simamora_backups
+      WHERE id NOT IN (SELECT id FROM simamora_backups ORDER BY created_at DESC LIMIT 30)
     `);
-    console.log('Backup db disimpan di tabel simora_backups');
+    console.log('Backup db disimpan di tabel simamora_backups');
   } catch (err) {
     console.error('Gagal membuat backup db:', err.message);
   }
@@ -232,8 +232,8 @@ async function sendReminderEmails() {
       await transporter.sendMail({
         from: SMTP_FROM || SMTP_USER,
         to,
-        subject: `[SIMORA] Pengingat: realisasi ${tasks[0].quarterLabel} belum diisi`,
-        text: `Halo ${timName},\n\nBerikut tugas yang belum diisi realisasinya untuk triwulan berjalan (H-${daysLeft}):\n\n${list}\n\nMohon segera dilengkapi di SIMORA.\n\n— Sistem SIMORA BPS`,
+        subject: `[SIMAMORA] Pengingat: realisasi ${tasks[0].quarterLabel} belum diisi`,
+        text: `Halo ${timName},\n\nBerikut tugas yang belum diisi realisasinya untuk triwulan berjalan (H-${daysLeft}):\n\n${list}\n\nMohon segera dilengkapi di SIMAMORA.\n\n— Sistem SIMAMORA BPS`,
       });
       console.log(`Pengingat email terkirim ke ${to} (${timName})`);
     } catch (err) {
@@ -330,14 +330,14 @@ const PDF_TITLES = {
 };
 const EXPORT_VIEW_META = {
   pencapaian: {
-    filename: 'simora-tl-tw-sebelumnya',
+    filename: 'simamora-tl-tw-sebelumnya',
     title: 'Laporan TL TW Sebelumnya — Bukti Tindak Lanjut',
   },
 };
 function resolveExportMeta(collection, view) {
   if (view && EXPORT_VIEW_META[view]) return EXPORT_VIEW_META[view];
   return {
-    filename: collection ? `simora-${collection}` : 'simora-all',
+    filename: collection ? `simamora-${collection}` : 'simamora-all',
     title: PDF_TITLES[collection] || `Laporan ${String(collection || '').toUpperCase()}`,
   };
 }
@@ -772,7 +772,7 @@ function drawPdfCover(doc, title) {
     timeZone: 'Asia/Jakarta',
   });
   doc.font('Helvetica').fontSize(10.5).fillColor('#5B6B78')
-    .text(`Dicetak melalui SIMORA BPS pada ${printedAt}`, 40, cursorY, {
+    .text(`Dicetak melalui SIMAMORA BPS pada ${printedAt}`, 40, cursorY, {
       align: 'center', width: pageWidth - 80,
     });
 
@@ -1860,7 +1860,7 @@ app.get('/auth/redirect', requireLogin, requireAdmin, async (req, res) => {
   }
   try {
     await onedrive.exchangeCodeForTokens(code);
-    res.send('<h2>OneDrive berhasil terhubung.</h2><p>Anda bisa menutup tab ini dan kembali ke aplikasi SIMORA.</p>');
+    res.send('<h2>OneDrive berhasil terhubung.</h2><p>Anda bisa menutup tab ini dan kembali ke aplikasi SIMAMORA.</p>');
   } catch (err) {
     console.error('Gagal menghubungkan OneDrive:', err.message);
     res.status(500).send(`Gagal menghubungkan OneDrive: ${err.message}`);
@@ -1868,13 +1868,13 @@ app.get('/auth/redirect', requireLogin, requireAdmin, async (req, res) => {
 });
 
 // Pemetaan modul -> nama folder OneDrive. Kalau kind tidak dikenali/tidak
-// dikirim, jatuh ke folder default (ONEDRIVE_FOLDER di .env / 'SIMORA-Uploads').
+// dikirim, jatuh ke folder default (ONEDRIVE_FOLDER di .env / 'SIMAMORA-Uploads').
 const UPLOAD_FOLDER_BY_KIND = {
-  fra: 'SIMORA-FRA',
-  iku: 'SIMORA-IKU',
-  tugas: 'SIMORA-Tugas',
-  kegiatan: 'SIMORA-Kegiatan',
-  pencapaian: 'SIMORA-TL-Sebelumnya',
+  fra: 'SIMAMORA-FRA',
+  iku: 'SIMAMORA-IKU',
+  tugas: 'SIMAMORA-Tugas',
+  kegiatan: 'SIMAMORA-Kegiatan',
+  pencapaian: 'SIMAMORA-TL-Sebelumnya',
 };
 
 const TRIWULAN_ROMAN_TO_ARABIC = { I: 1, II: 2, III: 3, IV: 4 };
@@ -1890,8 +1890,8 @@ function periodeToTriwulanNumber(periode) {
 const TUGAS_QKEY_TO_ARABIC = { q1: 1, q2: 2, q3: 3, q4: 4 };
 
 // Untuk FRA: kalau periode & ikuNomor valid, arahkan ke folder bertingkat
-// "SIMORA-FRA/Triwulan {n}/IKU {n}".
-// Untuk Tugas: kalau triwulan valid, arahkan ke "SIMORA-Tugas/Triwulan {n}".
+// "SIMAMORA-FRA/Triwulan {n}/IKU {n}".
+// Untuk Tugas: kalau triwulan valid, arahkan ke "SIMAMORA-Tugas/Triwulan {n}".
 // Modul lain tetap folder flat seperti biasa.
 // Nama folder OneDrive tidak boleh mengandung karakter tertentu (" \ / : * ? < > |)
 function sanitizeFolderSegment(name) {
@@ -1906,9 +1906,9 @@ function buildUploadFolder(kind, meta) {
   if (!baseFolder) return undefined; // kind tak dikenal -> onedrive.js pakai folder default
 
   if (kind === 'fra' || kind === 'kegiatan' || kind === 'pencapaian') {
-    // SIMORA-{tahun}/{baseFolder}/Triwulan {n}/{Nama Tim}/IKU {kode}
+    // SIMAMORA-{tahun}/{baseFolder}/Triwulan {n}/{Nama Tim}/IKU {kode}
     const tahunNum = parseInt(meta.tahun, 10);
-    const yearPrefix = tahunNum ? `SIMORA-${tahunNum}/` : '';
+    const yearPrefix = tahunNum ? `SIMAMORA-${tahunNum}/` : '';
     const triwulanNum = periodeToTriwulanNumber(meta.periode);
     const ikuKode = String(meta.ikuNomor || '').trim();
     const teamSegment = meta.timId ? sanitizeFolderSegment(teamNameServer(meta.timId)) : '';
@@ -1952,7 +1952,7 @@ app.post('/api/upload', requireLogin, (req, res) => {
       const tahun = sanitizeText(req.body.tahun || '');
       const timId = sanitizeText(req.body.timId || '');           // BARU
       const folder = buildUploadFolder(kind, { periode, ikuNomor, triwulan, tahun, timId }); // timId ditambahkan
-      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMORA-Uploads')}`);
+      console.log(`[Upload] kind="${kind}" periode="${periode}" ikuNomor="${ikuNomor}" triwulan="${triwulan}" -> folder tujuan: ${folder || '(default) ' + (process.env.ONEDRIVE_FOLDER || 'SIMAMORA-Uploads')}`);
       const item = await onedrive.uploadFile(req.file.buffer, storedName, folder);
       // "filename" yang dikembalikan sekarang adalah ID item OneDrive
       // (bukan lagi nama file di disk lokal), dipakai untuk lihat/hapus berkas.

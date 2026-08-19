@@ -7,7 +7,7 @@ async function tanyaAI(question, contextData = {}) {
     throw new Error("GROQ_API_KEY belum dikonfigurasi di server");
   }
 
-  const systemPrompt = `Kamu adalah asisten AI untuk aplikasi SIMORA BPS (Sistem Monitoring Kinerja).
+  const systemPrompt = `Kamu adalah asisten AI untuk aplikasi SIMAMORA BPS (Sistem Monitoring Kinerja).
 Jawablah pertanyaan seputar data kinerja tim, realisasi kerja, kendala, solusi, dan RTL berdasarkan data berikut.
 Jawab singkat, jelas, dalam Bahasa Indonesia.
 

@@ -1,8 +1,8 @@
 {
-  "name": "simora-bps-server",
+  "name": "simamora-bps-server",
   "version": "1.0.0",
   "private": true,
-  "description": "SIMORA BPS - Sistem Monitoring & Evaluasi Kinerja (backend + penyimpanan file di server)",
+  "description": "SIMAMORA BPS - Sistem Monitoring & Evaluasi Kinerja (backend + penyimpanan file di server)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

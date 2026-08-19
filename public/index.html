@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SIMORA BPS — Sistem Monitoring &amp; Evaluasi Kinerja</title>
+<title>SIMAMORA BPS — Sistem Monitoring &amp; Evaluasi Kinerja</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -530,7 +530,7 @@ tbody tr:last-child td{border-bottom:none;}
 
 <div class="loading-screen" id="loadingScreen">
   <div class="spinner"></div>
-  <div style="font-size:12.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;">Memuat SIMORA…</div>
+  <div style="font-size:12.5px;color:var(--ink-muted);font-family:'IBM Plex Mono',monospace;">Memuat SIMAMORA…</div>
 </div>
 
 <div id="app" style="display:none;"></div>
@@ -538,7 +538,7 @@ tbody tr:last-child td{border-bottom:none;}
 
 <script>
 /* ============================================================
-   SIMORA BPS — Sistem Monitoring & Evaluasi Kinerja
+   SIMAMORA BPS — Sistem Monitoring & Evaluasi Kinerja
    Frontend ini berkomunikasi dengan backend Express (server.js).
    Data disimpan di data/db.json, berkas bukti dukung di /uploads.
    ============================================================ */
@@ -569,7 +569,7 @@ const ICONS = {
   panduan:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>',
 };
 
-// Ganti URL ini dengan link "Share" / embed AnyFlip buku panduan SIMORA yang sudah dipublikasikan.
+// Ganti URL ini dengan link "Share" / embed AnyFlip buku panduan SIMAMORA yang sudah dipublikasikan.
 // Cara ambil linknya: buka buku di AnyFlip -> tombol Share -> salin URL di kolom "Embed"/"Link".
 const PANDUAN_URL = 'https://anyflip.com/ekvne/imtk/';
 
@@ -941,7 +941,7 @@ function renderSetupPage(){
             <img src="/assets/logo-bps-icon.png" alt="Logo BPS" style="width:26px;height:26px;object-fit:contain;">
             </div>
             <div>
-              <div class="lb-name">SIMORA</div>
+              <div class="lb-name">SIMAMORA</div>
               <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
             </div>
           </div>
@@ -1003,7 +1003,7 @@ function renderLoginPage(){
               <img src="/assets/logo-bps-icon.png" alt="Logo BPS" style="width:26px;height:26px;object-fit:contain;">
             </div>
             <div>
-              <div class="lb-name">SIMORA</div>
+              <div class="lb-name">SIMAMORA</div>
               <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
             </div>
           </div>
@@ -1014,7 +1014,7 @@ function renderLoginPage(){
   <div class="field"><label>Username atau Email</label><input id="loginUsername" name="username" type="text" autocomplete="username" placeholder="username atau nama@bps.go.id" value="" required></div>
   <div class="field"><label>Kata sandi</label><input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
             <button class="btn-login" type="submit">
-              Masuk ke SIMORA
+              Masuk ke SIMAMORA
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </form>
@@ -1037,7 +1037,7 @@ function renderRegisterPage(){
         <div class="l2">Kabupaten Kepulauan Anambas</div>
       </div>
       </div>
-        <h1>Bergabung dengan<br>SIMORA BPS.</h1>
+        <h1>Bergabung dengan<br>SIMAMORA BPS.</h1>
         <p class="lede">Daftarkan akun untuk mulai memantau IKU, tugas tim, FRA, dan tindak lanjut kegiatan timmu.</p>
         <div class="login-shield">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.4 8.5-8 10-4.6-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
@@ -1051,7 +1051,7 @@ function renderRegisterPage(){
               <img src="/assets/logo-bps-icon.png" alt="Logo BPS" style="width:26px;height:26px;object-fit:contain;">
             </div>
             <div>
-              <div class="lb-name">SIMORA</div>
+              <div class="lb-name">SIMAMORA</div>
               <div class="lb-org">BPS Kabupaten Kepulauan Anambas</div>
             </div>
           </div>
@@ -1464,7 +1464,7 @@ function renderShell(){
         <div class="brand-mark">
           <div class="brand-seal">BPS</div>
           <div class="brand-text">
-            <div class="t1">SIMORA</div>
+            <div class="t1">SIMAMORA</div>
             <div class="t2">Monitoring Kinerja</div>
           </div>
         </div>
@@ -1487,7 +1487,7 @@ function renderShell(){
         ${navItem('panduan','panduan','Buku Panduan')}
       </div>
       <div class="sidebar-foot">
-        Data &amp; berkas bukti dukung tersimpan di server ini (folder /data &amp; /uploads).<br>SIMORA BPS · v1.0
+        Data &amp; berkas bukti dukung tersimpan di server ini (folder /data &amp; /uploads).<br>SIMAMORA BPS · v1.0
       </div>
     </div>
     <div class="main">
@@ -1517,7 +1517,7 @@ function renderTopbar(){
     users:['Kelola User','Daftar akun pengguna: admin dan operator per tim'],
         ikutarget:['Kelola Target IKU','Atur target capaian setiap No IKU per tahun — terkunci untuk operator'],
     audit:['Riwayat Aktivitas','Log audit untuk melihat perubahan data oleh pengguna'],
-    panduan:['Buku Panduan','Panduan penggunaan aplikasi SIMORA'],
+    panduan:['Buku Panduan','Panduan penggunaan aplikasi SIMAMORA'],
   };
   const [t, sub] = titles[ROUTE];
   // Halaman yang datanya difilter per tahun tapi dropdown-nya sudah dipindah ke Dashboard —
@@ -1806,7 +1806,7 @@ function renderPanduanPage(){
     <div class="card" style="padding:0;overflow:hidden;">
       <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
-          <div style="font-weight:600;">Buku Panduan Penggunaan SIMORA</div>
+          <div style="font-weight:600;">Buku Panduan Penggunaan SIMAMORA</div>
           <div style="color:var(--ink-muted);font-size:12.5px;">Geser halaman seperti buku digital untuk mempelajari cara menggunakan aplikasi.</div>
         </div>
         <a href="${PANDUAN_URL}" target="_blank" rel="noopener" class="btn btn-outline" style="text-decoration:none;">Buka di Tab Baru</a>
@@ -1816,7 +1816,7 @@ function renderPanduanPage(){
           src="${PANDUAN_URL}"
           allowfullscreen
           style="position:absolute;inset:0;width:100%;height:100%;border:0;"
-          title="Buku Panduan SIMORA">
+          title="Buku Panduan SIMAMORA">
         </iframe>
       </div>
     </div>
@@ -3928,14 +3928,14 @@ function wireDynamic(){ /* reserved for future dynamic listeners */ }
     <div id="tanya-ai-panel">
       <div id="tanya-ai-header">
         <div>
-          <h3>Tanya AI SIMORA</h3>
+          <h3>Tanya AI SIMAMORA</h3>
           <p>Bertanya soal data kinerja tim</p>
         </div>
         <button id="tanya-ai-close" onclick="toggleTanyaAI()">✕</button>
       </div>
       <div id="tanya-ai-messages"></div>
       <div id="tanya-ai-inputbar">
-        <input id="tanya-ai-input" type="text" placeholder="Tanya soal data SIMORA..." onkeydown="if(event.key==='Enter') kirimTanyaAI()">
+        <input id="tanya-ai-input" type="text" placeholder="Tanya soal data SIMAMORA..." onkeydown="if(event.key==='Enter') kirimTanyaAI()">
         <button id="tanya-ai-send" onclick="kirimTanyaAI()">Kirim</button>
       </div>
     </div>
