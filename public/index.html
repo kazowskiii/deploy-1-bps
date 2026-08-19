@@ -569,15 +569,8 @@ const ICONS = {
   panduan:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>',
 };
 
-// Konfigurasi Buku Panduan (flipbook self-hosted, tidak bergantung ke AnyFlip/pihak ketiga).
-// PANDUAN_PDF_URL: file PDF asli, dipakai untuk tombol download/"Buka di Tab Baru".
-// PANDUAN_TOTAL_PAGES: jumlah halaman gambar yang ada di /assets/panduan/pages/page-XX.jpg
-// PANDUAN_PAGE_URL(n): pola nama file gambar tiap halaman.
-const PANDUAN_PDF_URL = '/assets/panduan/Buku_Panduan_SIMORA.pdf';
-const PANDUAN_TOTAL_PAGES = 15;
-function PANDUAN_PAGE_URL(n){
-  return `/assets/panduan/pages/page-${String(n).padStart(2,'0')}.jpg`;
-}
+// Konfigurasi Buku Panduan — PDF di-hosting sendiri di server SIMORA (bukan pihak ketiga).
+const PANDUAN_PDF_URL = '/assets/panduan/Buku_Panduan_SIMMAORA.pdf';
 
 const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
 const FRA_IKU_LIST = [
@@ -1797,12 +1790,35 @@ function renderContent(){
   else if(ROUTE==='kegiatan') c.innerHTML = renderKegiatanListPage();
   else if(ROUTE==='pencapaian') c.innerHTML = renderPencapaianPage();
   else if(ROUTE==='tim') c.innerHTML = renderTimPage();
-    else if(ROUTE==='users') c.innerHTML = renderUserPage();
+      else if(ROUTE==='users') c.innerHTML = renderUserPage();
   else if(ROUTE==='ikutarget') c.innerHTML = renderIkuTargetPage();
   else if(ROUTE==='audit') c.innerHTML = renderAuditPage();
   else if(ROUTE==='panduan') c.innerHTML = renderPanduanPage();
   wireDynamic();
-  if(ROUTE==='panduan') initPanduanFlipbook();
+}
+
+/* ============================================================
+   BUKU PANDUAN — PDF self-hosted (langsung dari server SIMORA)
+   ============================================================ */
+function renderPanduanPage(){
+  return `
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:600;">Buku Panduan Penggunaan SIMORA</div>
+          <div style="color:var(--ink-muted);font-size:12.5px;">Panduan lengkap penggunaan aplikasi, dapat dibaca langsung atau diunduh.</div>
+        </div>
+        <a href="${PANDUAN_PDF_URL}" target="_blank" rel="noopener" class="btn btn-outline" style="text-decoration:none;">Buka di Tab Baru</a>
+      </div>
+      <div style="position:relative;width:100%;padding-top:130%;background:var(--surface-2);">
+        <iframe
+          src="${PANDUAN_PDF_URL}"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0;"
+          title="Buku Panduan SIMORA">
+        </iframe>
+      </div>
+    </div>
+  `;
 }
 
 /* ============================================================
