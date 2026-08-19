@@ -570,7 +570,7 @@ const ICONS = {
 };
 
 // Konfigurasi Buku Panduan — PDF di-hosting sendiri di server SIMORA (bukan pihak ketiga).
-const PANDUAN_PDF_URL = 'public/assets/panduan/Buku_Panduan_SIMAMORA.pdf';
+const PANDUAN_PDF_URL = '/assets/panduan/Buku_Panduan_SIMAMORA.pdf';
 
 const TRIWULAN_LABELS = {q1:'Triwulan I',q2:'Triwulan II',q3:'Triwulan III',q4:'Triwulan IV'};
 const FRA_IKU_LIST = [
@@ -1819,109 +1819,6 @@ function renderPanduanPage(){
       </div>
     </div>
   `;
-}
-
-/* ============================================================
-   BUKU PANDUAN — flipbook self-hosted (page-flip.js, tanpa pihak ketiga)
-   ============================================================ */
-function renderPanduanPage(){
-  return `
-    <div class="card" style="padding:0;overflow:hidden;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div>
-          <div style="font-weight:600;">Buku Panduan Penggunaan SIMORA</div>
-          <div style="color:var(--ink-muted);font-size:12.5px;">Geser atau klik tepi halaman untuk membuka, seperti buku digital.</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-outline" onclick="panduanFullscreen()">Layar Penuh</button>
-          <a href="${PANDUAN_PDF_URL}" target="_blank" rel="noopener" class="btn btn-outline" style="text-decoration:none;">Unduh PDF</a>
-        </div>
-      </div>
-      <div id="panduanWrap" style="position:relative;width:100%;min-height:420px;background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 12px;gap:16px;">
-        <div id="panduanLoading" style="color:var(--ink-muted);font-size:13px;">Memuat buku panduan…</div>
-        <div id="panduanBook" style="display:none;"></div>
-        <div id="panduanControls" style="display:none;align-items:center;gap:14px;">
-          <button class="btn btn-outline" onclick="panduanPrev()" title="Halaman sebelumnya">&larr;</button>
-          <div style="font-size:12.5px;color:var(--ink-muted);min-width:80px;text-align:center;">
-            Hal. <span id="panduanCurrentPage">1</span> / ${PANDUAN_TOTAL_PAGES}
-          </div>
-          <button class="btn btn-outline" onclick="panduanNext()" title="Halaman berikutnya">&rarr;</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-let PANDUAN_INSTANCE = null;
-
-function initPanduanFlipbook(){
-  const start = () => {
-    const bookEl = document.getElementById('panduanBook');
-    const loadingEl = document.getElementById('panduanLoading');
-    const controlsEl = document.getElementById('panduanControls');
-    if(!bookEl || typeof St === 'undefined') return;
-
-    const wrap = document.getElementById('panduanWrap');
-    const isNarrow = wrap && wrap.clientWidth < 720;
-    const pageW = isNarrow ? Math.min(340, wrap.clientWidth - 24) : 420;
-    const pageH = Math.round(pageW * 1.414);
-
-    PANDUAN_INSTANCE = new St.PageFlip(bookEl, {
-      width: pageW,
-      height: pageH,
-      size: 'fixed',
-      minWidth: 260,
-      maxWidth: 600,
-      minHeight: 360,
-      maxHeight: 850,
-      showCover: true,
-      usePortrait: isNarrow,
-      maxShadowOpacity: 0.5,
-      mobileScrollSupport: true,
-      useMouseEvents: true,
-    });
-
-    const pages = [];
-    for(let i=1;i<=PANDUAN_TOTAL_PAGES;i++) pages.push(PANDUAN_PAGE_URL(i));
-
-    PANDUAN_INSTANCE.loadFromImages(pages);
-    PANDUAN_INSTANCE.on('flip', (e)=>{
-      const el = document.getElementById('panduanCurrentPage');
-      if(el) el.textContent = (e.data + 1);
-    });
-
-    loadingEl.style.display = 'none';
-    bookEl.style.display = 'block';
-    controlsEl.style.display = 'flex';
-  };
-
-  if(typeof St !== 'undefined'){
-    start();
-    return;
-  }
-  const existing = document.getElementById('panduanVendorScript');
-  if(existing){
-    existing.addEventListener('load', start);
-    return;
-  }
-  const s = document.createElement('script');
-  s.id = 'panduanVendorScript';
-  s.src = '/vendor/page-flip.browser.js';
-  s.onload = start;
-  s.onerror = () => {
-    const loadingEl = document.getElementById('panduanLoading');
-    if(loadingEl) loadingEl.textContent = 'Gagal memuat buku panduan. Coba muat ulang halaman.';
-  };
-  document.body.appendChild(s);
-}
-
-function panduanNext(){ if(PANDUAN_INSTANCE) PANDUAN_INSTANCE.flipNext(); }
-function panduanPrev(){ if(PANDUAN_INSTANCE) PANDUAN_INSTANCE.flipPrev(); }
-function panduanFullscreen(){
-  const el = document.getElementById('panduanWrap');
-  if(!el) return;
-  if(el.requestFullscreen) el.requestFullscreen();
-  else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
 }
 
 /* ============================================================
