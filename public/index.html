@@ -1626,9 +1626,15 @@ function openProfileModal(){
   const body = `
     <div class="field"><label>Username</label><input type="text" id="pf_username" value="${escapeHtml(u.username)}"></div>
     <div class="field"><label>Email</label><input type="text" id="pf_email" value="${escapeHtml(u.email)}"></div>
-    <div class="field">
-      <label>Role</label>
-      <div><span class="tag ${u.role==='admin'?'tag-primary':'tag-muted'}">${u.role==='admin'?'Admin':'Operator'}</span></div>
+        <div class="field-row">
+      <div class="field">
+        <label>Role</label>
+        <div><span class="tag ${u.role==='admin'?'tag-primary':'tag-muted'}">${u.role==='admin'?'Admin':'Operator'}</span></div>
+      </div>
+      <div class="field">
+        <label>Tim</label>
+        <div>${u.teamId ? `<span class="team-pill">${escapeHtml(teamName(u.teamId))}</span>` : '<span class="text-muted text-xs">—</span>'}</div>
+      </div>
     </div>
     <div class="field">
       <label>Kata Sandi</label>
